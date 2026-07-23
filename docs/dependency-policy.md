@@ -66,6 +66,7 @@ Research date: 2026-07-23
 | Prometheus Go             | `/prometheus/client_golang`      | `client_golang` 1.24.0    | Bounded HTTP metrics and exposition                                                              |
 | PostgreSQL image          | official image source            | 18.4-alpine3.24           | Exact local development database image                                                           |
 | Redis image               | official image source            | 8.8.0-alpine3.23          | Exact local ephemeral-store image                                                                |
+| Secret scanning           | official release source          | Gitleaks 8.30.1           | License-independent CLI scan of complete Git history                                             |
 
 All installed versions are exact in manifests and lockfiles. GitHub Actions are
 pinned to immutable commit SHAs and annotated with their release line.
