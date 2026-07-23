@@ -1,0 +1,29 @@
+[
+  {
+    "version": 1,
+    "type": "chat.generate",
+    "eventId": "evt_user_generate_01",
+    "requestId": "req_user_01",
+    "idempotencyKey": "idem_user_generate_0001",
+    "occurredAt": "2026-07-23T20:10:00Z",
+    "payload": {
+      "conversationId": "018f0000-0000-7000-8000-000000000101",
+      "content": "Give me a concise PostgreSQL transaction example."
+    }
+  },
+  {
+    "version": 1,
+    "type": "chat.completed",
+    "eventId": "evt_user_completed_01",
+    "requestId": "req_user_01",
+    "sequence": 18,
+    "occurredAt": "2026-07-23T20:10:02Z",
+    "payload": {
+      "generationId": "018f0000-0000-7000-8000-000000000102",
+      "assistantMessageId": "018f0000-0000-7000-8000-000000000103",
+      "usage": {"inputTokens": 12, "outputTokens": 88, "cachedTokens": 0},
+      "finishReason": "stop"
+    }
+  }
+]
+

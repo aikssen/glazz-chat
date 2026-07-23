@@ -1,0 +1,991 @@
+openapi: 3.1.0
+info:
+  title: Glazz API
+  version: 1.0.0-m0
+  summary: HTTP contract for the Glazz MVP
+  description: |
+    Source of truth for Glazz HTTP resources. Chat generation is commanded over
+    the versioned WebSocket protocol. Provider-specific concepts are private.
+  contact:
+    name: Glazz Engineering
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development
+  - url: https://api.glazz.hlab.sh/api/v1
+    description: Production placeholder
+tags:
+  - name: Runtime
+  - name: Guests
+  - name: Authentication
+  - name: Conversations
+  - name: Usage
+  - name: Administration
+security:
+  - accessCookie: []
+paths:
+  /health/live:
+    get:
+      tags: [Runtime]
+      summary: Check process liveness
+      operationId: getLiveness
+      security: []
+      responses:
+        "200":
+          description: Process is alive.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Health"
+              example: {status: ok}
+  /health/ready:
+    get:
+      tags: [Runtime]
+      summary: Check dependency readiness
+      operationId: getReadiness
+      security: []
+      responses:
+        "200":
+          description: Required dependencies are ready.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Readiness"
+        "503":
+          $ref: "#/components/responses/ServiceUnavailable"
+  /config/public:
+    get:
+      tags: [Runtime]
+      summary: Get public runtime configuration
+      operationId: getPublicConfig
+      security: []
+      responses:
+        "200":
+          description: Non-sensitive runtime policy.
+          headers:
+            Cache-Control:
+              schema: {type: string, const: no-store}
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicConfig"
+  /models:
+    get:
+      tags: [Runtime]
+      summary: List models visible to the actor
+      operationId: listVisibleModels
+      security:
+        - accessCookie: []
+        - guestCookie: []
+      responses:
+        "200":
+          description: Models enabled for the current actor.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, defaultModelId]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: "#/components/schemas/Model"}
+                  defaultModelId: {$ref: "#/components/schemas/Id"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+  /guest-sessions:
+    post:
+      tags: [Guests]
+      summary: Create or resume a guest session
+      operationId: createOrResumeGuestSession
+      security: []
+      responses:
+        "200":
+          description: Existing guest session resumed.
+          headers:
+            Set-Cookie: {$ref: "#/components/headers/SetGuestCookie"}
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/GuestAllowance"}
+        "201":
+          description: Guest session created.
+          headers:
+            Set-Cookie: {$ref: "#/components/headers/SetGuestCookie"}
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/GuestAllowance"}
+        "503": {$ref: "#/components/responses/ServiceUnavailable"}
+  /guest-sessions/current:
+    get:
+      tags: [Guests]
+      summary: Get the current guest allowance
+      operationId: getCurrentGuestSession
+      security: [{guestCookie: []}]
+      responses:
+        "200":
+          description: Remaining allowance. No raw guest identifier is returned.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/GuestAllowance"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+  /auth/google/start:
+    get:
+      tags: [Authentication]
+      summary: Start Google login
+      operationId: startGoogleLogin
+      security: []
+      parameters:
+        - name: returnTo
+          in: query
+          description: Allowlisted relative application path.
+          schema: {type: string, pattern: "^/[A-Za-z0-9/_?=&.-]*$"}
+      responses:
+        "302":
+          description: Redirect to Google with server-held state, PKCE, and nonce.
+          headers:
+            Location: {schema: {type: string, format: uri}}
+        "400": {$ref: "#/components/responses/BadRequest"}
+  /auth/google/callback:
+    get:
+      tags: [Authentication]
+      summary: Complete Google login
+      operationId: completeGoogleLogin
+      security: []
+      parameters:
+        - {name: code, in: query, required: true, schema: {type: string, minLength: 1}}
+        - {name: state, in: query, required: true, schema: {type: string, minLength: 20}}
+      responses:
+        "302":
+          description: Login completed and guest conversation migrated atomically.
+          headers:
+            Location: {schema: {type: string, format: uri-reference}}
+            Set-Cookie:
+              description: Sets access and refresh HttpOnly cookies.
+              schema: {type: string}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Rotate the refresh token
+      operationId: refreshAuthSession
+      security: [{refreshCookie: [], csrfHeader: []}]
+      responses:
+        "204":
+          description: Refresh token rotated and access cookie issued.
+          headers:
+            Set-Cookie: {schema: {type: string}}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "409":
+          description: Refresh-token reuse detected; token family revoked.
+          content:
+            application/problem+json:
+              schema: {$ref: "#/components/schemas/ErrorEnvelope"}
+              example:
+                error: {code: refresh_token_reused, message: Session revoked., requestId: req_01}
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Log out the current session
+      operationId: logout
+      security: [{accessCookie: [], csrfHeader: []}]
+      responses:
+        "204": {description: Current auth session revoked and cookies cleared.}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+  /auth/ws-ticket:
+    post:
+      tags: [Authentication]
+      summary: Create a WebSocket ticket
+      operationId: createWebSocketTicket
+      security:
+        - accessCookie: [ ]
+          csrfHeader: [ ]
+        - guestCookie: [ ]
+          csrfHeader: [ ]
+      responses:
+        "201":
+          description: Single-use ticket valid for at most 30 seconds.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ticket, expiresAt]
+                properties:
+                  ticket: {type: string, minLength: 32}
+                  expiresAt: {type: string, format: date-time}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "503": {$ref: "#/components/responses/ServiceUnavailable"}
+  /me:
+    get:
+      tags: [Authentication]
+      summary: Get the current user
+      operationId: getCurrentUser
+      responses:
+        "200":
+          description: Current user and effective permissions.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/CurrentUser"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+    delete:
+      tags: [Authentication]
+      summary: Request account deletion
+      operationId: requestAccountDeletion
+      security: [{accessCookie: [], csrfHeader: [], recentAuth: []}]
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [confirmation]
+              properties:
+                confirmation: {type: string, const: DELETE}
+      responses:
+        "202":
+          description: Sessions revoked immediately; purge due within 24 hours.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/DeletionJob"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+        "428":
+          $ref: "#/components/responses/RecentAuthRequired"
+  /me/sessions:
+    get:
+      tags: [Authentication]
+      summary: List device sessions
+      operationId: listAuthSessions
+      responses:
+        "200":
+          description: Active device sessions.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: "#/components/schemas/AuthSession"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+  /me/sessions/{sessionId}:
+    delete:
+      tags: [Authentication]
+      summary: Revoke a device session
+      operationId: revokeAuthSession
+      security: [{accessCookie: [], csrfHeader: []}]
+      parameters:
+        - {$ref: "#/components/parameters/SessionId"}
+        - {$ref: "#/components/parameters/IdempotencyKey"}
+      responses:
+        "204": {description: Session revoked.}
+        "404": {$ref: "#/components/responses/NotFound"}
+  /me/reauthenticate:
+    post:
+      tags: [Authentication]
+      summary: Start recent reauthentication
+      operationId: startReauthentication
+      security: [{accessCookie: [], csrfHeader: []}]
+      responses:
+        "200":
+          description: Returns a fixed Google reauthentication URL.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [authorizationUrl]
+                properties:
+                  authorizationUrl: {type: string, format: uri}
+  /me/deletion:
+    get:
+      tags: [Authentication]
+      summary: Get account deletion state
+      operationId: getAccountDeletion
+      responses:
+        "200":
+          description: Current deletion job.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/DeletionJob"}
+        "404": {$ref: "#/components/responses/NotFound"}
+  /conversations:
+    get:
+      tags: [Conversations]
+      summary: List owned conversations
+      operationId: listConversations
+      security:
+        - accessCookie: []
+        - guestCookie: []
+      parameters:
+        - {$ref: "#/components/parameters/Limit"}
+        - {$ref: "#/components/parameters/After"}
+        - {name: query, in: query, schema: {type: string, maxLength: 200}}
+        - {name: archived, in: query, schema: {type: boolean, default: false}}
+      responses:
+        "200":
+          description: Owned conversations ordered by update time and ID.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ConversationPage"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
+    post:
+      tags: [Conversations]
+      summary: Create a conversation
+      operationId: createConversation
+      security:
+        - accessCookie: []
+          csrfHeader: []
+        - guestCookie: []
+          csrfHeader: []
+      parameters:
+        - {$ref: "#/components/parameters/IdempotencyKey"}
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/CreateConversation"}
+      responses:
+        "201":
+          description: Conversation created. Guests may own only one.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Conversation"}
+        "409": {$ref: "#/components/responses/Conflict"}
+  /conversations/{conversationId}:
+    parameters:
+      - {$ref: "#/components/parameters/ConversationId"}
+    get:
+      tags: [Conversations]
+      summary: Get an owned conversation
+      operationId: getConversation
+      security:
+        - accessCookie: []
+        - guestCookie: []
+      responses:
+        "200":
+          description: Owned conversation.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Conversation"}
+        "404": {$ref: "#/components/responses/NotFound"}
+    patch:
+      tags: [Conversations]
+      summary: Update a conversation
+      operationId: updateConversation
+      security:
+        - accessCookie: []
+          csrfHeader: []
+        - guestCookie: []
+          csrfHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/UpdateConversation"}
+      responses:
+        "200":
+          description: Updated conversation; model changes require idle state.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Conversation"}
+        "409": {$ref: "#/components/responses/Conflict"}
+    delete:
+      tags: [Conversations]
+      summary: Delete a conversation
+      operationId: deleteConversation
+      security:
+        - accessCookie: []
+          csrfHeader: []
+        - guestCookie: []
+          csrfHeader: []
+      parameters:
+        - {$ref: "#/components/parameters/IdempotencyKey"}
+      responses:
+        "204": {description: Conversation deleted.}
+        "404": {$ref: "#/components/responses/NotFound"}
+  /conversations/{conversationId}/messages:
+    get:
+      tags: [Conversations]
+      summary: List conversation messages
+      operationId: listMessages
+      security:
+        - accessCookie: []
+        - guestCookie: []
+      parameters:
+        - {$ref: "#/components/parameters/ConversationId"}
+        - {$ref: "#/components/parameters/Limit"}
+        - {$ref: "#/components/parameters/After"}
+      responses:
+        "200":
+          description: Durable transcript; partial terminal status is explicit.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/MessagePage"}
+        "404": {$ref: "#/components/responses/NotFound"}
+  /conversations/{conversationId}/retry:
+    post:
+      tags: [Conversations]
+      summary: Retry the latest failed generation
+      operationId: retryLatestGeneration
+      security:
+        - accessCookie: []
+          csrfHeader: []
+        - guestCookie: []
+          csrfHeader: []
+      parameters:
+        - {$ref: "#/components/parameters/ConversationId"}
+        - {$ref: "#/components/parameters/IdempotencyKey"}
+      responses:
+        "202":
+          description: Latest failed or cancelled generation accepted for retry.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Generation"}
+        "409": {$ref: "#/components/responses/Conflict"}
+        "429": {$ref: "#/components/responses/QuotaExceeded"}
+  /usage:
+    get:
+      tags: [Usage]
+      summary: Get current quota usage
+      operationId: getUsage
+      security:
+        - accessCookie: []
+        - guestCookie: []
+      responses:
+        "200":
+          description: Effective actor limits and current consumption.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Usage"}
+  /admin/models:
+    get:
+      tags: [Administration]
+      summary: List models for administration
+      operationId: adminListModels
+      responses:
+        "200":
+          description: Internal catalog and exposure state; no secrets.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: "#/components/schemas/AdminModel"}
+        "403": {$ref: "#/components/responses/Forbidden"}
+  /admin/models/sync:
+    post:
+      tags: [Administration]
+      summary: Synchronize provider model metadata
+      operationId: adminSyncModels
+      security: [{accessCookie: [], csrfHeader: []}]
+      parameters:
+        - {$ref: "#/components/parameters/IdempotencyKey"}
+      responses:
+        "202":
+          description: Model synchronization enqueued; never auto-enables models.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Job"}
+  /admin/models/{modelId}:
+    patch:
+      tags: [Administration]
+      summary: Update model exposure
+      operationId: adminUpdateModel
+      security: [{accessCookie: [], csrfHeader: [], recentAuth: []}]
+      parameters:
+        - {$ref: "#/components/parameters/ModelId"}
+        - {$ref: "#/components/parameters/IfMatch"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/UpdateAdminModel"}
+      responses:
+        "200":
+          description: Exposure changed and audit event committed.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AdminModel"}
+        "409": {$ref: "#/components/responses/Conflict"}
+        "428": {$ref: "#/components/responses/RecentAuthRequired"}
+  /admin/settings:
+    get:
+      tags: [Administration]
+      summary: List runtime settings
+      operationId: adminListSettings
+      responses:
+        "200":
+          description: Typed redacted settings.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: "#/components/schemas/RuntimeSetting"}
+  /admin/settings/{key}:
+    patch:
+      tags: [Administration]
+      summary: Update a runtime setting
+      operationId: adminUpdateSetting
+      security: [{accessCookie: [], csrfHeader: [], recentAuth: []}]
+      parameters:
+        - {name: key, in: path, required: true, schema: {type: string, pattern: "^[a-z][a-z0-9_.-]+$"}}
+        - {$ref: "#/components/parameters/IfMatch"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [value]
+              properties:
+                value: true
+      responses:
+        "200":
+          description: Setting updated and audited.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/RuntimeSetting"}
+        "409": {$ref: "#/components/responses/Conflict"}
+  /admin/users:
+    get:
+      tags: [Administration]
+      summary: List users for administration
+      operationId: adminListUsers
+      parameters:
+        - {$ref: "#/components/parameters/Limit"}
+        - {$ref: "#/components/parameters/After"}
+        - {name: query, in: query, schema: {type: string, maxLength: 200}}
+      responses:
+        "200":
+          description: User metadata without conversation content.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: "#/components/schemas/AdminUser"}
+                  nextCursor: {type: [string, "null"]}
+  /admin/users/{userId}/role:
+    patch:
+      tags: [Administration]
+      summary: Update a user role
+      operationId: adminUpdateUserRole
+      security: [{accessCookie: [], csrfHeader: [], recentAuth: []}]
+      parameters:
+        - {name: userId, in: path, required: true, schema: {$ref: "#/components/schemas/Id"}}
+        - {$ref: "#/components/parameters/IfMatch"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [role]
+              properties:
+                role: {$ref: "#/components/schemas/Role"}
+      responses:
+        "200":
+          description: Role changed without allowing last-admin removal.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AdminUser"}
+        "409": {$ref: "#/components/responses/Conflict"}
+  /admin/usage:
+    get:
+      tags: [Administration]
+      summary: Get aggregate service usage
+      operationId: adminGetUsage
+      responses:
+        "200":
+          description: Aggregate tokens, latency, errors, and estimated cost.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/AdminUsage"}
+  /admin/audit-log:
+    get:
+      tags: [Administration]
+      summary: List administrative audit events
+      operationId: adminListAuditEvents
+      parameters:
+        - {$ref: "#/components/parameters/Limit"}
+        - {$ref: "#/components/parameters/After"}
+      responses:
+        "200":
+          description: Redacted immutable audit events.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: {$ref: "#/components/schemas/AuditEvent"}
+                  nextCursor: {type: [string, "null"]}
+components:
+  securitySchemes:
+    accessCookie:
+      type: apiKey
+      in: cookie
+      name: glazz_access
+    refreshCookie:
+      type: apiKey
+      in: cookie
+      name: glazz_refresh
+    guestCookie:
+      type: apiKey
+      in: cookie
+      name: glazz_guest
+    csrfHeader:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
+    recentAuth:
+      type: apiKey
+      in: cookie
+      name: glazz_recent_auth
+  headers:
+    SetGuestCookie:
+      description: Signed HttpOnly guest cookie; Secure outside local development.
+      schema: {type: string}
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: {type: string, minLength: 16, maxLength: 128}
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: Quoted current resource version.
+      schema: {type: string, pattern: '^"[1-9][0-9]*"$'}
+    Limit:
+      name: limit
+      in: query
+      schema: {type: integer, minimum: 1, maximum: 100, default: 30}
+    After:
+      name: after
+      in: query
+      schema: {type: string, minLength: 1}
+    ConversationId:
+      name: conversationId
+      in: path
+      required: true
+      schema: {$ref: "#/components/schemas/Id"}
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema: {$ref: "#/components/schemas/Id"}
+    ModelId:
+      name: modelId
+      in: path
+      required: true
+      schema: {$ref: "#/components/schemas/Id"}
+  responses:
+    BadRequest:
+      description: Invalid request.
+      content: {application/problem+json: {schema: {$ref: "#/components/schemas/ErrorEnvelope"}}}
+    Unauthorized:
+      description: Missing, expired, or invalid actor credentials.
+      content: {application/problem+json: {schema: {$ref: "#/components/schemas/ErrorEnvelope"}}}
+    Forbidden:
+      description: Actor lacks permission.
+      content: {application/problem+json: {schema: {$ref: "#/components/schemas/ErrorEnvelope"}}}
+    NotFound:
+      description: Resource does not exist or is not owned by the actor.
+      content: {application/problem+json: {schema: {$ref: "#/components/schemas/ErrorEnvelope"}}}
+    Conflict:
+      description: Resource state, idempotency, or optimistic version conflict.
+      content: {application/problem+json: {schema: {$ref: "#/components/schemas/ErrorEnvelope"}}}
+    QuotaExceeded:
+      description: Actor or global quota rejected the operation.
+      content:
+        application/problem+json:
+          schema: {$ref: "#/components/schemas/ErrorEnvelope"}
+          example:
+            error:
+              code: quota_exceeded
+              message: Daily message limit reached.
+              requestId: req_01
+              details: {resetAt: "2026-07-24T05:00:00Z"}
+    RecentAuthRequired:
+      description: Recent Google reauthentication is required.
+      content: {application/problem+json: {schema: {$ref: "#/components/schemas/ErrorEnvelope"}}}
+    ServiceUnavailable:
+      description: Dependency, maintenance, or provider budget prevents operation.
+      content: {application/problem+json: {schema: {$ref: "#/components/schemas/ErrorEnvelope"}}}
+  schemas:
+    Id:
+      type: string
+      pattern: "^[0-9a-fA-F-]{36}$"
+    Health:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties: {status: {type: string, const: ok}}
+    Readiness:
+      type: object
+      required: [status, dependencies]
+      properties:
+        status: {type: string, enum: [ready, not_ready]}
+        dependencies:
+          type: object
+          additionalProperties: {type: string, enum: [up, down, degraded]}
+    PublicConfig:
+      type: object
+      required: [locales, maintenance, legal, guestPolicy]
+      properties:
+        locales: {type: array, items: {type: string, enum: [en, es]}, minItems: 2}
+        maintenance: {type: boolean}
+        legal:
+          type: object
+          required: [termsVersion, privacyVersion, minimumAge]
+          properties:
+            termsVersion: {type: string}
+            privacyVersion: {type: string}
+            minimumAge: {type: integer, const: 18}
+        guestPolicy:
+          type: object
+          required: [messageLimit, outputTokenLimit, resetsAutomatically]
+          properties:
+            messageLimit: {type: integer, const: 4}
+            outputTokenLimit: {type: integer, const: 2000}
+            resetsAutomatically: {type: boolean, const: false}
+    Model:
+      type: object
+      required: [id, name, capabilities]
+      properties:
+        id: {$ref: "#/components/schemas/Id"}
+        name: {type: string}
+        description: {type: string}
+        capabilities:
+          type: object
+          required: [chatCompletions, markdown, code]
+          properties:
+            chatCompletions: {type: boolean, const: true}
+            markdown: {type: boolean}
+            code: {type: boolean}
+    GuestAllowance:
+      type: object
+      required: [messagesUsed, messageLimit, outputTokensUsed, outputTokenLimit, exhausted, expiresAt]
+      properties:
+        messagesUsed: {type: integer, minimum: 0, maximum: 4}
+        messageLimit: {type: integer, const: 4}
+        outputTokensUsed: {type: integer, minimum: 0}
+        outputTokenLimit: {type: integer, const: 2000}
+        exhausted: {type: boolean}
+        expiresAt: {type: string, format: date-time}
+    Role: {type: string, enum: [user, admin]}
+    CurrentUser:
+      type: object
+      required: [id, email, displayName, locale, role, plan, permissions]
+      properties:
+        id: {$ref: "#/components/schemas/Id"}
+        email: {type: string, format: email}
+        displayName: {type: string}
+        avatarUrl: {type: [string, "null"], format: uri}
+        locale: {type: string, enum: [en, es]}
+        role: {$ref: "#/components/schemas/Role"}
+        plan: {type: string, enum: [free, pro]}
+        permissions: {type: array, items: {type: string}, uniqueItems: true}
+    AuthSession:
+      type: object
+      required: [id, current, createdAt, lastSeenAt, expiresAt]
+      properties:
+        id: {$ref: "#/components/schemas/Id"}
+        current: {type: boolean}
+        deviceLabel: {type: [string, "null"]}
+        createdAt: {type: string, format: date-time}
+        lastSeenAt: {type: string, format: date-time}
+        expiresAt: {type: string, format: date-time}
+    Conversation:
+      type: object
+      required: [id, title, status, modelId, generationState, createdAt, updatedAt]
+      properties:
+        id: {$ref: "#/components/schemas/Id"}
+        title: {type: string, minLength: 1, maxLength: 120}
+        status: {type: string, enum: [active, archived]}
+        modelId: {$ref: "#/components/schemas/Id"}
+        generationState: {type: string, enum: [idle, accepted, streaming]}
+        createdAt: {type: string, format: date-time}
+        updatedAt: {type: string, format: date-time}
+    CreateConversation:
+      type: object
+      additionalProperties: false
+      properties:
+        title: {type: string, minLength: 1, maxLength: 120}
+        modelId: {$ref: "#/components/schemas/Id"}
+    UpdateConversation:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        title: {type: string, minLength: 1, maxLength: 120}
+        archived: {type: boolean}
+        modelId: {$ref: "#/components/schemas/Id"}
+    ConversationPage:
+      type: object
+      required: [items]
+      properties:
+        items: {type: array, items: {$ref: "#/components/schemas/Conversation"}}
+        nextCursor: {type: [string, "null"]}
+    Message:
+      type: object
+      required: [id, conversationId, role, content, status, sequence, createdAt]
+      properties:
+        id: {$ref: "#/components/schemas/Id"}
+        conversationId: {$ref: "#/components/schemas/Id"}
+        role: {type: string, enum: [user, assistant]}
+        content: {type: string, maxLength: 200000}
+        status: {type: string, enum: [pending, complete, cancelled, failed]}
+        sequence: {type: integer, minimum: 1}
+        createdAt: {type: string, format: date-time}
+    MessagePage:
+      type: object
+      required: [items]
+      properties:
+        items: {type: array, items: {$ref: "#/components/schemas/Message"}}
+        nextCursor: {type: [string, "null"]}
+    Generation:
+      type: object
+      required: [id, conversationId, status, createdAt]
+      properties:
+        id: {$ref: "#/components/schemas/Id"}
+        conversationId: {$ref: "#/components/schemas/Id"}
+        status: {type: string, enum: [accepted, streaming, completed, cancelled, failed, rejected]}
+        retryable: {type: boolean}
+        createdAt: {type: string, format: date-time}
+    Usage:
+      type: object
+      required: [messages, outputTokens, concurrency]
+      properties:
+        messages: {$ref: "#/components/schemas/UsageBucket"}
+        outputTokens: {$ref: "#/components/schemas/UsageBucket"}
+        concurrency: {$ref: "#/components/schemas/UsageBucket"}
+    UsageBucket:
+      type: object
+      required: [used, limit]
+      properties:
+        used: {type: integer, minimum: 0}
+        limit: {type: integer, minimum: 0}
+        resetAt: {type: [string, "null"], format: date-time}
+    DeletionJob:
+      type: object
+      required: [id, status, requestedAt, dueAt]
+      properties:
+        id: {$ref: "#/components/schemas/Id"}
+        status: {type: string, enum: [pending, processing, completed, failed]}
+        requestedAt: {type: string, format: date-time}
+        dueAt: {type: string, format: date-time}
+        completedAt: {type: [string, "null"], format: date-time}
+    Job:
+      type: object
+      required: [id, status]
+      properties:
+        id: {$ref: "#/components/schemas/Id"}
+        status: {type: string, enum: [pending, processing, completed, failed]}
+    AdminModel:
+      allOf:
+        - {$ref: "#/components/schemas/Model"}
+        - type: object
+          required: [enabled, available, supported, version]
+          properties:
+            enabled: {type: boolean}
+            available: {type: boolean}
+            supported: {type: boolean}
+            audience: {type: array, items: {type: string, enum: [guest, user]}}
+            version: {type: integer, minimum: 1}
+    UpdateAdminModel:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        enabled: {type: boolean}
+        audience: {type: array, items: {type: string, enum: [guest, user]}, uniqueItems: true}
+        defaultFor: {type: array, items: {type: string, enum: [guest, user]}, uniqueItems: true}
+        order: {type: integer, minimum: 0}
+    RuntimeSetting:
+      type: object
+      required: [key, value, version, updatedAt]
+      properties:
+        key: {type: string}
+        value: true
+        version: {type: integer, minimum: 1}
+        updatedAt: {type: string, format: date-time}
+    AdminUser:
+      type: object
+      required: [id, email, displayName, role, status, version, createdAt]
+      properties:
+        id: {$ref: "#/components/schemas/Id"}
+        email: {type: string, format: email}
+        displayName: {type: string}
+        role: {$ref: "#/components/schemas/Role"}
+        status: {type: string, enum: [active, deletion_pending, disabled]}
+        version: {type: integer, minimum: 1}
+        createdAt: {type: string, format: date-time}
+    AdminUsage:
+      type: object
+      required: [periodStart, periodEnd, generations, inputTokens, outputTokens, estimatedCost]
+      properties:
+        periodStart: {type: string, format: date-time}
+        periodEnd: {type: string, format: date-time}
+        generations: {type: integer, minimum: 0}
+        inputTokens: {type: integer, minimum: 0}
+        outputTokens: {type: integer, minimum: 0}
+        estimatedCost: {type: number, minimum: 0}
+        currency: {type: string, default: USD}
+    AuditEvent:
+      type: object
+      required: [id, actorId, action, targetType, targetId, occurredAt]
+      properties:
+        id: {$ref: "#/components/schemas/Id"}
+        actorId: {$ref: "#/components/schemas/Id"}
+        action: {type: string}
+        targetType: {type: string}
+        targetId: {type: string}
+        before: {type: [object, "null"], additionalProperties: true}
+        after: {type: [object, "null"], additionalProperties: true}
+        occurredAt: {type: string, format: date-time}
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [code, message, requestId]
+          properties:
+            code:
+              type: string
+              enum:
+                - invalid_request
+                - unauthenticated
+                - forbidden
+                - not_found
+                - conflict
+                - quota_exceeded
+                - concurrency_exceeded
+                - global_budget_exceeded
+                - maintenance
+                - dependency_unavailable
+                - recent_auth_required
+                - refresh_token_reused
+            message: {type: string}
+            requestId: {type: string}
+            details: {type: object, additionalProperties: true}

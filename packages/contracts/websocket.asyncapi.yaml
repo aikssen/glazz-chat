@@ -1,0 +1,391 @@
+asyncapi: 3.0.0
+info:
+  title: Glazz Realtime API
+  version: 1.0.0-m0
+  description: |
+    Version 1 WebSocket commands and events. A single-use ticket obtained from the
+    HTTP API is consumed during connection. PostgreSQL/REST remain authoritative.
+servers:
+  local:
+    host: localhost:8080
+    protocol: ws
+    pathname: /api/v1/ws
+    description: Local development
+  production:
+    host: api.glazz.hlab.sh
+    protocol: wss
+    pathname: /api/v1/ws
+    description: Production placeholder
+channels:
+  realtime:
+    address: /api/v1/ws
+    bindings:
+      ws:
+        query:
+          type: object
+          additionalProperties: false
+          required: [ticket]
+          properties:
+            ticket:
+              type: string
+              minLength: 32
+              description: Opaque single-use ticket with a maximum 30-second lifetime.
+        bindingVersion: 0.1.0
+    messages:
+      ClientMessage:
+        oneOf:
+          - $ref: "#/components/messages/ConnectionResume"
+          - $ref: "#/components/messages/ChatGenerate"
+          - $ref: "#/components/messages/ChatCancel"
+          - $ref: "#/components/messages/HeartbeatPong"
+      ServerMessage:
+        oneOf:
+          - $ref: "#/components/messages/ConnectionReady"
+          - $ref: "#/components/messages/ConnectionResyncRequired"
+          - $ref: "#/components/messages/CommandAcknowledged"
+          - $ref: "#/components/messages/CommandRejected"
+          - $ref: "#/components/messages/ChatStarted"
+          - $ref: "#/components/messages/ChatDelta"
+          - $ref: "#/components/messages/ChatCompleted"
+          - $ref: "#/components/messages/ChatCancelled"
+          - $ref: "#/components/messages/ChatFailed"
+          - $ref: "#/components/messages/QuotaUpdated"
+          - $ref: "#/components/messages/ConversationUpdated"
+          - $ref: "#/components/messages/MaintenanceChanged"
+          - $ref: "#/components/messages/HeartbeatPing"
+operations:
+  sendClientCommand:
+    action: send
+    channel: {$ref: "#/channels/realtime"}
+    messages:
+      - {$ref: "#/channels/realtime/messages/ClientMessage"}
+  receiveServerEvent:
+    action: receive
+    channel: {$ref: "#/channels/realtime"}
+    messages:
+      - {$ref: "#/channels/realtime/messages/ServerMessage"}
+components:
+  messages:
+    ConnectionResume:
+      name: connection.resume
+      payload:
+        allOf:
+          - {$ref: "#/components/schemas/ClientEnvelope"}
+          - type: object
+            properties:
+              type: {const: connection.resume}
+              payload:
+                type: object
+                additionalProperties: false
+                required: [lastSequence]
+                properties:
+                  lastSequence: {type: integer, minimum: 0}
+    ChatGenerate:
+      name: chat.generate
+      payload:
+        allOf:
+          - {$ref: "#/components/schemas/ClientEnvelope"}
+          - type: object
+            properties:
+              type: {const: chat.generate}
+              payload: {$ref: "#/components/schemas/GeneratePayload"}
+    ChatCancel:
+      name: chat.cancel
+      payload:
+        allOf:
+          - {$ref: "#/components/schemas/ClientEnvelope"}
+          - type: object
+            properties:
+              type: {const: chat.cancel}
+              payload:
+                type: object
+                additionalProperties: false
+                required: [conversationId, generationId]
+                properties:
+                  conversationId: {$ref: "#/components/schemas/Id"}
+                  generationId: {$ref: "#/components/schemas/Id"}
+    HeartbeatPong:
+      name: heartbeat.pong
+      payload:
+        allOf:
+          - {$ref: "#/components/schemas/ClientEnvelope"}
+          - type: object
+            properties:
+              type: {const: heartbeat.pong}
+              payload:
+                type: object
+                additionalProperties: false
+                required: [heartbeatId]
+                properties:
+                  heartbeatId: {type: string}
+    ConnectionReady:
+      name: connection.ready
+      payload:
+        allOf:
+          - {$ref: "#/components/schemas/ServerEnvelope"}
+          - type: object
+            properties:
+              type: {const: connection.ready}
+              payload:
+                type: object
+                additionalProperties: false
+                required: [actorType, heartbeatIntervalMs, replayWindow, serverTime]
+                properties:
+                  actorType: {type: string, enum: [guest, user, admin]}
+                  heartbeatIntervalMs: {type: integer, minimum: 5000}
+                  replayWindow: {type: integer, minimum: 0}
+                  serverTime: {type: string, format: date-time}
+    ConnectionResyncRequired:
+      name: connection.resync_required
+      payload:
+        allOf:
+          - {$ref: "#/components/schemas/ServerEnvelope"}
+          - type: object
+            properties:
+              type: {const: connection.resync_required}
+              payload:
+                type: object
+                additionalProperties: false
+                required: [reason, resources]
+                properties:
+                  reason: {type: string, enum: [replay_window_missed, server_restart]}
+                  resources:
+                    type: array
+                    items: {type: string, enum: [conversations, messages, usage]}
+                    uniqueItems: true
+    CommandAcknowledged:
+      name: command.acknowledged
+      payload:
+        allOf:
+          - {$ref: "#/components/schemas/ServerEnvelope"}
+          - type: object
+            properties:
+              type: {const: command.acknowledged}
+              payload:
+                type: object
+                additionalProperties: false
+                required: [commandEventId]
+                properties:
+                  commandEventId: {type: string}
+    CommandRejected:
+      name: command.rejected
+      payload:
+        allOf:
+          - {$ref: "#/components/schemas/ServerEnvelope"}
+          - type: object
+            properties:
+              type: {const: command.rejected}
+              payload: {$ref: "#/components/schemas/RealtimeError"}
+    ChatStarted:
+      name: chat.started
+      payload:
+        allOf:
+          - {$ref: "#/components/schemas/ServerEnvelope"}
+          - type: object
+            properties:
+              type: {const: chat.started}
+              payload:
+                type: object
+                additionalProperties: false
+                required: [conversationId, generationId, userMessageId, assistantMessageId]
+                properties:
+                  conversationId: {$ref: "#/components/schemas/Id"}
+                  generationId: {$ref: "#/components/schemas/Id"}
+                  userMessageId: {$ref: "#/components/schemas/Id"}
+                  assistantMessageId: {$ref: "#/components/schemas/Id"}
+    ChatDelta:
+      name: chat.delta
+      payload:
+        allOf:
+          - {$ref: "#/components/schemas/ServerEnvelope"}
+          - type: object
+            properties:
+              type: {const: chat.delta}
+              payload:
+                type: object
+                additionalProperties: false
+                required: [generationId, offset, text]
+                properties:
+                  generationId: {$ref: "#/components/schemas/Id"}
+                  offset: {type: integer, minimum: 0}
+                  text: {type: string, minLength: 1, maxLength: 16384}
+    ChatCompleted:
+      name: chat.completed
+      payload:
+        allOf:
+          - {$ref: "#/components/schemas/ServerEnvelope"}
+          - type: object
+            properties:
+              type: {const: chat.completed}
+              payload: {$ref: "#/components/schemas/TerminalPayload"}
+    ChatCancelled:
+      name: chat.cancelled
+      payload:
+        allOf:
+          - {$ref: "#/components/schemas/ServerEnvelope"}
+          - type: object
+            properties:
+              type: {const: chat.cancelled}
+              payload:
+                allOf:
+                  - {$ref: "#/components/schemas/TerminalPayload"}
+                  - type: object
+                    required: [partialContentRetained]
+                    properties:
+                      partialContentRetained: {type: boolean}
+    ChatFailed:
+      name: chat.failed
+      payload:
+        allOf:
+          - {$ref: "#/components/schemas/ServerEnvelope"}
+          - type: object
+            properties:
+              type: {const: chat.failed}
+              payload:
+                allOf:
+                  - {$ref: "#/components/schemas/RealtimeError"}
+                  - type: object
+                    required: [generationId, retryable, partialContentRetained]
+                    properties:
+                      generationId: {$ref: "#/components/schemas/Id"}
+                      retryable: {type: boolean}
+                      partialContentRetained: {type: boolean}
+    QuotaUpdated:
+      name: quota.updated
+      payload:
+        allOf:
+          - {$ref: "#/components/schemas/ServerEnvelope"}
+          - type: object
+            properties:
+              type: {const: quota.updated}
+              payload: {$ref: "#/components/schemas/QuotaPayload"}
+    ConversationUpdated:
+      name: conversation.updated
+      payload:
+        allOf:
+          - {$ref: "#/components/schemas/ServerEnvelope"}
+          - type: object
+            properties:
+              type: {const: conversation.updated}
+              payload:
+                type: object
+                additionalProperties: false
+                required: [conversationId, changedFields]
+                properties:
+                  conversationId: {$ref: "#/components/schemas/Id"}
+                  changedFields:
+                    type: array
+                    items: {type: string, enum: [title, status, modelId, updatedAt]}
+                    uniqueItems: true
+    MaintenanceChanged:
+      name: maintenance.changed
+      payload:
+        allOf:
+          - {$ref: "#/components/schemas/ServerEnvelope"}
+          - type: object
+            properties:
+              type: {const: maintenance.changed}
+              payload:
+                type: object
+                additionalProperties: false
+                required: [enabled]
+                properties:
+                  enabled: {type: boolean}
+                  retryAfterSeconds: {type: [integer, "null"], minimum: 1}
+    HeartbeatPing:
+      name: heartbeat.ping
+      payload:
+        allOf:
+          - {$ref: "#/components/schemas/ServerEnvelope"}
+          - type: object
+            properties:
+              type: {const: heartbeat.ping}
+              payload:
+                type: object
+                additionalProperties: false
+                required: [heartbeatId]
+                properties:
+                  heartbeatId: {type: string}
+  schemas:
+    Id:
+      type: string
+      pattern: "^[0-9a-fA-F-]{36}$"
+    BaseEnvelope:
+      type: object
+      required: [version, type, eventId, requestId, occurredAt, payload]
+      properties:
+        version: {type: integer, const: 1}
+        type: {type: string}
+        eventId: {type: string, minLength: 8, maxLength: 128}
+        requestId: {type: string, minLength: 8, maxLength: 128}
+        occurredAt: {type: string, format: date-time}
+        payload: {type: object}
+    ClientEnvelope:
+      allOf:
+        - {$ref: "#/components/schemas/BaseEnvelope"}
+        - type: object
+          required: [idempotencyKey]
+          properties:
+            idempotencyKey: {type: string, minLength: 16, maxLength: 128}
+    ServerEnvelope:
+      allOf:
+        - {$ref: "#/components/schemas/BaseEnvelope"}
+        - type: object
+          required: [sequence]
+          properties:
+            sequence: {type: integer, minimum: 1}
+    GeneratePayload:
+      type: object
+      additionalProperties: false
+      required: [conversationId, content]
+      properties:
+        conversationId: {$ref: "#/components/schemas/Id"}
+        content: {type: string, minLength: 1, maxLength: 32000}
+    Usage:
+      type: object
+      additionalProperties: false
+      required: [inputTokens, outputTokens]
+      properties:
+        inputTokens: {type: integer, minimum: 0}
+        outputTokens: {type: integer, minimum: 0}
+        cachedTokens: {type: integer, minimum: 0}
+    TerminalPayload:
+      type: object
+      required: [generationId, assistantMessageId, usage, finishReason]
+      properties:
+        generationId: {$ref: "#/components/schemas/Id"}
+        assistantMessageId: {$ref: "#/components/schemas/Id"}
+        usage: {$ref: "#/components/schemas/Usage"}
+        finishReason: {type: string, enum: [stop, length, cancelled, safety, error]}
+    RealtimeError:
+      type: object
+      required: [code, message]
+      properties:
+        commandEventId: {type: string}
+        code:
+          type: string
+          enum:
+            - invalid_command
+            - unauthenticated
+            - forbidden
+            - not_found
+            - conflict
+            - quota_exceeded
+            - concurrency_exceeded
+            - global_budget_exceeded
+            - maintenance
+            - provider_unavailable
+            - provider_timeout
+            - safety_blocked
+            - resync_required
+        message: {type: string}
+        details: {type: object, additionalProperties: true}
+    QuotaPayload:
+      type: object
+      additionalProperties: false
+      required: [messagesRemaining, outputTokensRemaining, concurrentRemaining]
+      properties:
+        messagesRemaining: {type: integer, minimum: 0}
+        outputTokensRemaining: {type: integer, minimum: 0}
+        concurrentRemaining: {type: integer, minimum: 0}
+        resetAt: {type: [string, "null"], format: date-time}

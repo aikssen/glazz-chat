@@ -1,0 +1,31 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# JavaScript / Next.js
+node_modules/
+.next/
+out/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+
+# Go
+bin/
+dist/
+*.test
+*.out
+vendor/
+
+# Tooling and local state
+.DS_Store
+.idea/
+.vscode/
+*.log
+.redocly/
+
+# Local containers
+deploy/.data/

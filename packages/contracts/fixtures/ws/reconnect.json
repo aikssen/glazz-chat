@@ -1,0 +1,24 @@
+[
+  {
+    "version": 1,
+    "type": "connection.resume",
+    "eventId": "evt_resume_01",
+    "requestId": "req_resume_01",
+    "idempotencyKey": "idem_connection_resume_01",
+    "occurredAt": "2026-07-23T20:40:00Z",
+    "payload": {"lastSequence": 87}
+  },
+  {
+    "version": 1,
+    "type": "connection.resync_required",
+    "eventId": "evt_resync_01",
+    "requestId": "req_resume_01",
+    "sequence": 101,
+    "occurredAt": "2026-07-23T20:40:00.020Z",
+    "payload": {
+      "reason": "replay_window_missed",
+      "resources": ["conversations", "messages", "usage"]
+    }
+  }
+]
+

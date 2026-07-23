@@ -1,0 +1,65 @@
+[
+  {
+    "version": 1,
+    "type": "chat.generate",
+    "eventId": "evt_guest_generate_01",
+    "requestId": "req_guest_01",
+    "idempotencyKey": "idem_guest_generate_0001",
+    "occurredAt": "2026-07-23T20:00:00Z",
+    "payload": {
+      "conversationId": "018f0000-0000-7000-8000-000000000001",
+      "content": "Explain how rainbows form."
+    }
+  },
+  {
+    "version": 1,
+    "type": "command.acknowledged",
+    "eventId": "evt_guest_ack_01",
+    "requestId": "req_guest_01",
+    "sequence": 1,
+    "occurredAt": "2026-07-23T20:00:00.050Z",
+    "payload": {"commandEventId": "evt_guest_generate_01"}
+  },
+  {
+    "version": 1,
+    "type": "chat.started",
+    "eventId": "evt_guest_started_01",
+    "requestId": "req_guest_01",
+    "sequence": 2,
+    "occurredAt": "2026-07-23T20:00:00.080Z",
+    "payload": {
+      "conversationId": "018f0000-0000-7000-8000-000000000001",
+      "generationId": "018f0000-0000-7000-8000-000000000002",
+      "userMessageId": "018f0000-0000-7000-8000-000000000003",
+      "assistantMessageId": "018f0000-0000-7000-8000-000000000004"
+    }
+  },
+  {
+    "version": 1,
+    "type": "chat.delta",
+    "eventId": "evt_guest_delta_01",
+    "requestId": "req_guest_01",
+    "sequence": 3,
+    "occurredAt": "2026-07-23T20:00:00.300Z",
+    "payload": {
+      "generationId": "018f0000-0000-7000-8000-000000000002",
+      "offset": 0,
+      "text": "Rainbows form when light is refracted"
+    }
+  },
+  {
+    "version": 1,
+    "type": "chat.completed",
+    "eventId": "evt_guest_completed_01",
+    "requestId": "req_guest_01",
+    "sequence": 4,
+    "occurredAt": "2026-07-23T20:00:01Z",
+    "payload": {
+      "generationId": "018f0000-0000-7000-8000-000000000002",
+      "assistantMessageId": "018f0000-0000-7000-8000-000000000004",
+      "usage": {"inputTokens": 9, "outputTokens": 42, "cachedTokens": 0},
+      "finishReason": "stop"
+    }
+  }
+]
+

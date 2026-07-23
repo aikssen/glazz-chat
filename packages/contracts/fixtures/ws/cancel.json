@@ -1,0 +1,30 @@
+[
+  {
+    "version": 1,
+    "type": "chat.cancel",
+    "eventId": "evt_cancel_command_01",
+    "requestId": "req_cancel_01",
+    "idempotencyKey": "idem_cancel_command_0001",
+    "occurredAt": "2026-07-23T20:20:00Z",
+    "payload": {
+      "conversationId": "018f0000-0000-7000-8000-000000000201",
+      "generationId": "018f0000-0000-7000-8000-000000000202"
+    }
+  },
+  {
+    "version": 1,
+    "type": "chat.cancelled",
+    "eventId": "evt_cancelled_01",
+    "requestId": "req_cancel_01",
+    "sequence": 29,
+    "occurredAt": "2026-07-23T20:20:00.100Z",
+    "payload": {
+      "generationId": "018f0000-0000-7000-8000-000000000202",
+      "assistantMessageId": "018f0000-0000-7000-8000-000000000203",
+      "usage": {"inputTokens": 20, "outputTokens": 12, "cachedTokens": 0},
+      "finishReason": "cancelled",
+      "partialContentRetained": true
+    }
+  }
+]
+

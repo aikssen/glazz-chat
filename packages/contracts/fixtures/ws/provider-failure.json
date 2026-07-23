@@ -1,0 +1,19 @@
+[
+  {
+    "version": 1,
+    "type": "chat.failed",
+    "eventId": "evt_provider_failed_01",
+    "requestId": "req_provider_01",
+    "sequence": 112,
+    "occurredAt": "2026-07-23T20:50:15Z",
+    "payload": {
+      "generationId": "018f0000-0000-7000-8000-000000000502",
+      "code": "provider_timeout",
+      "message": "The response stopped before it finished.",
+      "retryable": true,
+      "partialContentRetained": true,
+      "details": {}
+    }
+  }
+]
+
