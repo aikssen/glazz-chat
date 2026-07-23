@@ -169,7 +169,7 @@ implementation start.
   - Depends on: API-010
   - Create `apps`, `packages`, `deploy`, `docs`, and `scripts` layout.
   - Acceptance: repository tree matches architecture; root commands are documented;
-    tag `contracts-v1.0.0-m0` identifies the accepted baseline.
+    tag `v0.1.0` identifies the accepted M0 baseline.
 
 - [ ] **FOUND-002: Scaffold Next.js application**
   - Depends on: FOUND-001

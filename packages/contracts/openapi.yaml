@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Glazz API
-  version: 1.0.0-m0
+  version: 0.1.0
   summary: HTTP contract for the Glazz MVP
   description: |
     Source of truth for Glazz HTTP resources. Chat generation is commanded over

@@ -1,6 +1,6 @@
 # M0 Contract Baseline Review
 
-- Baseline: `1.0.0-m0`
+- Baseline: `v0.1.0`
 - Date: 2026-07-23
 - Status: Accepted for implementation
 
@@ -75,12 +75,10 @@ they do not change the accepted contract.
   Context7 and upstream re-verification.
 - Production API/Redis/PostgreSQL hosting is a production milestone decision.
 - Production LLM provider is a release gate; OpenCode Go remains development-only.
-- A git tag cannot be created until repository initialization. The contract version
-  `1.0.0-m0` is the baseline identifier; tag `contracts-v1.0.0-m0` is created in
-  `FOUND-001`.
+- The repository starts at semantic version `v0.1.0`. This tag identifies the M0
+  contract baseline and remains the starting point for M1 implementation.
 
 ## Approval
 
 The baseline is internally coherent and approved to begin M1 foundations. Any
 breaking change requires a contract review and version decision.
-
