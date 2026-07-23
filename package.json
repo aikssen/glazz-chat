@@ -1,0 +1,37 @@
+{
+  "name": "glazz",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.17.0",
+  "engines": {
+    "node": ">=24 <27",
+    "pnpm": "11.17.0"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @glazz/web dev",
+    "build": "pnpm --filter @glazz/web build",
+    "format": "pnpm --filter @glazz/web exec prettier --write . && cd apps/api && gofmt -w .",
+    "format:check": "pnpm --filter @glazz/web format:check",
+    "lint": "pnpm contracts:lint && pnpm --filter @glazz/web lint",
+    "typecheck": "pnpm --filter @glazz/web typecheck",
+    "test": "pnpm --filter @glazz/web test",
+    "contracts:lint": "redocly lint packages/contracts/openapi.yaml packages/contracts/websocket.asyncapi.yaml && node scripts/validate-ws-fixtures.mjs",
+    "contracts:generate": "openapi-typescript packages/contracts/openapi.yaml --output packages/contracts/generated/typescript/api.d.ts --immutable && cd apps/api && go generate ./internal/platform/api",
+    "go:format:check": "test -z \"$(gofmt -l apps/api)\"",
+    "go:lint": "cd apps/api && go vet ./...",
+    "go:test": "cd apps/api && go test -race ./...",
+    "go:build": "cd apps/api && go build ./cmd/...",
+    "test:integration": "cd apps/api && go test -tags=integration ./...",
+    "e2e": "pnpm --filter @glazz/web e2e",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm go:format:check && pnpm go:lint && pnpm go:test && pnpm go:build && pnpm build"
+  },
+  "devDependencies": {
+    "@asyncapi/parser": "3.6.0",
+    "@redocly/cli": "2.40.0",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "openapi-typescript": "7.13.0",
+    "prettier": "3.8.2",
+    "yaml": "2.8.1"
+  }
+}

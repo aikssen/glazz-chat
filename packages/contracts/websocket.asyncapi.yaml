@@ -32,38 +32,49 @@ channels:
               description: Opaque single-use ticket with a maximum 30-second lifetime.
         bindingVersion: 0.1.0
     messages:
-      ClientMessage:
-        oneOf:
-          - $ref: "#/components/messages/ConnectionResume"
-          - $ref: "#/components/messages/ChatGenerate"
-          - $ref: "#/components/messages/ChatCancel"
-          - $ref: "#/components/messages/HeartbeatPong"
-      ServerMessage:
-        oneOf:
-          - $ref: "#/components/messages/ConnectionReady"
-          - $ref: "#/components/messages/ConnectionResyncRequired"
-          - $ref: "#/components/messages/CommandAcknowledged"
-          - $ref: "#/components/messages/CommandRejected"
-          - $ref: "#/components/messages/ChatStarted"
-          - $ref: "#/components/messages/ChatDelta"
-          - $ref: "#/components/messages/ChatCompleted"
-          - $ref: "#/components/messages/ChatCancelled"
-          - $ref: "#/components/messages/ChatFailed"
-          - $ref: "#/components/messages/QuotaUpdated"
-          - $ref: "#/components/messages/ConversationUpdated"
-          - $ref: "#/components/messages/MaintenanceChanged"
-          - $ref: "#/components/messages/HeartbeatPing"
+      ConnectionResume: {$ref: "#/components/messages/ConnectionResume"}
+      ChatGenerate: {$ref: "#/components/messages/ChatGenerate"}
+      ChatCancel: {$ref: "#/components/messages/ChatCancel"}
+      HeartbeatPong: {$ref: "#/components/messages/HeartbeatPong"}
+      ConnectionReady: {$ref: "#/components/messages/ConnectionReady"}
+      ConnectionResyncRequired: {$ref: "#/components/messages/ConnectionResyncRequired"}
+      CommandAcknowledged: {$ref: "#/components/messages/CommandAcknowledged"}
+      CommandRejected: {$ref: "#/components/messages/CommandRejected"}
+      ChatStarted: {$ref: "#/components/messages/ChatStarted"}
+      ChatDelta: {$ref: "#/components/messages/ChatDelta"}
+      ChatCompleted: {$ref: "#/components/messages/ChatCompleted"}
+      ChatCancelled: {$ref: "#/components/messages/ChatCancelled"}
+      ChatFailed: {$ref: "#/components/messages/ChatFailed"}
+      QuotaUpdated: {$ref: "#/components/messages/QuotaUpdated"}
+      ConversationUpdated: {$ref: "#/components/messages/ConversationUpdated"}
+      MaintenanceChanged: {$ref: "#/components/messages/MaintenanceChanged"}
+      HeartbeatPing: {$ref: "#/components/messages/HeartbeatPing"}
 operations:
   sendClientCommand:
     action: send
     channel: {$ref: "#/channels/realtime"}
     messages:
-      - {$ref: "#/channels/realtime/messages/ClientMessage"}
+      - {$ref: "#/channels/realtime/messages/ConnectionResume"}
+      - {$ref: "#/channels/realtime/messages/ChatGenerate"}
+      - {$ref: "#/channels/realtime/messages/ChatCancel"}
+      - {$ref: "#/channels/realtime/messages/HeartbeatPong"}
   receiveServerEvent:
     action: receive
     channel: {$ref: "#/channels/realtime"}
     messages:
-      - {$ref: "#/channels/realtime/messages/ServerMessage"}
+      - {$ref: "#/channels/realtime/messages/ConnectionReady"}
+      - {$ref: "#/channels/realtime/messages/ConnectionResyncRequired"}
+      - {$ref: "#/channels/realtime/messages/CommandAcknowledged"}
+      - {$ref: "#/channels/realtime/messages/CommandRejected"}
+      - {$ref: "#/channels/realtime/messages/ChatStarted"}
+      - {$ref: "#/channels/realtime/messages/ChatDelta"}
+      - {$ref: "#/channels/realtime/messages/ChatCompleted"}
+      - {$ref: "#/channels/realtime/messages/ChatCancelled"}
+      - {$ref: "#/channels/realtime/messages/ChatFailed"}
+      - {$ref: "#/channels/realtime/messages/QuotaUpdated"}
+      - {$ref: "#/channels/realtime/messages/ConversationUpdated"}
+      - {$ref: "#/channels/realtime/messages/MaintenanceChanged"}
+      - {$ref: "#/channels/realtime/messages/HeartbeatPing"}
 components:
   messages:
     ConnectionResume:

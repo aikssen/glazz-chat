@@ -165,53 +165,53 @@ implementation start.
 
 **Objective:** Create a reproducible workspace with pinned tools and fast feedback.
 
-- [ ] **FOUND-001: Create monorepo directories and root tooling**
+- [x] **FOUND-001: Create monorepo directories and root tooling**
   - Depends on: API-010
   - Create `apps`, `packages`, `deploy`, `docs`, and `scripts` layout.
   - Acceptance: repository tree matches architecture; root commands are documented;
     tag `v0.1.0` identifies the accepted M0 baseline.
 
-- [ ] **FOUND-002: Scaffold Next.js application**
+- [x] **FOUND-002: Scaffold Next.js application**
   - Depends on: FOUND-001
   - Use App Router, TypeScript strict mode, ESLint, Tailwind CSS, and supported Node.
   - Acceptance: production build and type check pass; no example landing page remains.
 
-- [ ] **FOUND-003: Scaffold Go API and worker commands**
+- [x] **FOUND-003: Scaffold Go API and worker commands**
   - Depends on: FOUND-001
   - Pin a supported Go release, create composition roots, config package, graceful
     shutdown, and minimal liveness.
   - Acceptance: API/worker compile and `go test ./...` passes.
 
-- [ ] **FOUND-004: Configure shadcn/ui and design tokens**
+- [x] **FOUND-004: Configure shadcn/ui and design tokens**
   - Depends on: FOUND-002
   - Install required primitives and encode light/dark semantic tokens from
     `DESIGN.md`.
   - Acceptance: token showcase passes contrast checks in both themes.
 
-- [ ] **FOUND-005: Configure fonts and icons**
+- [x] **FOUND-005: Configure fonts and icons**
   - Depends on: FOUND-002
   - Add Outfit, Work Sans, JetBrains Mono through optimized/self-hosted loading and
     Lucide icons.
   - Acceptance: no layout shift from font loading; no emoji structural icons.
 
-- [ ] **FOUND-006: Implement contract validation and generation**
+- [x] **FOUND-006: Implement contract validation and generation**
   - Depends on: ADR-002, FOUND-002, FOUND-003
   - Add repeatable commands for spec lint, fixture validation, and client generation.
   - Acceptance: running generation twice produces no diff.
 
-- [ ] **FOUND-007: Add repository quality commands**
+- [x] **FOUND-007: Add repository quality commands**
   - Depends on: FOUND-002, FOUND-003
   - Add format, lint, type, unit, integration, race, contract, E2E, and build commands.
   - Acceptance: one documented root command runs the fast presubmit suite.
 
-- [ ] **FOUND-008: Add environment templates and validation**
+- [x] **FOUND-008: Add environment templates and validation**
   - Depends on: FOUND-002, FOUND-003
   - Create safe `.env.example` files; map temporary `API_URL`/`API_KEY` aliases to
     explicit provider configuration without exposing values.
   - Acceptance: startup fails with actionable errors; secrets are gitignored and
     secret scan passes.
 
-- [ ] **FOUND-009: Create CI baseline**
+- [x] **FOUND-009: Create CI baseline**
   - Depends on: FOUND-006, FOUND-007
   - GitHub Actions runs contract checks, Go/TS checks, unit tests, build, dependency
     and secret scans with caching.

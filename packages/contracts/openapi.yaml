@@ -547,7 +547,7 @@ paths:
               additionalProperties: false
               required: [value]
               properties:
-                value: true
+                value: {}
       responses:
         "200":
           description: Setting updated and audited.
@@ -924,7 +924,7 @@ components:
       required: [key, value, version, updatedAt]
       properties:
         key: {type: string}
-        value: true
+        value: {}
         version: {type: integer, minimum: 1}
         updatedAt: {type: string, format: date-time}
     AdminUser:

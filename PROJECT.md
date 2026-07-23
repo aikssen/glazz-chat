@@ -2,7 +2,7 @@
 
 ## Document status
 
-- Status: Planning baseline
+- Status: M1 developer foundation
 - Product domain: `https://glazz.hlab.sh`
 - Primary audience: General public
 - Interface languages: Spanish and English

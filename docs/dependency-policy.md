@@ -31,19 +31,30 @@ change the source policy.
 Never include secrets, internal payloads, private source, or personal data in a
 Context7 query.
 
-## M0 research record
+## Research record
 
 Research date: 2026-07-23
 
-| Concern | Context7 ID | Selected family | Evidence used |
-| --- | --- | --- | --- |
-| Go HTTP router | `/go-chi/docs` | `github.com/go-chi/chi/v5` | Standard `net/http`, composable middleware and route groups |
-| Go WebSocket | `/coder/websocket` | `github.com/coder/websocket` current stable | Context cancellation, origin patterns, read limits, bounded slow-client pattern |
-| Go OpenAPI generation | `/oapi-codegen/oapi-codegen` | `oapi-codegen/v2` | OpenAPI 3.1 and chi strict-server support |
-| Contract linting | `/redocly/redocly-cli` | Redocly CLI v2 | OpenAPI and AsyncAPI 3.0 validation/linting |
-| TypeScript contract types | `/openapi-ts/openapi-typescript` | `openapi-typescript` v7 | OpenAPI 3.1 runtime-free generated types |
-| JWT | `/golang-jwt/jwt` | `golang-jwt/jwt/v5` | EdDSA plus strict algorithm/claim parser options |
+| Concern                   | Context7 ID                      | Selected version          | Evidence used                                                                                   |
+| ------------------------- | -------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------- |
+| Go                        | official release source          | 1.26.5                    | Current supported Go release selected for API and worker                                        |
+| Node.js                   | official release source          | 24.13.0 LTS               | Supported LTS runtime for Next.js and tooling                                                   |
+| pnpm                      | `/pnpm/pnpm.io`                  | 11.17.0                   | Workspace and supply-chain policy support                                                       |
+| Next.js                   | `/vercel/next.js`                | 16.2.11                   | App Router, React 19, and supported Node runtime                                                |
+| React                     | `/websites/react_dev`            | 19.2.8                    | Version selected by the supported Next.js release                                               |
+| TypeScript                | `/microsoft/typescript`          | 5.9.3                     | Current stable line supported by Next.js; TypeScript 7 is not selected before framework support |
+| Tailwind CSS              | `/websites/tailwindcss`          | 4.3.3                     | CSS-first configuration and PostCSS integration                                                 |
+| shadcn CLI                | `/shadcn-ui/ui`                  | 4.14.1                    | Base UI primitives, CSS variables, and Lucide integration                                       |
+| Go HTTP router            | `/go-chi/docs`                   | `chi/v5` 5.3.1            | Standard `net/http`, composable middleware and route groups                                     |
+| Go WebSocket              | `/coder/websocket`               | `coder/websocket` 1.8.15  | Selected in M0; installation begins with realtime implementation                                |
+| Go OpenAPI generation     | `/oapi-codegen/oapi-codegen`     | 2.8.0                     | OpenAPI 3.1 and chi server generation                                                           |
+| Contract linting          | `/redocly/redocly-cli`           | 2.40.0                    | OpenAPI and AsyncAPI validation                                                                 |
+| TypeScript contract types | `/openapi-ts/openapi-typescript` | 7.13.0                    | Runtime-free OpenAPI 3.1 types                                                                  |
+| AsyncAPI parsing          | `/asyncapi/parser-js`            | 3.6.0                     | Resolves message payload schemas before fixture validation                                      |
+| JSON Schema validation    | `/ajv-validator/ajv`             | 8.20.0                    | Compiled payload validators with format support                                                 |
+| Unit tests                | `/vitest-dev/vitest`             | 4.1.10                    | TypeScript-native fast unit runner                                                              |
+| Browser tests             | `/microsoft/playwright`          | 1.61.1                    | Chromium smoke coverage with managed web server                                                 |
+| JWT                       | `/golang-jwt/jwt`                | `golang-jwt/jwt/v5` 5.3.1 | Selected in M0; EdDSA and strict algorithm/claim parsing                                        |
 
-Exact patch versions are intentionally pinned during Phase 1, immediately before
-installation, after repeating the Context7/upstream check.
-
+All installed versions are exact in manifests and lockfiles. GitHub Actions are
+pinned to immutable commit SHAs and annotated with their release line.

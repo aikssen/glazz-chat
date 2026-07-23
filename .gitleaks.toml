@@ -1,0 +1,12 @@
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+
+[[rules.allowlists]]
+description = "Canonical WebSocket idempotency keys are public fixture identifiers."
+condition = "AND"
+regexTarget = "secret"
+regexes = ['''^idem_[a-z0-9_]+$''']
+paths = ['''packages/contracts/fixtures/ws/.*\.json$''']
