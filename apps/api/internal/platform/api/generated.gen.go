@@ -542,6 +542,36 @@ func (e UpdateAdminModelDefaultFor) Valid() bool {
 	}
 }
 
+// Defines values for StartGoogleLoginParamsTermsAccepted.
+const (
+	StartGoogleLoginParamsTermsAcceptedTrue StartGoogleLoginParamsTermsAccepted = true
+)
+
+// Valid indicates whether the value is a known member of the StartGoogleLoginParamsTermsAccepted enum.
+func (e StartGoogleLoginParamsTermsAccepted) Valid() bool {
+	switch e {
+	case StartGoogleLoginParamsTermsAcceptedTrue:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StartGoogleLoginParamsPrivacyAccepted.
+const (
+	StartGoogleLoginParamsPrivacyAcceptedTrue StartGoogleLoginParamsPrivacyAccepted = true
+)
+
+// Valid indicates whether the value is a known member of the StartGoogleLoginParamsPrivacyAccepted enum.
+func (e StartGoogleLoginParamsPrivacyAccepted) Valid() bool {
+	switch e {
+	case StartGoogleLoginParamsPrivacyAcceptedTrue:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for RequestAccountDeletionJSONBodyConfirmation.
 const (
 	DELETE RequestAccountDeletionJSONBodyConfirmation = "DELETE"
@@ -975,7 +1005,19 @@ type CompleteGoogleLoginParams struct {
 type StartGoogleLoginParams struct {
 	// ReturnTo Allowlisted relative application path.
 	ReturnTo *string `form:"returnTo,omitempty" json:"returnTo,omitempty"`
+
+	// TermsAccepted Explicit acceptance of the currently advertised terms version.
+	TermsAccepted StartGoogleLoginParamsTermsAccepted `form:"termsAccepted" json:"termsAccepted"`
+
+	// PrivacyAccepted Explicit acceptance of the currently advertised privacy version.
+	PrivacyAccepted StartGoogleLoginParamsPrivacyAccepted `form:"privacyAccepted" json:"privacyAccepted"`
 }
+
+// StartGoogleLoginParamsTermsAccepted defines parameters for StartGoogleLogin.
+type StartGoogleLoginParamsTermsAccepted bool
+
+// StartGoogleLoginParamsPrivacyAccepted defines parameters for StartGoogleLogin.
+type StartGoogleLoginParamsPrivacyAccepted bool
 
 // ListConversationsParams defines parameters for ListConversations.
 type ListConversationsParams struct {
@@ -1783,6 +1825,32 @@ func (siw *ServerInterfaceWrapper) StartGoogleLogin(w http.ResponseWriter, r *ht
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "returnTo"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "returnTo", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "termsAccepted" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "termsAccepted", r.URL.Query(), &params.TermsAccepted, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "termsAccepted"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "termsAccepted", Err: err})
+		}
+		return
+	}
+
+	// ------------- Required query parameter "privacyAccepted" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "privacyAccepted", r.URL.Query(), &params.PrivacyAccepted, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "privacyAccepted"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "privacyAccepted", Err: err})
 		}
 		return
 	}

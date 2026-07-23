@@ -2,7 +2,7 @@
 
 ## Document status
 
-- Status: M1 developer foundation
+- Status: M2 identity and platform foundations
 - Product domain: `https://glazz.hlab.sh`
 - Primary audience: General public
 - Interface languages: Spanish and English

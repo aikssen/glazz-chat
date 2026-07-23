@@ -26,6 +26,7 @@ vendor/
 .vscode/
 *.log
 .redocly/
+.pnpm-store/
 
 # Local containers
 deploy/.data/

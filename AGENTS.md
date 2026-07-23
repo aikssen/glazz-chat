@@ -50,6 +50,13 @@ payloads to Context7. If Context7 is unavailable, use only primary official
 documentation, record the fallback, and re-verify before merging. Search-engine
 snippets and model memory are not sufficient sources for dependency decisions.
 
+## Milestone versioning
+
+Starting with M2, every completed milestone increments the semantic-version minor
+component and receives an annotated Git tag: M2 is `v0.2.0`, M3 is `v0.3.0`, and
+so on. Do not create or move a milestone tag until its acceptance checks and CI
+pass. The repository owner may explicitly replace this rule for a future release.
+
 ## Product invariants
 
 These rules are not implementation suggestions:

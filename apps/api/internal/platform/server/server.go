@@ -1,33 +1,319 @@
 package server
 
 import (
-	"encoding/json"
+	"errors"
+	"fmt"
+	"log/slog"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+
+	"github.com/aikssen/glazz-chat/apps/api/internal/guests"
+	"github.com/aikssen/glazz-chat/apps/api/internal/identity/browser"
+	identityoauth "github.com/aikssen/glazz-chat/apps/api/internal/identity/oauth"
+	"github.com/aikssen/glazz-chat/apps/api/internal/identity/sessions"
+	"github.com/aikssen/glazz-chat/apps/api/internal/identity/users"
+	"github.com/aikssen/glazz-chat/apps/api/internal/platform/config"
+	"github.com/aikssen/glazz-chat/apps/api/internal/platform/database"
+	"github.com/aikssen/glazz-chat/apps/api/internal/platform/httpx"
+	"github.com/aikssen/glazz-chat/apps/api/internal/platform/ids"
+	"github.com/aikssen/glazz-chat/apps/api/internal/platform/redisx"
+	"github.com/aikssen/glazz-chat/apps/api/internal/platform/telemetry"
+	"github.com/aikssen/glazz-chat/apps/api/internal/quota"
 )
+
+type Dependencies struct {
+	Config    config.Config
+	Database  *database.Pool
+	Redis     *redisx.Client
+	Guests    *guests.Service
+	OAuth     *identityoauth.Service
+	Sessions  *sessions.Service
+	Browser   *browser.Manager
+	Auth      func(http.Handler) http.Handler
+	Telemetry *telemetry.Runtime
+	Logger    *slog.Logger
+	IDs       ids.Source
+}
 
 func Handler() http.Handler {
 	router := chi.NewRouter()
-	router.Use(securityHeaders)
+	router.Use(httpx.SecurityHeaders)
+	router.Get("/api/v1/health/live", liveness)
+	return router
+}
+
+func New(deps Dependencies) http.Handler {
+	if deps.Logger == nil {
+		deps.Logger = slog.Default()
+	}
+	router := chi.NewRouter()
+	router.Use(httpx.RequestIDs(deps.IDs))
+	router.Use(httpx.Recovery(deps.Logger))
+	router.Use(httpx.SecurityHeaders)
+	router.Use(httpx.ClientIPs(deps.Config.Runtime.TrustedProxies))
+	router.Use(httpx.CORS(deps.Config.Runtime.AllowedOrigins))
+	router.Use(httpx.MaxBody(deps.Config.Runtime.MaxBodyBytes))
+	router.Use(httpx.Timeout(deps.Config.Runtime.RequestTimeout))
+	if deps.Telemetry != nil {
+		router.Use(deps.Telemetry.Middleware(deps.Logger))
+		router.Handle(deps.Config.Telemetry.MetricsPath, deps.Telemetry.MetricsHandler())
+	}
+	router.NotFound(httpx.NotFound)
+	router.MethodNotAllowed(httpx.MethodNotAllowed)
+
 	router.Route("/api/v1", func(router chi.Router) {
-		router.Get("/health/live", health("ok"))
-		router.Get("/health/ready", health("ready"))
+		router.Get("/health/live", liveness)
+		router.Get("/health/ready", deps.readiness)
+		router.Get("/config/public", deps.publicConfig)
+		router.Post("/guest-sessions", deps.createOrResumeGuest)
+		router.Get("/guest-sessions/current", deps.currentGuest)
+		router.Get("/auth/google/start", deps.startGoogle)
+		router.Get("/auth/google/callback", deps.completeGoogle)
+
+		router.With(deps.Browser.CSRF).Post("/auth/refresh", deps.refresh)
+		router.Group(func(protected chi.Router) {
+			protected.Use(deps.Auth)
+			protected.Get("/me", deps.me)
+			protected.Get("/me/sessions", deps.listSessions)
+			protected.With(deps.Browser.CSRF).Post("/auth/logout", deps.logout)
+			protected.With(deps.Browser.CSRF).Delete("/me/sessions/{sessionId}", deps.revokeSession)
+		})
 	})
 	return router
 }
 
-func health(status string) http.HandlerFunc {
-	return func(response http.ResponseWriter, _ *http.Request) {
-		response.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(response).Encode(map[string]string{"status": status})
-	}
+func liveness(response http.ResponseWriter, _ *http.Request) {
+	httpx.WriteJSON(response, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-func securityHeaders(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
-		response.Header().Set("X-Content-Type-Options", "nosniff")
-		response.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
-		next.ServeHTTP(response, request)
+func (deps Dependencies) readiness(response http.ResponseWriter, request *http.Request) {
+	status := map[string]string{"postgres": "up", "redis": "up"}
+	code := http.StatusOK
+	if err := deps.Database.Ping(request.Context()); err != nil {
+		status["postgres"] = "down"
+		code = http.StatusServiceUnavailable
+	}
+	if err := deps.Redis.Ping(request.Context()); err != nil {
+		status["redis"] = "down"
+		code = http.StatusServiceUnavailable
+	}
+	state := "ready"
+	if code != http.StatusOK {
+		state = "not_ready"
+	}
+	httpx.WriteJSON(response, code, map[string]any{"status": state, "dependencies": status})
+}
+
+func (deps Dependencies) publicConfig(response http.ResponseWriter, _ *http.Request) {
+	httpx.WriteJSON(response, http.StatusOK, map[string]any{
+		"locales":     []string{"en", "es"},
+		"maintenance": deps.Config.Runtime.Maintenance,
+		"legal": map[string]any{
+			"termsVersion": deps.Config.Auth.TermsVersion, "privacyVersion": deps.Config.Auth.PrivacyVersion,
+			"minimumAge": 18,
+		},
+		"guestPolicy": map[string]any{
+			"messageLimit": 4, "outputTokenLimit": 2000, "resetsAutomatically": false,
+		},
 	})
+}
+
+func (deps Dependencies) createOrResumeGuest(response http.ResponseWriter, request *http.Request) {
+	if deps.Config.Runtime.Maintenance {
+		httpx.WriteError(response, request, http.StatusServiceUnavailable, "maintenance", "Service is temporarily unavailable.")
+		return
+	}
+	allowance, created, err := deps.Guests.CreateOrResume(request.Context(), request, response)
+	if err != nil {
+		deps.internalError(response, request, err)
+		return
+	}
+	status := http.StatusOK
+	if created {
+		status = http.StatusCreated
+	}
+	httpx.WriteJSON(response, status, allowance)
+}
+
+func (deps Dependencies) currentGuest(response http.ResponseWriter, request *http.Request) {
+	allowance, err := deps.Guests.Current(request.Context(), request)
+	if errors.Is(err, guests.ErrGuestUnauthenticated) {
+		httpx.WriteError(response, request, http.StatusUnauthorized, "unauthenticated", "Guest session is not active.")
+		return
+	}
+	if err != nil {
+		deps.internalError(response, request, err)
+		return
+	}
+	httpx.WriteJSON(response, http.StatusOK, allowance)
+}
+
+func (deps Dependencies) startGoogle(response http.ResponseWriter, request *http.Request) {
+	if deps.OAuth == nil {
+		httpx.WriteError(response, request, http.StatusServiceUnavailable, "service_unavailable", "Google login is not configured.")
+		return
+	}
+	terms, termsErr := strconv.ParseBool(request.URL.Query().Get("termsAccepted"))
+	privacy, privacyErr := strconv.ParseBool(request.URL.Query().Get("privacyAccepted"))
+	if termsErr != nil || privacyErr != nil || !terms || !privacy {
+		httpx.WriteError(response, request, http.StatusBadRequest, "consent_required", "Current terms and privacy acceptance are required.")
+		return
+	}
+	guestID, _ := deps.Guests.ID(request.Context(), request)
+	authorizationURL, err := deps.OAuth.Start(request.Context(), identityoauth.StartInput{
+		ReturnTo: request.URL.Query().Get("returnTo"), TermsAccepted: terms,
+		PrivacyAccepted: privacy, GuestID: guestID, Locale: locale(request),
+	})
+	if err != nil {
+		httpx.WriteError(response, request, http.StatusBadRequest, "invalid_request", "Login request is invalid.")
+		return
+	}
+	http.Redirect(response, request, authorizationURL, http.StatusFound)
+}
+
+func (deps Dependencies) completeGoogle(response http.ResponseWriter, request *http.Request) {
+	if deps.OAuth == nil {
+		httpx.WriteError(response, request, http.StatusServiceUnavailable, "service_unavailable", "Google login is not configured.")
+		return
+	}
+	completion, err := deps.OAuth.Complete(
+		request.Context(),
+		request.URL.Query().Get("state"),
+		request.URL.Query().Get("code"),
+		deviceLabel(request),
+		httpx.RequestID(request.Context()),
+		quota.HashIPBytes(deps.Config.Cookies.SigningKey, httpx.ClientIP(request.Context())),
+	)
+	if errors.Is(err, users.ErrIdentityConflict) || errors.Is(err, users.ErrGuestConflict) {
+		httpx.WriteError(response, request, http.StatusConflict, "identity_conflict", "Account identity could not be linked.")
+		return
+	}
+	if err != nil {
+		httpx.WriteError(response, request, http.StatusBadRequest, "invalid_oauth_callback", "Google login could not be completed.")
+		return
+	}
+	if _, err := deps.Browser.Issue(response, completion.Credentials); err != nil {
+		deps.internalError(response, request, err)
+		return
+	}
+	http.Redirect(response, request, deps.Config.Runtime.WebURL+completion.ReturnTo, http.StatusFound)
+}
+
+func (deps Dependencies) refresh(response http.ResponseWriter, request *http.Request) {
+	raw, err := browser.RefreshToken(request)
+	if err != nil {
+		httpx.WriteError(response, request, http.StatusUnauthorized, "unauthenticated", "Refresh token is required.")
+		return
+	}
+	credentials, err := deps.Sessions.Rotate(request.Context(), raw)
+	if errors.Is(err, sessions.ErrRefreshReuse) {
+		deps.Browser.Clear(response)
+		httpx.WriteError(response, request, http.StatusConflict, "refresh_token_reused", "Session revoked.")
+		return
+	}
+	if err != nil {
+		deps.Browser.Clear(response)
+		httpx.WriteError(response, request, http.StatusUnauthorized, "unauthenticated", "Refresh token is invalid.")
+		return
+	}
+	if _, err := deps.Browser.Issue(response, credentials); err != nil {
+		deps.internalError(response, request, err)
+		return
+	}
+	response.WriteHeader(http.StatusNoContent)
+}
+
+func (deps Dependencies) logout(response http.ResponseWriter, request *http.Request) {
+	actor, _ := browser.CurrentActor(request.Context())
+	if _, err := deps.Sessions.Revoke(request.Context(), actor.UserID, actor.SessionID); err != nil {
+		deps.internalError(response, request, err)
+		return
+	}
+	deps.Browser.Clear(response)
+	response.WriteHeader(http.StatusNoContent)
+}
+
+func (deps Dependencies) me(response http.ResponseWriter, request *http.Request) {
+	actor, _ := browser.CurrentActor(request.Context())
+	user, err := deps.Database.Queries().FindUserByID(request.Context(), actor.UserID)
+	if err != nil {
+		httpx.WriteError(response, request, http.StatusUnauthorized, "unauthenticated", "User is not active.")
+		return
+	}
+	permissions := []string{"chat:use", "sessions:manage"}
+	if user.Role == "admin" {
+		permissions = append(permissions, "admin:access")
+	}
+	httpx.WriteJSON(response, http.StatusOK, map[string]any{
+		"id": user.ID, "email": user.Email, "displayName": user.DisplayName,
+		"avatarUrl": user.AvatarUrl, "locale": user.Locale, "role": user.Role,
+		"plan": user.Plan, "permissions": permissions,
+	})
+}
+
+func (deps Dependencies) listSessions(response http.ResponseWriter, request *http.Request) {
+	actor, _ := browser.CurrentActor(request.Context())
+	records, err := deps.Sessions.List(request.Context(), actor.UserID)
+	if err != nil {
+		deps.internalError(response, request, err)
+		return
+	}
+	items := make([]map[string]any, 0, len(records))
+	for _, record := range records {
+		items = append(items, map[string]any{
+			"id": record.ID, "current": record.ID == actor.SessionID, "deviceLabel": record.DeviceLabel,
+			"createdAt": record.CreatedAt.Time, "lastSeenAt": record.LastSeenAt.Time,
+			"expiresAt": record.RefreshExpiresAt.Time,
+		})
+	}
+	httpx.WriteJSON(response, http.StatusOK, map[string]any{"items": items})
+}
+
+func (deps Dependencies) revokeSession(response http.ResponseWriter, request *http.Request) {
+	actor, _ := browser.CurrentActor(request.Context())
+	sessionID, err := uuid.Parse(chi.URLParam(request, "sessionId"))
+	if err != nil {
+		httpx.WriteError(response, request, http.StatusNotFound, "not_found", "Session was not found.")
+		return
+	}
+	revoked, err := deps.Sessions.Revoke(request.Context(), actor.UserID, sessionID)
+	if err != nil {
+		deps.internalError(response, request, err)
+		return
+	}
+	if !revoked {
+		httpx.WriteError(response, request, http.StatusNotFound, "not_found", "Session was not found.")
+		return
+	}
+	if sessionID == actor.SessionID {
+		deps.Browser.Clear(response)
+	}
+	response.WriteHeader(http.StatusNoContent)
+}
+
+func (deps Dependencies) internalError(response http.ResponseWriter, request *http.Request, err error) {
+	deps.Logger.ErrorContext(
+		request.Context(), "request failed", "request_id", httpx.RequestID(request.Context()),
+		"error_type", fmt.Sprintf("%T", err),
+	)
+	httpx.WriteError(response, request, http.StatusInternalServerError, "internal_error", "Request could not be processed.")
+}
+
+func locale(request *http.Request) string {
+	if strings.HasPrefix(strings.ToLower(request.Header.Get("Accept-Language")), "es") {
+		return "es"
+	}
+	return "en"
+}
+
+func deviceLabel(request *http.Request) string {
+	value := strings.TrimSpace(request.UserAgent())
+	if len(value) > 200 {
+		return value[:200]
+	}
+	return value
 }

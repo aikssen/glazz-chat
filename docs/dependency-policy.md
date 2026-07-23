@@ -55,6 +55,17 @@ Research date: 2026-07-23
 | Unit tests                | `/vitest-dev/vitest`             | 4.1.10                    | TypeScript-native fast unit runner                                                              |
 | Browser tests             | `/microsoft/playwright`          | 1.61.1                    | Chromium smoke coverage with managed web server                                                 |
 | JWT                       | `/golang-jwt/jwt`                | `golang-jwt/jwt/v5` 5.3.1 | Selected in M0; EdDSA and strict algorithm/claim parsing                                        |
+| PostgreSQL driver         | `/jackc/pgx`                     | `pgx/v5` 5.10.0           | Pool, transactions, health checks, and native PostgreSQL types                                   |
+| SQL generation            | `/websites/sqlc_dev_en`          | `sqlc` 1.31.1             | Deterministic typed query generation                                                            |
+| Migrations                | `/pressly/goose`                 | `goose/v3` 3.27.3         | Embedded SQL migrations with programmatic up/down/status                                         |
+| Redis client              | `/redis/go-redis`                | `go-redis/v9` 9.21.0      | TTL state, atomic scripts, leases, rate limiting, and pub/sub                                    |
+| OpenID Connect            | `/coreos/go-oidc`                | `go-oidc/v3` 3.20.0       | Google discovery and verified ID-token claims                                                    |
+| OAuth 2.0                 | `/golang/oauth2`                 | `oauth2` 0.36.0           | Authorization code exchange with PKCE                                                            |
+| OpenTelemetry Go          | `/open-telemetry/opentelemetry-go` | `otel` 1.44.0          | Trace SDK and OTLP HTTP exporter                                                                 |
+| OpenTelemetry HTTP        | `/open-telemetry/opentelemetry-go-contrib` | `otelhttp` 0.69.0 | Server request instrumentation                                                                   |
+| Prometheus Go             | `/prometheus/client_golang`      | `client_golang` 1.24.0    | Bounded HTTP metrics and exposition                                                              |
+| PostgreSQL image          | official image source            | 18.4-alpine3.24           | Exact local development database image                                                           |
+| Redis image               | official image source            | 8.8.0-alpine3.23          | Exact local ephemeral-store image                                                                |
 
 All installed versions are exact in manifests and lockfiles. GitHub Actions are
 pinned to immutable commit SHAs and annotated with their release line.

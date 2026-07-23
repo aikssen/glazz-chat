@@ -1003,9 +1003,13 @@ export interface operations {
     };
     readonly startGoogleLogin: {
         readonly parameters: {
-            readonly query?: {
+            readonly query: {
                 /** @description Allowlisted relative application path. */
                 readonly returnTo?: string;
+                /** @description Explicit acceptance of the currently advertised terms version. */
+                readonly termsAccepted: true;
+                /** @description Explicit acceptance of the currently advertised privacy version. */
+                readonly privacyAccepted: true;
             };
             readonly header?: never;
             readonly path?: never;

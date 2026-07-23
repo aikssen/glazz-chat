@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Glazz API
-  version: 0.1.0
+  version: 0.2.0
   summary: HTTP contract for the Glazz MVP
   description: |
     Source of truth for Glazz HTTP resources. Chat generation is commanded over
@@ -136,6 +136,16 @@ paths:
           in: query
           description: Allowlisted relative application path.
           schema: {type: string, pattern: "^/[A-Za-z0-9/_?=&.-]*$"}
+        - name: termsAccepted
+          in: query
+          required: true
+          description: Explicit acceptance of the currently advertised terms version.
+          schema: {type: boolean, const: true}
+        - name: privacyAccepted
+          in: query
+          required: true
+          description: Explicit acceptance of the currently advertised privacy version.
+          schema: {type: boolean, const: true}
       responses:
         "302":
           description: Redirect to Google with server-held state, PKCE, and nonce.

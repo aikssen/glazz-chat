@@ -37,6 +37,18 @@ OpenCode Go is a development adapter, not the production provider.
 The API and worker can be started with `go run ./cmd/api` and
 `go run ./cmd/worker` from `apps/api`.
 
+The complete M2 stack starts from the repository root with:
+
+```bash
+docker compose -f deploy/compose.yaml up --build
+```
+
+Use `pnpm db:migrate` for forward migrations, `pnpm db:reset` for an intentional
+non-production schema rebuild, `pnpm db:generate` after changing SQL queries, and
+`pnpm test:integration` while Postgres and Redis are available. The integration
+suite requires explicit `DATABASE_URL` and `REDIS_URL` values and fails closed when
+Redis protection is unavailable.
+
 Generated files under `packages/contracts/generated` and
 `apps/api/internal/platform/api/generated.gen.go` are committed. CI regenerates
 them and rejects drift.

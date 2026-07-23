@@ -223,51 +223,51 @@ implementation start.
 
 **Objective:** Provide realistic local dependencies and shared operational plumbing.
 
-- [ ] **PLAT-001: Create Docker Compose development stack**
+- [x] **PLAT-001: Create Docker Compose development stack**
   - Depends on: FOUND-001, FOUND-003
   - Add PostgreSQL, Redis, API, worker, web, health checks, named volumes, and network.
   - Acceptance: one command starts a healthy stack; backups remain off locally.
 
-- [ ] **PLAT-002: Establish migration workflow**
+- [x] **PLAT-002: Establish migration workflow**
   - Depends on: PLAT-001
   - Configure `goose`, migration verification, schema reset, and pre-deploy mode.
   - Acceptance: migrate from empty, rollback safe test migration, and detect drift.
 
-- [ ] **PLAT-003: Establish pgx/sqlc workflow**
+- [x] **PLAT-003: Establish pgx/sqlc workflow**
   - Depends on: PLAT-002
   - Configure pools, transaction runner, query generation, health, and test helpers.
   - Acceptance: generated queries are deterministic and pool shutdown is graceful.
 
-- [ ] **PLAT-004: Implement Redis adapter**
+- [x] **PLAT-004: Implement Redis adapter**
   - Depends on: PLAT-001
   - Add health, namespaced TTL keys, rate-limit primitives, leases, tickets, and
     pub/sub interfaces.
   - Acceptance: integration tests cover expiry, contention, and unavailable Redis.
 
-- [ ] **PLAT-005: Implement structured config**
+- [x] **PLAT-005: Implement structured config**
   - Depends on: FOUND-008
   - Parse/validate runtime, database, Redis, OAuth, JWT, cookie, provider, admin, and
     telemetry groups at composition root.
   - Acceptance: table tests cover invalid combinations and secret-safe errors.
 
-- [ ] **PLAT-006: Implement IDs, clock, and transaction abstractions**
+- [x] **PLAT-006: Implement IDs, clock, and transaction abstractions**
   - Depends on: FOUND-003
   - Add UUIDv7 source, UTC clock, fake variants, and transaction interface.
   - Acceptance: deterministic tests demonstrate injectable behavior.
 
-- [ ] **PLAT-007: Implement HTTP middleware baseline**
+- [x] **PLAT-007: Implement HTTP middleware baseline**
   - Depends on: ADR-001, PLAT-005
   - Add request IDs, recovery, safe logging, timeouts, body limits, CORS, security
     headers, trusted proxy handling, and JSON errors.
   - Acceptance: middleware tests prove headers, redaction, and failure mapping.
 
-- [ ] **PLAT-008: Implement telemetry baseline**
+- [x] **PLAT-008: Implement telemetry baseline**
   - Depends on: PLAT-005
   - Add OpenTelemetry traces, Prometheus metrics, JSON logs, and local exporters.
   - Acceptance: one synthetic request is correlated across log, metric, and trace
     without content leakage.
 
-- [ ] **PLAT-009: Implement transactional outbox and worker runner**
+- [x] **PLAT-009: Implement transactional outbox and worker runner**
   - Depends on: PLAT-003, PLAT-006
   - Add durable jobs/events, claim/retry/backoff, advisory locks, dead-letter state,
     and graceful shutdown.
@@ -278,69 +278,69 @@ implementation start.
 
 **Objective:** Securely identify every actor before chat is implemented.
 
-- [ ] **AUTH-001: Create identity schema**
+- [x] **AUTH-001: Create identity schema**
   - Depends on: PLAT-002, SEC-001
   - Add users, identities, sessions, terms acceptances, role/plan/status constraints.
   - Acceptance: migration and repository integration tests pass.
 
-- [ ] **AUTH-002: Implement JWT access tokens**
+- [x] **AUTH-002: Implement JWT access tokens**
   - Depends on: ADR-003, AUTH-001, PLAT-005
   - Sign/verify issuer, audience, expiry, not-before, session, version, and `kid`.
   - Acceptance: tamper, wrong audience, expiry, rotation, and revoked-session tests
     pass.
 
-- [ ] **AUTH-003: Implement refresh rotation and reuse detection**
+- [x] **AUTH-003: Implement refresh rotation and reuse detection**
   - Depends on: AUTH-001, AUTH-002
   - Store only hashes; rotate atomically; revoke family on reuse.
   - Acceptance: concurrency/race tests allow one winner and revoke on replay.
 
-- [ ] **AUTH-004: Implement Google OAuth flow**
+- [x] **AUTH-004: Implement Google OAuth flow**
   - Depends on: AUTH-003, PLAT-007
   - Add state, PKCE, nonce, callback allowlist, verified identity, cookie issue.
   - Acceptance: success, denial, replay, state mismatch, duplicate email, and safe
     redirect E2E/integration cases pass.
 
-- [ ] **AUTH-005: Implement session management**
+- [x] **AUTH-005: Implement session management**
   - Depends on: AUTH-003
   - Add `/me`, list/revoke sessions, logout, recent-auth marker.
   - Acceptance: revocation takes effect promptly across HTTP and WebSocket.
 
-- [ ] **AUTH-006: Implement CSRF and browser cookie policy**
+- [x] **AUTH-006: Implement CSRF and browser cookie policy**
   - Depends on: AUTH-003, PLAT-007
   - Protect unsafe cookie-authenticated methods and configure environment-specific
     cookie domain/security.
   - Acceptance: cross-site and missing-token requests fail; valid same-site flow
     works.
 
-- [ ] **GUEST-001: Create guest schema and signed cookie**
+- [x] **GUEST-001: Create guest schema and signed cookie**
   - Depends on: PLAT-002, PLAT-006
   - Add hashed public identity, allowance counters, expiry, and migration marker.
   - Acceptance: cookie tampering/rotation tests and no raw ID exposure.
 
-- [ ] **GUEST-002: Implement guest-session API**
+- [x] **GUEST-002: Implement guest-session API**
   - Depends on: GUEST-001, PLAT-007
   - Create/resume and report remaining allowance.
   - Acceptance: idempotent resume, expired guest, and maintenance cases match API.
 
-- [ ] **QUOTA-001: Implement rate-limit and quota domain**
+- [x] **QUOTA-001: Implement rate-limit and quota domain**
   - Depends on: GUEST-001, AUTH-001, PLAT-004
   - Add guest/user daily limits, output reservation, concurrency leases, IP hash,
     global budgets, and reset calculations.
   - Acceptance: boundary, timezone/UTC reset, concurrent, Redis-loss, and refund
     tests pass.
 
-- [ ] **GUEST-003: Implement transactional guest migration**
+- [x] **GUEST-003: Implement transactional guest migration**
   - Depends on: AUTH-004, GUEST-002
   - Transfer ownership during callback with locking and idempotency.
   - Acceptance: callback replay and concurrent migration create no duplicate/lost
     data.
 
-- [ ] **PRIV-001: Implement terms/privacy acceptance**
+- [x] **PRIV-001: Implement terms/privacy acceptance**
   - Depends on: AUTH-004
   - Version legal documents and persist acceptance during account creation.
   - Acceptance: account creation cannot complete without current required consent.
 
-- [ ] **AUTH-007: Bootstrap first administrators**
+- [x] **AUTH-007: Bootstrap first administrators**
   - Depends on: AUTH-004, PLAT-005
   - Promote allowlisted verified emails idempotently and audit the action.
   - Acceptance: non-allowlisted users remain standard users.

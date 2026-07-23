@@ -16,6 +16,32 @@ jobs:
   presubmit:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    env:
+      DATABASE_URL: postgres://glazz:glazz@localhost:5432/glazz?sslmode=disable
+      REDIS_URL: redis://localhost:6379/0
+    services:
+      postgres:
+        image: postgres:18.4-alpine3.24
+        env:
+          POSTGRES_DB: glazz
+          POSTGRES_USER: glazz
+          POSTGRES_PASSWORD: glazz
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U glazz -d glazz"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
+      redis:
+        image: redis:8.8.0-alpine3.23
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -34,9 +60,12 @@ jobs:
           cache-dependency-path: apps/api/go.sum
       - run: pnpm install --frozen-lockfile
       - run: pnpm contracts:generate
+      - run: pnpm db:generate
       - name: Reject generated contract drift
         run: git diff --exit-code
       - run: pnpm check
+      - run: pnpm db:migrate
+      - run: pnpm test:integration
 
   security:
     runs-on: ubuntu-latest

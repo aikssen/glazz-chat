@@ -1,6 +1,6 @@
 {
   "name": "glazz",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "packageManager": "pnpm@11.17.0",
   "engines": {
@@ -17,6 +17,9 @@
     "test": "pnpm --filter @glazz/web test",
     "contracts:lint": "redocly lint packages/contracts/openapi.yaml packages/contracts/websocket.asyncapi.yaml && node scripts/validate-ws-fixtures.mjs",
     "contracts:generate": "openapi-typescript packages/contracts/openapi.yaml --output packages/contracts/generated/typescript/api.d.ts --immutable && cd apps/api && go generate ./internal/platform/api",
+    "db:generate": "cd apps/api && go generate ./internal/platform/store",
+    "db:migrate": "cd apps/api && go run ./cmd/migrate up",
+    "db:reset": "cd apps/api && go run ./cmd/migrate reset",
     "go:format:check": "test -z \"$(gofmt -l apps/api)\"",
     "go:lint": "cd apps/api && go vet ./...",
     "go:test": "cd apps/api && go test -race ./...",
