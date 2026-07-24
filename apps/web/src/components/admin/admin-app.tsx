@@ -7,6 +7,7 @@ import { usePreferences } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import { APIError, api } from "@/lib/api";
 import type { AdminModel, AdminUser, RuntimeSetting } from "@/lib/types";
+import { newUUID } from "@/lib/uuid";
 
 type Tab = "models" | "settings" | "users" | "usage" | "audit";
 
@@ -141,7 +142,7 @@ export function AdminApp() {
     try {
       await api("/api/v1/admin/models/sync", {
         method: "POST",
-        headers: { "Idempotency-Key": `model-sync-${crypto.randomUUID()}` },
+        headers: { "Idempotency-Key": `model-sync-${newUUID()}` },
       });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "No fue posible sincronizar.");

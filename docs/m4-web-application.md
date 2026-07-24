@@ -6,6 +6,18 @@ M4 is in progress and is not tagged. The release tag remains reserved as
 `v0.4.0` until Phase 6 through Phase 8 acceptance criteria and CI are green.
 M3 also remains untagged while its acceptance hardening is completed.
 
+The application is available as a testable preview while those acceptance cases
+remain open. In `TASKS.md`, `[-]` means implemented with incomplete acceptance
+coverage, not that the whole feature is still being built.
+
+## Test now
+
+- Direct LAN URL: `http://192.168.1.10:3000`
+- The composer becomes available when the status rail reads `Conectado`.
+- Guest chat works immediately and enforces the configured short trial.
+- Deterministic development login is available from the Google login flow.
+- This environment is a development preview and is not the `v0.4.0` release.
+
 ## Implemented
 
 - Typed runtime settings for maintenance, quotas, system prompt, safety categories,
@@ -36,8 +48,8 @@ M3 also remains untagged while its acceptance hardening is completed.
 
 - OpenAPI and AsyncAPI lint plus 14 WebSocket fixture validations.
 - Next.js production build, TypeScript, ESLint, and Prettier checks.
-- Twelve frontend unit tests, including streaming idempotency, dictionary parity,
-  and theme contrast.
+- Fourteen frontend unit tests, including streaming idempotency, dictionary parity,
+  theme contrast, and UUID generation on insecure local-network origins.
 - Sixteen Playwright E2E checks across the responsive viewport matrix. They cover
   the guest limit, OAuth consent/denial, exactly-once migration, restored deep links,
   authenticated settings, all administration views, account deletion, axe WCAG
@@ -56,6 +68,12 @@ second quota reservation requested the full 2,000-token budget instead of the
 remaining balance. The quota service now caps each reservation by model, actor, and
 global remaining output budgets. SQL constraints remain the final concurrency
 barrier. Unit and browser regression checks cover the correction.
+
+Direct LAN access initially left the composer offline because the browser bundle
+targeted `localhost`, and message submission then failed because `randomUUID()` is
+not exposed on insecure LAN origins. The client now derives the API host from the
+browser location and uses a Web Crypto UUID v4 fallback. Browser regressions cover
+both a streamed guest response and the guest login gate through the LAN URL.
 
 ## Remaining before `v0.4.0`
 

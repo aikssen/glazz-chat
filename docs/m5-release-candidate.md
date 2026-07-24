@@ -2,8 +2,10 @@
 
 ## Status
 
-M5 verification is in progress and is not tagged. Acceptance work may validate and
-harden M3/M4 behavior, but it does not waive either earlier milestone gate.
+M5 has not formally started and is not tagged because the M3 and M4 milestone gates
+remain open. The checks below are preflight evidence gathered while validating M4;
+they can be reused when Phase 9 begins, but they do not change any Phase 9 task to
+in progress.
 
 ## Completed
 
@@ -15,10 +17,10 @@ harden M3/M4 behavior, but it does not waive either earlier milestone gate.
 - Deterministic OAuth consent, denial, one-time callback, guest migration,
   authenticated settings/admin, and account-deletion journeys.
 - PWA offline-state browser coverage against the production container.
-- Next.js typecheck, lint, 12 unit tests, and production build.
+- Next.js typecheck, lint, 14 unit tests, and production build.
 - Go race suite and PostgreSQL/Redis integration suite.
 
-## In Progress
+## Open preflight findings
 
 - `QA-004`: complete conversation lifecycle, cancellation/retry, ownership,
   session-revocation, and recent-auth Playwright journeys.

@@ -18,6 +18,7 @@ import { dictionary } from "@/lib/i18n";
 import { appendDelta, finishAssistant, startAssistant } from "@/lib/streaming-reducer";
 import type { Conversation, CurrentUser, GuestAllowance, Message, Model, Usage } from "@/lib/types";
 import { useDialogFocus } from "@/lib/use-dialog-focus";
+import { newUUID } from "@/lib/uuid";
 import { ChatComposer } from "./chat-composer";
 import { ChatTranscript } from "./chat-transcript";
 import { ConversationSidebar } from "./conversation-sidebar";
@@ -108,8 +109,8 @@ export function ChatApp() {
           JSON.stringify({
             version: 1,
             type: "heartbeat.pong",
-            eventId: crypto.randomUUID(),
-            requestId: crypto.randomUUID(),
+            eventId: newUUID(),
+            requestId: newUUID(),
             occurredAt: new Date().toISOString(),
             payload: {},
           }),
@@ -180,8 +181,8 @@ export function ChatApp() {
             JSON.stringify({
               version: 1,
               type: "connection.resume",
-              eventId: crypto.randomUUID(),
-              requestId: crypto.randomUUID(),
+              eventId: newUUID(),
+              requestId: newUUID(),
               occurredAt: new Date().toISOString(),
               payload: { lastSequence: lastSequence.current },
             }),
@@ -353,7 +354,7 @@ export function ChatApp() {
       const conversation =
         conversations.find((item) => item.id === conversationID) ?? (await createConversation());
       const userMessage: Message = {
-        id: crypto.randomUUID(),
+        id: newUUID(),
         conversationId: conversation.id,
         role: "user",
         content,
@@ -362,14 +363,14 @@ export function ChatApp() {
         createdAt: new Date().toISOString(),
       };
       setMessages((current) => [...current, userMessage]);
-      const eventID = crypto.randomUUID();
+      const eventID = newUUID();
       socket.current?.send(
         JSON.stringify({
           version: 1,
           type: "chat.generate",
           eventId: eventID,
-          requestId: crypto.randomUUID(),
-          idempotencyKey: `chat-${crypto.randomUUID()}`,
+          requestId: newUUID(),
+          idempotencyKey: `chat-${newUUID()}`,
           occurredAt: new Date().toISOString(),
           payload: { conversationId: conversation.id, content },
         }),
@@ -387,8 +388,8 @@ export function ChatApp() {
       JSON.stringify({
         version: 1,
         type: "chat.cancel",
-        eventId: crypto.randomUUID(),
-        requestId: crypto.randomUUID(),
+        eventId: newUUID(),
+        requestId: newUUID(),
         occurredAt: new Date().toISOString(),
         payload: {
           conversationId: generation.conversationId,
@@ -403,7 +404,7 @@ export function ChatApp() {
     try {
       await api(`/api/v1/conversations/${conversationID}/retry`, {
         method: "POST",
-        headers: { "Idempotency-Key": `retry-${crypto.randomUUID()}` },
+        headers: { "Idempotency-Key": `retry-${newUUID()}` },
       });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Retry failed");
