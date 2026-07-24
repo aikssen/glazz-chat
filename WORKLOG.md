@@ -16,6 +16,22 @@ Rules:
 
 ## 2026-07-24
 
+### Phase 7 frontend foundation completed
+
+- Closed WEB-002 through WEB-010 and accepted M4-A06.
+- Added pre-hydration light/dark/system theme selection, responsive application
+  height handling, stable 40/44-pixel controls, skip navigation, inert mobile
+  sheets, focus-contained dialogs, and explicit focus restoration.
+- Added empty navigation states, unavailable-model and quota messaging, lifecycle-
+  only stream announcements, and bilingual labels across chat, settings, and admin.
+- Changed the PWA to cache only same-origin navigation, exclude API/transcript
+  responses, wait for explicit update acceptance, and expose an offline status.
+- Corrected the standalone web image to include public assets and restored the
+  documented direct-LAN environment origins.
+- Verified lint, typecheck, 26 frontend unit tests, production build, four responsive
+  screenshots, WCAG/keyboard/reflow checks, service-worker cache policy and offline
+  behavior, Compose health, and a completed response from the live provider.
+
 ### Configured provider catalog corrected and cleaned
 
 - Compared the configured provider `/models` response with PostgreSQL and found 23

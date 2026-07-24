@@ -43,3 +43,14 @@ describe.each([
     expect(contrast(theme[foreground], theme[background])).toBeGreaterThanOrEqual(4.5);
   });
 });
+
+it("keeps semantic color tokens in parity across light and dark themes", () => {
+  expect(Object.keys(tokens(".dark")).sort()).toEqual(Object.keys(tokens(":root")).sort());
+});
+
+it("applies the saved theme before the preference provider hydrates", () => {
+  const layout = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8");
+  expect(layout.indexOf("themeBootstrap")).toBeLessThan(layout.indexOf("<PreferencesProvider>"));
+  expect(layout).toContain('matchMedia("(prefers-color-scheme: dark)")');
+  expect(layout).toContain("style.colorScheme");
+});

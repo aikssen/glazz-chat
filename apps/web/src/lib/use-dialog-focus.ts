@@ -15,15 +15,18 @@ export function useDialogFocus(
   open: boolean,
   dialog: RefObject<HTMLElement | null>,
   onClose: () => void,
+  returnFocus?: RefObject<HTMLElement | null>,
 ) {
   useEffect(() => {
     if (!open || !dialog.current) return;
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const focusReturnTarget = returnFocus?.current ?? previous;
     const element = dialog.current;
     const focusable = () => Array.from(element.querySelectorAll<HTMLElement>(focusableSelector));
     focusable()[0]?.focus();
 
     function handleKeyDown(event: KeyboardEvent) {
+      if (element.inert || element.getAttribute("aria-hidden") === "true") return;
       if (event.key === "Escape") {
         event.preventDefault();
         onClose();
@@ -50,7 +53,7 @@ export function useDialogFocus(
     document.addEventListener("keydown", handleKeyDown);
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
-      previous?.focus();
+      focusReturnTarget?.focus();
     };
-  }, [dialog, onClose, open]);
+  }, [dialog, onClose, open, returnFocus]);
 }

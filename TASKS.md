@@ -46,8 +46,8 @@ Rules:
 | M6 | Phase 10 | Approved provider and production deployment | Not started | Open | `v0.6.0` reserved |
 | Post-MVP | Phase 11 | Explicitly non-release-critical backlog | Not started | Not applicable | Future planning |
 
-Current progress: M3 is published as `v0.3.0`. Phase 6 is complete; M4 remains open
-because it also owns Phases 7 and 8. Granular acceptance evidence is tracked in
+Current progress: M3 is published as `v0.3.0`. Phases 6 and 7 are complete; M4
+remains open because it also owns Phase 8. Granular acceptance evidence is tracked in
 `docs/m3-chat-backend.md` and `docs/m4-web-application.md`. A `[-]` task means its
 implementation exists but at least one acceptance criterion is still pending; it
 does not mean the feature is unavailable. M5 has not formally started. Preflight
@@ -611,23 +611,23 @@ wiring full journeys.
     preference, English fallback.
   - Acceptance: missing/parity check fails CI; locale persists for users.
 
-- [-] **WEB-002: Implement theme architecture**
+- [x] **WEB-002: Implement theme architecture**
   - Depends on: FOUND-004
   - Add light/dark/system behavior without flash and persist preference.
   - Acceptance: token parity and contrast automated checks pass.
 
-- [-] **WEB-003: Build responsive application shell**
+- [x] **WEB-003: Build responsive application shell**
   - Depends on: FOUND-004, WEB-001, WEB-002
   - Add Glazz header, shadcn Sidebar desktop, Sheet mobile, main/transcript landmark,
     safe areas, and stable composer region.
   - Acceptance: 375/768/1024/1440 screenshots have no overlap/scrollbar errors.
 
-- [-] **WEB-004: Build conversation navigation components**
+- [x] **WEB-004: Build conversation navigation components**
   - Depends on: WEB-003
   - List, search, groups, rename, archive, delete, loading/empty/error states.
   - Acceptance: keyboard/touch/screen-reader component tests pass.
 
-- [-] **WEB-005: Build transcript and message renderer**
+- [x] **WEB-005: Build transcript and message renderer**
   - Depends on: WEB-003
   - Add sanitized Markdown, tables, code highlighting/copy, long-content containment.
   - Acceptance: malicious HTML/XSS fixtures are inert; accessibility tests pass.
@@ -637,27 +637,33 @@ wiring full journeys.
   - Handle start/delta/terminal events, duplicates, offsets, and reduced motion.
   - Acceptance: out-of-order/duplicate fixtures render one correct response.
 
-- [-] **WEB-007: Build chat composer**
+- [x] **WEB-007: Build chat composer**
   - Depends on: WEB-003
   - Add multiline behavior, draft preservation, send/stop stable control, disabled
     reasons, mobile viewport handling.
   - Acceptance: keyboard, touch, IME composition, and mobile keyboard tests pass.
 
-- [-] **WEB-008: Build model selector and usage indicator**
+- [x] **WEB-008: Build model selector and usage indicator**
   - Depends on: WEB-003
   - Plain-language model options, guest restriction, quota/reset display.
   - Acceptance: unavailable model and approaching/exhausted quota states pass.
 
-- [-] **WEB-009: Build connection and failure states**
+- [x] **WEB-009: Build connection and failure states**
   - Depends on: WEB-003, WEB-006
   - Add reconnect, resync, maintenance, inline failure, retry, and jump-to-latest.
   - Acceptance: screen-reader announcements are throttled and actionable.
 
-- [-] **WEB-010: Create PWA shell**
+- [x] **WEB-010: Create PWA shell**
   - Depends on: WEB-003
   - Add manifest, approved temporary icon process, static asset caching, offline/update
     states.
   - Acceptance: no API/transcript response is service-worker cached.
+
+**Phase 7 exit:** Complete on 2026-07-24. The responsive bilingual shell, theme
+bootstrap, accessible navigation and dialogs, transcript/composer primitives,
+quota/model states, throttled stream announcements, and user-controlled PWA
+update/offline behavior pass unit and browser acceptance. M4 remains open for
+Phase 8.
 
 ## Phase 8: Frontend journeys and API integration
 

@@ -1,13 +1,77 @@
 import { expect, test } from "@playwright/test";
 
-test("renders the responsive chat without overflow", async ({ page }) => {
+test("renders the responsive chat without overflow", async ({ page }, testInfo) => {
   await page.goto("/");
 
   await expect(page.getByRole("heading", { name: "¿Qué quieres explorar?" })).toBeVisible();
   await expect(page.getByLabel("Pregunta a Glazz")).toBeVisible();
   await expect(page.getByRole("button", { name: "Enviar mensaje" })).toBeVisible();
+  await expect(page.locator(".connection")).toHaveAttribute("title", "Conectado");
+  await expect(page.locator(".global-error")).toHaveCount(0);
   await expect
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
+    .toBe(true);
+  const regions = await page.locator(".chat-main").evaluate((main) => {
+    const box = (selector: string) => {
+      const bounds = main.querySelector(selector)?.getBoundingClientRect();
+      return bounds ? { top: bounds.top, bottom: bounds.bottom } : null;
+    };
+    return {
+      topbar: box(".chat-topbar"),
+      transcript: box(".chat-scroll"),
+      footer: box(".chat-footer"),
+    };
+  });
+  expect(regions.topbar?.bottom).toBeLessThanOrEqual(regions.transcript?.top ?? 0);
+  expect(regions.transcript?.bottom).toBeLessThanOrEqual(regions.footer?.top ?? 0);
+  await testInfo.attach("responsive-chat", {
+    body: await page.screenshot({ animations: "disabled" }),
+    contentType: "image/png",
+  });
+});
+
+test("saved and system themes apply without a hydration flash", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-375");
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem("glazz-theme-test-ready")) return;
+    localStorage.setItem("glazz-theme", "dark");
+    sessionStorage.setItem("glazz-theme-test-ready", "true");
+  });
+  await page.goto("/");
+  await expect
+    .poll(() => page.locator("html").evaluate((node) => node.classList.contains("dark")))
+    .toBe(true);
+  await expect
+    .poll(() => page.locator("html").evaluate((node) => node.style.colorScheme))
+    .toBe("dark");
+
+  await page.evaluate(() => localStorage.setItem("glazz-theme", "system"));
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.reload();
+  await expect
+    .poll(() => page.locator("html").evaluate((node) => node.classList.contains("dark")))
+    .toBe(true);
+  await expect(page.locator("html")).toHaveAttribute("data-theme-ready", "true");
+  await page.emulateMedia({ colorScheme: "light" });
+  await expect
+    .poll(() => page.locator("html").evaluate((node) => node.classList.contains("dark")))
+    .toBe(false);
+});
+
+test("composer remains visible when the mobile viewport height changes", async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-375");
+  await page.goto("/");
+  await page.setViewportSize({ width: 375, height: 500 });
+  const composer = page.getByLabel("Pregunta a Glazz");
+  await expect(composer).toBeVisible();
+  await expect
+    .poll(async () => {
+      const box = await composer.boundingBox();
+      return box ? box.y + box.height <= 500 : false;
+    })
     .toBe(true);
 });
 

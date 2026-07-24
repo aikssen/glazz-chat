@@ -26,6 +26,19 @@ export const metadata: Metadata = {
   manifest: "/manifest.webmanifest",
 };
 
+const themeBootstrap = `
+(() => {
+  try {
+    const saved = localStorage.getItem("glazz-theme");
+    const theme = saved === "light" || saved === "dark" || saved === "system" ? saved : "system";
+    const dark = theme === "dark" ||
+      (theme === "system" && matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.classList.toggle("dark", dark);
+    document.documentElement.style.colorScheme = dark ? "dark" : "light";
+  } catch {}
+})();
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -33,6 +46,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className="h-full" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeBootstrap }} />
+      </head>
       <body
         className={`${outfit.variable} ${workSans.variable} ${jetBrainsMono.variable} min-h-full antialiased`}
       >

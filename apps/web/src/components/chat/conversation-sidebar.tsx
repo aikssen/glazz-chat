@@ -16,9 +16,11 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { usePreferences } from "@/components/theme-provider";
 import { dictionary } from "@/lib/i18n";
+import { useDialogFocus } from "@/lib/use-dialog-focus";
 import type { Conversation, CurrentUser } from "@/lib/types";
 
 export function ConversationSidebar({
@@ -27,6 +29,7 @@ export function ConversationSidebar({
   selected,
   search,
   user,
+  modalActive,
   onClose,
   onSearch,
   onNew,
@@ -41,6 +44,7 @@ export function ConversationSidebar({
   selected?: string;
   search: string;
   user: CurrentUser | null;
+  modalActive?: boolean;
   onClose: () => void;
   onSearch: (value: string) => void;
   onNew: () => void;
@@ -52,13 +56,34 @@ export function ConversationSidebar({
 }) {
   const { locale } = usePreferences();
   const t = dictionary(locale);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const [mobile, setMobile] = useState(false);
   const active = conversations.filter((item) => item.status === "active");
   const archived = conversations.filter((item) => item.status === "archived");
+  const interactiveModal = open && mobile && !modalActive;
+  useDialogFocus(open && mobile, sidebarRef, onClose);
+
+  useEffect(() => {
+    const query = window.matchMedia("(max-width: 1023px)");
+    const update = () => setMobile(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
 
   return (
     <>
       {open ? <button className="sidebar-backdrop" aria-label={t.close} onClick={onClose} /> : null}
-      <aside className={`conversation-sidebar ${open ? "conversation-sidebar--open" : ""}`}>
+      <aside
+        ref={sidebarRef}
+        className={`conversation-sidebar ${open ? "conversation-sidebar--open" : ""}`}
+        role={interactiveModal ? "dialog" : undefined}
+        aria-modal={interactiveModal ? "true" : undefined}
+        aria-hidden={mobile && !interactiveModal ? "true" : undefined}
+        aria-label={locale === "es" ? "Conversaciones" : "Conversations"}
+        tabIndex={mobile ? -1 : undefined}
+        inert={mobile && !interactiveModal}
+      >
         <div className="sidebar-brand">
           <Link href="/" className="wordmark">
             <span aria-hidden="true">G</span>
@@ -100,6 +125,17 @@ export function ConversationSidebar({
           />
         </label>
         <nav className="conversation-nav" aria-label={t.search}>
+          {!conversations.length ? (
+            <p className="sidebar-empty" role="status">
+              {search
+                ? locale === "es"
+                  ? "No hay conversaciones que coincidan."
+                  : "No conversations match your search."
+                : locale === "es"
+                  ? "Tus conversaciones aparecerán aquí."
+                  : "Your conversations will appear here."}
+            </p>
+          ) : null}
           <ConversationGroup
             label={t.today}
             items={active}

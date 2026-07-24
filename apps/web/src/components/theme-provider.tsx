@@ -35,10 +35,17 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
   useEffect(() => {
     if (!hydrated) return;
     localStorage.setItem("glazz-theme", theme);
-    const dark =
-      theme === "dark" ||
-      (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-    document.documentElement.classList.toggle("dark", dark);
+    const preference = window.matchMedia("(prefers-color-scheme: dark)");
+    const apply = () => {
+      const dark = theme === "dark" || (theme === "system" && preference.matches);
+      document.documentElement.classList.toggle("dark", dark);
+      document.documentElement.style.colorScheme = dark ? "dark" : "light";
+      document.documentElement.dataset.themeReady = "true";
+    };
+    apply();
+    if (theme !== "system") return;
+    preference.addEventListener("change", apply);
+    return () => preference.removeEventListener("change", apply);
   }, [hydrated, theme]);
 
   useEffect(() => {

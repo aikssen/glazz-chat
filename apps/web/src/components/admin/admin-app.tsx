@@ -168,7 +168,11 @@ export function AdminApp() {
           : "Operational controls without access to conversation content."
       }
     >
-      <div className="admin-tabs" role="tablist" aria-label="Secciones de administración">
+      <div
+        className="admin-tabs"
+        role="tablist"
+        aria-label={locale === "es" ? "Secciones de administración" : "Administration sections"}
+      >
         {tabs.map((item) => (
           <button
             key={item.id}

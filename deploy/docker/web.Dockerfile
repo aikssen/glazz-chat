@@ -23,6 +23,7 @@ RUN addgroup -S glazz && adduser -S -G glazz glazz
 WORKDIR /app
 COPY --from=build --chown=glazz:glazz /src/apps/web/.next/standalone ./
 COPY --from=build --chown=glazz:glazz /src/apps/web/.next/static ./apps/web/.next/static
+COPY --from=build --chown=glazz:glazz /src/apps/web/public ./apps/web/public
 USER glazz
 EXPOSE 3000
 CMD ["node", "apps/web/server.js"]

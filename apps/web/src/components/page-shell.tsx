@@ -14,11 +14,15 @@ export function PageShell({
   description: string;
   children: React.ReactNode;
 }) {
-  const { theme, setTheme } = usePreferences();
+  const { locale, theme, setTheme } = usePreferences();
   return (
     <main className="settings-shell">
       <header className="settings-topbar">
-        <Link href="/" className="settings-back" aria-label="Volver al chat">
+        <Link
+          href="/"
+          className="settings-back"
+          aria-label={locale === "es" ? "Volver al chat" : "Back to chat"}
+        >
           <ArrowLeft />
         </Link>
         <Link href="/" className="wordmark">
@@ -30,7 +34,7 @@ export function PageShell({
           size="icon"
           className="ml-auto"
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-          aria-label="Cambiar apariencia"
+          aria-label={locale === "es" ? "Cambiar apariencia" : "Change appearance"}
         >
           {theme === "dark" ? <Sun /> : <Moon />}
         </Button>

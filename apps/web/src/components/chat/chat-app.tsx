@@ -4,6 +4,7 @@ import {
   ChevronDown,
   CircleAlert,
   Menu,
+  MessageCircle,
   Moon,
   PanelLeftOpen,
   Sun,
@@ -14,6 +15,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { usePreferences } from "@/components/theme-provider";
 import { APIError, API_URL, api, websocketURL } from "@/lib/api";
+import { selectedModelUnavailable, usagePresentation } from "@/lib/chat-presentation";
 import { dictionary } from "@/lib/i18n";
 import { clientEvent } from "@/lib/realtime-client";
 import { appendDelta, finishAssistant, startAssistant } from "@/lib/streaming-reducer";
@@ -66,8 +68,18 @@ export function ChatApp() {
   const conversationIDRef = useRef("");
   const pendingCommands = useRef(new Map<string, "chat.generate" | "chat.cancel">());
   const loginDialogRef = useRef<HTMLDivElement>(null);
-  const closeLoginDialog = useCallback(() => setLoginDialog(false), []);
-  useDialogFocus(loginDialog, loginDialogRef, closeLoginDialog);
+  const loginTriggerRef = useRef<HTMLElement>(null);
+  const closeLoginDialog = useCallback(() => {
+    setLoginDialog(false);
+    window.requestAnimationFrame(() => loginTriggerRef.current?.focus());
+  }, []);
+  useDialogFocus(loginDialog, loginDialogRef, closeLoginDialog, loginTriggerRef);
+
+  const openLoginDialog = useCallback(() => {
+    loginTriggerRef.current =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setLoginDialog(true);
+  }, []);
 
   useEffect(() => {
     const location = new URL(window.location.href);
@@ -195,6 +207,26 @@ export function ChatApp() {
   useEffect(() => {
     conversationIDRef.current = conversationID;
   }, [conversationID]);
+
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const updateHeight = () => {
+      document.documentElement.style.setProperty(
+        "--app-height",
+        `${Math.round(viewport?.height ?? window.innerHeight)}px`,
+      );
+    };
+    updateHeight();
+    viewport?.addEventListener("resize", updateHeight);
+    viewport?.addEventListener("scroll", updateHeight);
+    window.addEventListener("resize", updateHeight);
+    return () => {
+      viewport?.removeEventListener("resize", updateHeight);
+      viewport?.removeEventListener("scroll", updateHeight);
+      window.removeEventListener("resize", updateHeight);
+      document.documentElement.style.removeProperty("--app-height");
+    };
+  }, []);
 
   const connect = useCallback(async () => {
     try {
@@ -447,13 +479,10 @@ export function ChatApp() {
   }
 
   const selected = conversations.find((item) => item.id === conversationID);
-  const exhausted =
-    allowance?.exhausted ||
-    (usage
-      ? usage.messages.used >= usage.messages.limit ||
-        usage.outputTokens.used >= usage.outputTokens.limit
-      : false);
+  const usageState = usagePresentation(usage);
+  const exhausted = allowance?.exhausted || usageState.exhausted;
   const disabled = maintenance || connection !== "connected" || Boolean(exhausted);
+  const { remainingMessages, warning: usageWarning } = usageState;
   const reason = maintenance
     ? locale === "es"
       ? "El servicio está en mantenimiento. Tu borrador se conservará."
@@ -462,16 +491,38 @@ export function ChatApp() {
       ? connection === "connecting"
         ? t.reconnecting
         : t.offline
-      : "";
+      : exhausted
+        ? locale === "es"
+          ? `Alcanzaste el límite disponible${
+              usage?.messages.resetAt
+                ? `. Se restablece ${new Intl.DateTimeFormat(locale, {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  }).format(new Date(usage.messages.resetAt))}`
+                : "."
+            }`
+          : `You reached the available limit${
+              usage?.messages.resetAt
+                ? `. It resets ${new Intl.DateTimeFormat(locale, {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  }).format(new Date(usage.messages.resetAt))}`
+                : "."
+            }`
+        : "";
 
   return (
     <main className={`chat-shell ${sidebarCollapsed ? "chat-shell--collapsed" : ""}`}>
+      <a className="skip-link" href="#chat-transcript">
+        {locale === "es" ? "Saltar a la conversación" : "Skip to conversation"}
+      </a>
       <ConversationSidebar
         open={sidebar}
         conversations={conversations}
         selected={conversationID}
         search={search}
         user={user}
+        modalActive={loginDialog}
         onClose={() => {
           setSidebar(false);
           setSidebarCollapsed(true);
@@ -482,7 +533,7 @@ export function ChatApp() {
         onRename={(conversation) => void renameConversation(conversation)}
         onArchive={(conversation) => void archiveConversation(conversation)}
         onDelete={(conversation) => void deleteConversation(conversation)}
-        onLogin={() => setLoginDialog(true)}
+        onLogin={openLoginDialog}
       />
       <section className="chat-main">
         <header className="chat-topbar">
@@ -515,6 +566,11 @@ export function ChatApp() {
                 );
               }}
             >
+              {selected && selectedModelUnavailable(selected.modelId, models) ? (
+                <option value={selected.modelId} disabled>
+                  {locale === "es" ? "Modelo no disponible" : "Model unavailable"}
+                </option>
+              ) : null}
               {models.map((model) => (
                 <option key={model.id} value={model.id}>
                   {model.name}
@@ -533,11 +589,16 @@ export function ChatApp() {
           </div>
           {usage ? (
             <div
-              className="usage-pill"
+              className={`usage-pill ${usageWarning ? "usage-pill--warning" : ""}`}
               title={`${usage.outputTokens.used} / ${usage.outputTokens.limit}`}
+              aria-label={
+                locale === "es"
+                  ? `${remainingMessages} mensajes disponibles`
+                  : `${remainingMessages} messages available`
+              }
             >
-              {Math.max(usage.messages.limit - usage.messages.used, 0)}
-              <span className="sr-only"> {t.freeLeft}</span>
+              <MessageCircle aria-hidden="true" />
+              {remainingMessages}
             </div>
           ) : null}
           <Button
@@ -557,9 +618,9 @@ export function ChatApp() {
             <button onClick={() => setError("")}>{t.close}</button>
           </div>
         ) : null}
-        <div className="chat-scroll">
+        <div id="chat-transcript" className="chat-scroll" tabIndex={-1}>
           {!ready ? (
-            <LoadingTranscript />
+            <LoadingTranscript locale={locale} />
           ) : (
             <ChatTranscript messages={messages} streaming={Boolean(generation)} onRetry={retry} />
           )}
@@ -573,7 +634,7 @@ export function ChatApp() {
                 </strong>
                 <span>{t.preserve}</span>
               </div>
-              <Button onClick={() => setLoginDialog(true)}>
+              <Button onClick={openLoginDialog}>
                 <GoogleMark />
                 {t.login}
               </Button>
@@ -659,9 +720,12 @@ export function ChatApp() {
   );
 }
 
-function LoadingTranscript() {
+function LoadingTranscript({ locale }: { locale: "es" | "en" }) {
   return (
-    <div className="transcript-skeleton" aria-label="Loading">
+    <div
+      className="transcript-skeleton"
+      aria-label={locale === "es" ? "Cargando conversación" : "Loading conversation"}
+    >
       <span />
       <span />
       <span />

@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { usePreferences } from "@/components/theme-provider";
 import { dictionary } from "@/lib/i18n";
+import { streamAnnouncement } from "@/lib/stream-announcement";
 import type { Message } from "@/lib/types";
 import { MessageContent } from "./message-content";
 
@@ -19,7 +20,9 @@ export function ChatTranscript({
 }) {
   const end = useRef<HTMLDivElement>(null);
   const [atBottom, setAtBottom] = useState(true);
+  const [announcement, setAnnouncement] = useState("");
   const atBottomRef = useRef(true);
+  const wasStreaming = useRef(false);
   const { locale } = usePreferences();
   const t = dictionary(locale);
 
@@ -44,6 +47,13 @@ export function ChatTranscript({
     return () => observer.disconnect();
   }, [messages.length]);
 
+  useEffect(() => {
+    const lastAssistant = messages.findLast((message) => message.role === "assistant");
+    const next = streamAnnouncement(wasStreaming.current, streaming, lastAssistant?.status, locale);
+    wasStreaming.current = streaming;
+    if (next) setAnnouncement(next);
+  }, [locale, messages, streaming]);
+
   if (messages.length === 0) {
     return (
       <div className="empty-chat">
@@ -57,7 +67,16 @@ export function ChatTranscript({
   }
 
   return (
-    <div className="transcript" aria-live="polite" aria-busy={streaming}>
+    <div
+      className="transcript"
+      role="log"
+      aria-label={locale === "es" ? "Transcripción de la conversación" : "Conversation transcript"}
+      aria-live="off"
+      aria-busy={streaming}
+    >
+      <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {announcement}
+      </p>
       {messages.map((message) => (
         <article
           key={message.id}

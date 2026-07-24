@@ -10,7 +10,7 @@
 
 M4 is in progress and is not tagged. The release tag remains reserved as
 `v0.4.0` until Phase 6 through Phase 8 acceptance criteria and CI are green.
-Phase 6 is complete. Phases 7 and 8 retain open acceptance items.
+Phases 6 and 7 are complete. Phase 8 retains open acceptance items.
 
 The application is available as a testable preview while those acceptance cases
 remain open. In `TASKS.md`, `[-]` means implemented with incomplete acceptance
@@ -25,7 +25,7 @@ coverage, not that the whole feature is still being built.
 | M4-A03 | 6 | Role changes require recent auth and preserve an active administrator under concurrency | Accepted | HTTP and concurrent PostgreSQL integration tests |
 | M4-A04 | 6 | Usage exposes aggregate tokens, failures, latency, and error codes; audit reads redact sensitive values | Accepted | SQL aggregation, redaction, and pagination tests |
 | M4-A05 | 6 | Account deletion, purge, and guest cleanup preserve required anonymous aggregates | Accepted | Existing Phase 6 lifecycle integration tests |
-| M4-A06 | 7 | Frontend foundation and design-system acceptance | Open | WEB-002 through WEB-010 acceptance remains |
+| M4-A06 | 7 | Frontend foundation and design-system acceptance | Accepted | Unit tests, WCAG checks, responsive visual matrix, live-provider smoke, and PWA policy/offline tests |
 | M4-A07 | 8 | Integrated user and administration journeys | Open | Phase 8 E2E acceptance remains |
 
 ## Test now
@@ -68,7 +68,7 @@ coverage, not that the whole feature is still being built.
 
 - OpenAPI and AsyncAPI lint plus 14 WebSocket fixture validations.
 - Next.js production build, TypeScript, ESLint, and Prettier checks.
-- Eighteen frontend unit tests, including streaming idempotency, dictionary parity,
+- Twenty-six frontend unit tests, including streaming idempotency, dictionary parity,
   theme contrast, and UUID generation on insecure local-network origins.
 - Sixteen Playwright E2E checks across the responsive viewport matrix. They cover
   the guest limit, OAuth consent/denial, exactly-once migration, restored deep links,
@@ -123,13 +123,23 @@ cleanup is ordered and repeatable. The development catalog was transactionally
 cleaned and the 23 models currently advertised by OpenCode Go were explicitly
 enabled for registered users.
 
+Phase 7 acceptance exposed two deployment-specific defects. The standalone Next.js
+image omitted `public`, so the service worker was unavailable in the container;
+the image now copies public assets beside the standalone application. The active
+remote `.env` also targeted browser-local `localhost` while the preview used the
+LAN address. The preview now follows the documented LAN origin configuration, and
+responsive tests require a connected realtime state with no application error.
+
+The initial PWA controller listener also reloaded the page when the first worker
+claimed it. Reload is now gated by explicit acceptance of a waiting update.
+Automated checks prove that only same-origin navigation is cached, API routes are
+excluded, offline status is visible, and initial installation remains stable.
+
 ## Remaining before `v0.4.0`
 
-- Complete authenticated E2E coverage for ownership denial, generation
+- Complete Phase 8 authenticated E2E coverage for ownership denial, generation
   cancellation/retry, and recent-auth recovery. Registered rename/archive/restore/
   delete, both session-revocation paths, browser-locale fallback, and authenticated
   locale persistence are now covered.
-- Add explicit screen-reader announcement throttling and exercise the PWA waiting
-  update state.
 - Run full repository presubmit and CI, then create the annotated `v0.4.0` tag only
   after every M4 acceptance item is green.

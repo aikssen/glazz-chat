@@ -153,7 +153,17 @@ export function SettingsApp() {
         <div className="segmented-control" aria-label={copy.appearance}>
           {(["light", "dark", "system"] as Theme[]).map((value) => (
             <button key={value} aria-pressed={theme === value} onClick={() => setTheme(value)}>
-              {value === "light" ? "Claro" : value === "dark" ? "Oscuro" : "Sistema"}
+              {value === "light"
+                ? locale === "es"
+                  ? "Claro"
+                  : "Light"
+                : value === "dark"
+                  ? locale === "es"
+                    ? "Oscuro"
+                    : "Dark"
+                  : locale === "es"
+                    ? "Sistema"
+                    : "System"}
             </button>
           ))}
         </div>
@@ -239,7 +249,7 @@ export function SettingsApp() {
                 : 'This cannot be undone. Type "DELETE" to continue.'}
             </p>
             <label>
-              <span>Confirmación</span>
+              <span>{locale === "es" ? "Confirmación" : "Confirmation"}</span>
               <input
                 value={confirmation}
                 onChange={(event) => setConfirmation(event.target.value)}
