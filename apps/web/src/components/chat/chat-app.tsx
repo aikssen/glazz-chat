@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { usePreferences } from "@/components/theme-provider";
 import { APIError, API_URL, api, websocketURL } from "@/lib/api";
 import { dictionary } from "@/lib/i18n";
+import { clientEvent } from "@/lib/realtime-client";
 import { appendDelta, finishAssistant, startAssistant } from "@/lib/streaming-reducer";
 import type { Conversation, CurrentUser, GuestAllowance, Message, Model, Usage } from "@/lib/types";
 import { useDialogFocus } from "@/lib/use-dialog-focus";
@@ -62,6 +63,7 @@ export function ChatApp() {
   const socket = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<number | null>(null);
   const lastSequence = useRef(0);
+  const pendingCommands = useRef(new Map<string, "chat.generate" | "chat.cancel">());
   const loginDialogRef = useRef<HTMLDivElement>(null);
   const closeLoginDialog = useCallback(() => setLoginDialog(false), []);
   useDialogFocus(loginDialog, loginDialogRef, closeLoginDialog);
@@ -107,16 +109,39 @@ export function ChatApp() {
     (event: ServerEvent) => {
       if (event.sequence) lastSequence.current = Math.max(lastSequence.current, event.sequence);
       if (event.type === "heartbeat.ping") {
-        socket.current?.send(
-          JSON.stringify({
-            version: 1,
-            type: "heartbeat.pong",
-            eventId: newUUID(),
-            requestId: newUUID(),
-            occurredAt: new Date().toISOString(),
-            payload: {},
-          }),
+        const pong = clientEvent("heartbeat.pong", {
+          heartbeatId: String(event.payload.heartbeatId ?? ""),
+        });
+        socket.current?.send(JSON.stringify(pong));
+        return;
+      }
+      if (event.type === "command.acknowledged") {
+        pendingCommands.current.delete(String(event.payload.commandEventId ?? ""));
+        return;
+      }
+      if (event.type === "command.rejected") {
+        const commandEventID = String(event.payload.commandEventId ?? "");
+        const command = pendingCommands.current.get(commandEventID);
+        pendingCommands.current.delete(commandEventID);
+        if (command !== "chat.generate") {
+          return;
+        }
+        setGeneration(null);
+        const code = String(event.payload.code ?? "");
+        setError(
+          locale === "es"
+            ? code === "quota_exceeded"
+              ? "Alcanzaste el límite disponible. Revisa tu consumo e inténtalo después."
+              : code === "concurrency_exceeded"
+                ? "Ya tienes una respuesta en curso. Espera a que termine e inténtalo de nuevo."
+                : "No fue posible iniciar la respuesta. Inténtalo de nuevo."
+            : code === "quota_exceeded"
+              ? "You reached the available limit. Check your usage and try again later."
+              : code === "concurrency_exceeded"
+                ? "You already have a response in progress. Wait for it to finish and try again."
+                : "The response could not be started. Try again.",
         );
+        void refreshLists();
         return;
       }
       if (event.type === "chat.started") {
@@ -155,15 +180,6 @@ export function ChatApp() {
         setGeneration(null);
         void refreshLists();
       }
-      if (event.type === "command.rejected") {
-        setGeneration(null);
-        setError(
-          locale === "es"
-            ? "No fue posible iniciar la respuesta. Revisa tu límite e inténtalo de nuevo."
-            : "The response could not be started. Check your limit and try again.",
-        );
-        void refreshLists();
-      }
     },
     [locale, refreshLists],
   );
@@ -181,14 +197,7 @@ export function ChatApp() {
         setConnection("connected");
         if (lastSequence.current > 0) {
           next.send(
-            JSON.stringify({
-              version: 1,
-              type: "connection.resume",
-              eventId: newUUID(),
-              requestId: newUUID(),
-              occurredAt: new Date().toISOString(),
-              payload: { lastSequence: lastSequence.current },
-            }),
+            JSON.stringify(clientEvent("connection.resume", { lastSequence: lastSequence.current })),
           );
         }
       };
@@ -381,18 +390,12 @@ export function ChatApp() {
         createdAt: new Date().toISOString(),
       };
       setMessages((current) => [...current, userMessage]);
-      const eventID = newUUID();
-      socket.current?.send(
-        JSON.stringify({
-          version: 1,
-          type: "chat.generate",
-          eventId: eventID,
-          requestId: newUUID(),
-          idempotencyKey: `chat-${newUUID()}`,
-          occurredAt: new Date().toISOString(),
-          payload: { conversationId: conversation.id, content },
-        }),
-      );
+      const event = clientEvent("chat.generate", {
+        conversationId: conversation.id,
+        content,
+      });
+      pendingCommands.current.set(event.eventId, "chat.generate");
+      socket.current?.send(JSON.stringify(event));
       return true;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Message failed");
@@ -402,19 +405,12 @@ export function ChatApp() {
 
   function stop() {
     if (!generation) return;
-    socket.current?.send(
-      JSON.stringify({
-        version: 1,
-        type: "chat.cancel",
-        eventId: newUUID(),
-        requestId: newUUID(),
-        occurredAt: new Date().toISOString(),
-        payload: {
-          conversationId: generation.conversationId,
-          generationId: generation.id,
-        },
-      }),
-    );
+    const event = clientEvent("chat.cancel", {
+      conversationId: generation.conversationId,
+      generationId: generation.id,
+    });
+    pendingCommands.current.set(event.eventId, "chat.cancel");
+    socket.current?.send(JSON.stringify(event));
   }
 
   async function retry() {

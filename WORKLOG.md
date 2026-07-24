@@ -16,6 +16,17 @@ Rules:
 
 ## 2026-07-24
 
+### Realtime client envelope fix
+
+- Traced the misleading chat quota alert to `invalid_command` events emitted for
+  heartbeat, resume, and cancel envelopes that omitted contract-required fields.
+- Centralized client WebSocket envelope construction with an idempotency key on
+  every command and preserved the server heartbeat ID in pong responses.
+- Scoped visible generation errors to rejected `chat.generate` commands and mapped
+  quota/concurrency codes separately from generic conflicts.
+- Verified frontend typecheck, lint, 18 unit tests, and the production Next.js build;
+  rebuilt only the active web container.
+
 ### Phase 4 completed
 
 - Closed MODEL-001 through MODEL-008 and accepted M3-A01 through M3-A05.
