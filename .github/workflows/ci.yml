@@ -68,6 +68,74 @@ jobs:
       - run: pnpm db:migrate
       - run: pnpm test:integration
 
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GLAZZ_ENV_FILE: ${{ github.workspace }}/.env.test.example
+      DATABASE_URL: postgres://glazz:glazz@localhost:5432/glazz?sslmode=disable
+      REDIS_URL: redis://localhost:6379/0
+      OAUTH_TEST_MODE: "true"
+      OAUTH_TEST_EMAIL: glazz-e2e-ci@example.test
+      BOOTSTRAP_ADMIN_EMAILS: glazz-e2e-ci@example.test
+      E2E_OAUTH: "true"
+      E2E_PWA: "true"
+    services:
+      postgres:
+        image: postgres:18.4-alpine3.24
+        env:
+          POSTGRES_DB: glazz
+          POSTGRES_USER: glazz
+          POSTGRES_PASSWORD: glazz
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U glazz -d glazz"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
+      redis:
+        image: redis:8.8.0-alpine3.23
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 11.17.0
+          run_install: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: 24.13.0
+          cache: pnpm
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: 1.26.5
+          cache-dependency-path: apps/api/go.sum
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --dir apps/web exec playwright install chromium --with-deps
+      - name: Start API
+        working-directory: apps/api
+        run: |
+          go run ./cmd/api > "$RUNNER_TEMP/glazz-api.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/glazz-api.pid"
+      - name: Wait for API
+        run: |
+          for attempt in {1..60}; do
+            if curl --fail --silent http://localhost:8080/api/v1/health/ready > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/glazz-api.log"
+          exit 1
+      - run: pnpm e2e
+
   security:
     runs-on: ubuntu-latest
     timeout-minutes: 10

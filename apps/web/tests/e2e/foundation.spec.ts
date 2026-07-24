@@ -79,7 +79,10 @@ test("guest limit becomes a focused login gate", async ({ page }, testInfo) => {
   await expect(composer).not.toBeVisible();
 });
 
-test("Google approval migrates the guest conversation exactly once", async ({ page }, testInfo) => {
+test("Google approval covers the registered-user lifecycle", async ({
+  browser,
+  page,
+}, testInfo) => {
   test.skip(testInfo.project.name !== "mobile-375" || process.env.E2E_OAUTH !== "true");
   let callbackURL = "";
   page.on("request", (request) => {
@@ -95,6 +98,7 @@ test("Google approval migrates the guest conversation exactly once", async ({ pa
   await openLoginDialog(page);
   await page.getByRole("link", { name: "Approve" }).click();
 
+  await page.getByRole("button", { name: "Abrir conversaciones" }).click();
   await expect(page.getByText("Glazz E2E Administrator")).toBeVisible();
   await expect(
     page.getByRole("paragraph").filter({
@@ -109,21 +113,58 @@ test("Google approval migrates the guest conversation exactly once", async ({ pa
     }),
   ).toBeVisible();
 
-  const migrated = await page.evaluate(async () => {
-    const response = await fetch("http://localhost:8080/api/v1/conversations?limit=100", {
+  const apiOrigin = new URL(page.url());
+  apiOrigin.port = "8080";
+  const migrated = await page.evaluate(async (origin) => {
+    const response = await fetch(`${origin}/api/v1/conversations?limit=100`, {
       credentials: "include",
     });
     return (await response.json()) as { items: unknown[] };
-  });
+  }, apiOrigin.origin);
   expect(migrated.items).toHaveLength(1);
   expect(callbackURL).toContain("code=glazz-e2e-approved");
   const replay = await page.request.get(callbackURL);
   expect(replay.status()).toBe(400);
 
+  await page.getByRole("button", { name: "Abrir conversaciones" }).click();
+  let conversation = page.locator(".conversation-item").first();
+  await conversation.locator("summary").click();
+  page.once("dialog", (dialog) => dialog.accept("Conversación E2E"));
+  await conversation.getByRole("button", { name: "Renombrar" }).click();
+  await expect(conversation).toContainText("Conversación E2E");
+
+  await conversation.getByRole("button", { name: "Archivar" }).click();
+  conversation = page.locator(".conversation-item").filter({ hasText: "Conversación E2E" });
+  await expect(page.getByRole("heading", { name: "Archivadas" })).toBeVisible();
+  await conversation.locator("summary").click();
+  await conversation.getByRole("button", { name: "Restaurar" }).click();
+  await expect(page.getByRole("heading", { name: "Archivadas" })).toHaveCount(0);
+
+  const secondContext = await browser.newContext({
+    baseURL: String(testInfo.project.use.baseURL),
+  });
+  const secondPage = await secondContext.newPage();
+  await secondPage.goto("/");
+  await openLoginDialog(secondPage);
+  await secondPage.getByRole("link", { name: "Approve" }).click();
+  await secondPage.getByRole("button", { name: "Abrir conversaciones" }).click();
+  await expect(secondPage.getByText("Glazz E2E Administrator")).toBeVisible();
+
   await page.goto("/settings");
   await expect(page.getByRole("heading", { name: "Ajustes" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Sesiones activas" })).toBeVisible();
   await expect(page.getByText(/Actual/)).toBeVisible();
+  const sessionRows = page.locator(".session-row");
+  await expect(sessionRows).toHaveCount(2);
+  const sessionLabels = await sessionRows.allTextContents();
+  const otherSession = sessionLabels.findIndex((label) => !label.includes("Actual"));
+  expect(otherSession).toBeGreaterThanOrEqual(0);
+  await sessionRows.nth(otherSession).getByRole("button", { name: "Revocar sesión" }).click();
+  await expect(sessionRows).toHaveCount(1);
+  await secondPage.goto("/settings");
+  await expect(secondPage.getByText("Inicia sesión para abrir los ajustes.")).toBeVisible();
+  await secondContext.close();
+
   await page.getByRole("button", { name: "English" }).click();
   await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
   await page.getByRole("button", { name: "Español" }).click();
@@ -141,6 +182,14 @@ test("Google approval migrates the guest conversation exactly once", async ({ pa
     await expect(page.getByRole("heading", { name: heading })).toBeVisible();
   }
   await expect(page.getByText("Conserva esta conversación después del login.")).toHaveCount(0);
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Abrir conversaciones" }).click();
+  conversation = page.locator(".conversation-item").filter({ hasText: "Conversación E2E" });
+  await conversation.locator("summary").click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await conversation.getByRole("button", { name: "Eliminar" }).click();
+  await expect(conversation).toHaveCount(0);
 
   await page.goto("/settings");
   await page.getByRole("button", { name: "Eliminar cuenta" }).click();
