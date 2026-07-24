@@ -83,12 +83,14 @@ func TestM2IdentityGuestQuotaAndOutbox(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	testID := uuid.NewString()
+	adminEmail := "person-" + testID + "@example.com"
 	userService := users.New(pool, idSource, timeSource, "terms-1", "privacy-1", map[string]struct{}{
-		"person@example.com": {},
+		adminEmail: {},
 	})
 	user, created, err := userService.ProvisionGoogle(ctx, users.ProvisionInput{
 		Profile: users.GoogleProfile{
-			Subject: "google-subject-1", Email: "person@example.com",
+			Subject: "google-subject-" + testID, Email: adminEmail,
 			EmailVerified: true, DisplayName: "Person",
 		},
 		TermsAccepted: true, PrivacyAccepted: true,
@@ -98,7 +100,7 @@ func TestM2IdentityGuestQuotaAndOutbox(t *testing.T) {
 	}
 	replayed, created, err := userService.ProvisionGoogle(ctx, users.ProvisionInput{
 		Profile: users.GoogleProfile{
-			Subject: "google-subject-1", Email: "person@example.com",
+			Subject: "google-subject-" + testID, Email: adminEmail,
 			EmailVerified: true, DisplayName: "Person",
 		},
 		TermsAccepted: true, PrivacyAccepted: true,
@@ -170,7 +172,8 @@ func TestM2IdentityGuestQuotaAndOutbox(t *testing.T) {
 	conversationID, _ := idSource.New()
 	if _, err := pool.Raw().Exec(
 		ctx,
-		`INSERT INTO conversations (id, guest_session_id) VALUES ($1, $2)`,
+		`INSERT INTO conversations (id, guest_session_id, model_id)
+		 VALUES ($1, $2, '00000000-0000-7000-8000-000000000101')`,
 		conversationID,
 		*guestID,
 	); err != nil {
@@ -178,7 +181,7 @@ func TestM2IdentityGuestQuotaAndOutbox(t *testing.T) {
 	}
 	migrationInput := users.ProvisionInput{
 		Profile: users.GoogleProfile{
-			Subject: "google-subject-2", Email: "migrated@example.com",
+			Subject: "google-migrated-" + testID, Email: "migrated-" + testID + "@example.com",
 			EmailVerified: true, DisplayName: "Migrated",
 		},
 		TermsAccepted: true, PrivacyAccepted: true, GuestID: guestID,

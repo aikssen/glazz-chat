@@ -30,6 +30,8 @@ type actorKey string
 
 const currentActorKey actorKey = "current_actor"
 
+var ErrUnauthenticated = errors.New("browser authentication is invalid")
+
 type Actor struct {
 	UserID    uuid.UUID
 	SessionID uuid.UUID
@@ -108,27 +110,35 @@ func Authenticate(
 ) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
-			cookie, err := request.Cookie(AccessCookie)
-			if err != nil {
-				httpx.WriteError(response, request, http.StatusUnauthorized, "unauthenticated", "Authentication is required.")
-				return
-			}
-			claims, err := ring.Verify(cookie.Value)
-			if err != nil {
-				httpx.WriteError(response, request, http.StatusUnauthorized, "unauthenticated", "Authentication is invalid.")
-				return
-			}
-			userID, sessionID, err := sessionService.ValidateAccessSession(request.Context(), claims)
+			actor, err := Resolve(request, ring, sessionService)
 			if err != nil {
 				httpx.WriteError(response, request, http.StatusUnauthorized, "unauthenticated", "Session is no longer active.")
 				return
 			}
-			ctx := context.WithValue(request.Context(), currentActorKey, Actor{
-				UserID: userID, SessionID: sessionID,
-			})
+			ctx := context.WithValue(request.Context(), currentActorKey, actor)
 			next.ServeHTTP(response, request.WithContext(ctx))
 		})
 	}
+}
+
+func Resolve(
+	request *http.Request,
+	ring *tokens.KeyRing,
+	sessionService *sessions.Service,
+) (Actor, error) {
+	cookie, err := request.Cookie(AccessCookie)
+	if err != nil || cookie.Value == "" {
+		return Actor{}, ErrUnauthenticated
+	}
+	claims, err := ring.Verify(cookie.Value)
+	if err != nil {
+		return Actor{}, ErrUnauthenticated
+	}
+	userID, sessionID, err := sessionService.ValidateAccessSession(request.Context(), claims)
+	if err != nil {
+		return Actor{}, ErrUnauthenticated
+	}
+	return Actor{UserID: userID, SessionID: sessionID}, nil
 }
 
 func CurrentActor(ctx context.Context) (Actor, bool) {

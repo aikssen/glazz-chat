@@ -14,31 +14,61 @@ type Querier interface {
 	AddDailyUsage(ctx context.Context, arg AddDailyUsageParams) (DailyUsage, error)
 	AdjustDailyOutputUsage(ctx context.Context, arg AdjustDailyOutputUsageParams) error
 	AdjustGuestOutputUsage(ctx context.Context, arg AdjustGuestOutputUsageParams) error
+	AppendAssistantMessage(ctx context.Context, arg AppendAssistantMessageParams) (Message, error)
+	CheckpointGeneration(ctx context.Context, arg CheckpointGenerationParams) (int64, error)
 	ClaimOutboxEvents(ctx context.Context, arg ClaimOutboxEventsParams) ([]OutboxEvent, error)
 	CompleteOutboxEvent(ctx context.Context, arg CompleteOutboxEventParams) (int64, error)
+	CountActorActiveGenerations(ctx context.Context, arg CountActorActiveGenerationsParams) (int64, error)
 	CreateAuthSession(ctx context.Context, arg CreateAuthSessionParams) (AuthSession, error)
+	CreateConversationSummary(ctx context.Context, arg CreateConversationSummaryParams) (ConversationSummary, error)
+	CreateGeneration(ctx context.Context, arg CreateGenerationParams) (Generation, error)
 	CreateGoogleIdentity(ctx context.Context, arg CreateGoogleIdentityParams) error
+	CreateGuestConversation(ctx context.Context, arg CreateGuestConversationParams) (Conversation, error)
 	CreateGuestSession(ctx context.Context, arg CreateGuestSessionParams) (GuestSession, error)
+	CreateMessage(ctx context.Context, arg CreateMessageParams) (Message, error)
 	CreateQuotaReservation(ctx context.Context, arg CreateQuotaReservationParams) error
+	CreateUsageLedgerEntry(ctx context.Context, arg CreateUsageLedgerEntryParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
+	CreateUserConversation(ctx context.Context, arg CreateUserConversationParams) (Conversation, error)
 	DeadLetterOutboxEvent(ctx context.Context, arg DeadLetterOutboxEventParams) (int64, error)
 	EnqueueOutboxEvent(ctx context.Context, arg EnqueueOutboxEventParams) error
+	FinalizeGeneration(ctx context.Context, arg FinalizeGenerationParams) (Generation, error)
+	FinalizeMessage(ctx context.Context, arg FinalizeMessageParams) (int64, error)
 	FindUserByEmail(ctx context.Context, lower string) (User, error)
 	FindUserByGoogleSubject(ctx context.Context, providerSubject string) (FindUserByGoogleSubjectRow, error)
 	FindUserByID(ctx context.Context, id uuid.UUID) (User, error)
+	GetActorUsage(ctx context.Context, arg GetActorUsageParams) (GetActorUsageRow, error)
 	GetAuthSession(ctx context.Context, id uuid.UUID) (AuthSession, error)
+	GetDefaultModel(ctx context.Context, actorType string) (Model, error)
+	GetGeneration(ctx context.Context, id uuid.UUID) (Generation, error)
+	GetGenerationByIdempotencyKey(ctx context.Context, arg GetGenerationByIdempotencyKeyParams) (Generation, error)
+	GetGuestConversation(ctx context.Context, arg GetGuestConversationParams) (Conversation, error)
+	GetGuestConversationByOwner(ctx context.Context, guestSessionID *uuid.UUID) (Conversation, error)
 	GetGuestSessionByIdentityHash(ctx context.Context, identityHash []byte) (GuestSession, error)
+	GetLatestGeneration(ctx context.Context, conversationID uuid.UUID) (Generation, error)
+	GetLatestSummary(ctx context.Context, conversationID uuid.UUID) (ConversationSummary, error)
+	GetMessage(ctx context.Context, id uuid.UUID) (Message, error)
+	GetProviderForModel(ctx context.Context, modelID uuid.UUID) (GetProviderForModelRow, error)
+	GetSelectableModel(ctx context.Context, arg GetSelectableModelParams) (Model, error)
+	GetUserConversation(ctx context.Context, arg GetUserConversationParams) (Conversation, error)
 	HasOutboxReceipt(ctx context.Context, arg HasOutboxReceiptParams) (bool, error)
 	IncrementGuestAllowance(ctx context.Context, arg IncrementGuestAllowanceParams) (GuestSession, error)
 	InsertAdminAudit(ctx context.Context, arg InsertAdminAuditParams) error
 	InsertRefreshToken(ctx context.Context, arg InsertRefreshTokenParams) error
 	ListAuthSessions(ctx context.Context, arg ListAuthSessionsParams) ([]AuthSession, error)
+	ListContextMessages(ctx context.Context, conversationID uuid.UUID) ([]Message, error)
+	ListConversationMessages(ctx context.Context, arg ListConversationMessagesParams) ([]Message, error)
+	ListPublicModels(ctx context.Context, actorType string) ([]Model, error)
+	ListUserConversations(ctx context.Context, arg ListUserConversationsParams) ([]Conversation, error)
 	LockGuestSession(ctx context.Context, id uuid.UUID) (GuestSession, error)
 	LockQuotaReservation(ctx context.Context, id uuid.UUID) (QuotaReservation, error)
 	LockRefreshToken(ctx context.Context, tokenHash []byte) (LockRefreshTokenRow, error)
+	MarkGenerationStreaming(ctx context.Context, arg MarkGenerationStreamingParams) (Generation, error)
 	MarkGuestMigrated(ctx context.Context, arg MarkGuestMigratedParams) (int64, error)
+	MarkProviderModelsUnavailable(ctx context.Context, arg MarkProviderModelsUnavailableParams) error
 	MarkRefreshTokenUsed(ctx context.Context, arg MarkRefreshTokenUsedParams) (int64, error)
 	MigrateGuestConversations(ctx context.Context, arg MigrateGuestConversationsParams) (int64, error)
+	NextMessageSequence(ctx context.Context, conversationID uuid.UUID) (int32, error)
 	Ping(ctx context.Context) (int32, error)
 	PromoteBootstrapAdmin(ctx context.Context, arg PromoteBootstrapAdminParams) (int64, error)
 	RecordOutboxReceipt(ctx context.Context, arg RecordOutboxReceiptParams) error
@@ -46,9 +76,17 @@ type Querier interface {
 	RetryOutboxEvent(ctx context.Context, arg RetryOutboxEventParams) (int64, error)
 	RevokeAuthSession(ctx context.Context, arg RevokeAuthSessionParams) (int64, error)
 	RevokeSessionFamily(ctx context.Context, arg RevokeSessionFamilyParams) error
+	SetConversationGenerationState(ctx context.Context, arg SetConversationGenerationStateParams) (int64, error)
+	SetGeneratedConversationTitle(ctx context.Context, arg SetGeneratedConversationTitleParams) (int64, error)
 	SettleQuotaReservation(ctx context.Context, arg SettleQuotaReservationParams) (int64, error)
+	SoftDeleteGuestConversation(ctx context.Context, arg SoftDeleteGuestConversationParams) (int64, error)
+	SoftDeleteUserConversation(ctx context.Context, arg SoftDeleteUserConversationParams) (int64, error)
 	TouchAuthSession(ctx context.Context, arg TouchAuthSessionParams) error
 	TouchGuestSession(ctx context.Context, arg TouchGuestSessionParams) error
+	UpdateGuestConversation(ctx context.Context, arg UpdateGuestConversationParams) (Conversation, error)
+	UpdateUserConversation(ctx context.Context, arg UpdateUserConversationParams) (Conversation, error)
+	UpsertProvider(ctx context.Context, arg UpsertProviderParams) (Provider, error)
+	UpsertProviderModel(ctx context.Context, arg UpsertProviderModelParams) error
 }
 
 var _ Querier = (*Queries)(nil)

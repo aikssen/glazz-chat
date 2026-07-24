@@ -44,13 +44,30 @@ type AuthSession struct {
 }
 
 type Conversation struct {
-	ID             uuid.UUID          `db:"id"`
-	UserID         *uuid.UUID         `db:"user_id"`
-	GuestSessionID *uuid.UUID         `db:"guest_session_id"`
-	Title          string             `db:"title"`
-	Status         string             `db:"status"`
-	CreatedAt      pgtype.Timestamptz `db:"created_at"`
-	UpdatedAt      pgtype.Timestamptz `db:"updated_at"`
+	ID              uuid.UUID          `db:"id"`
+	UserID          *uuid.UUID         `db:"user_id"`
+	GuestSessionID  *uuid.UUID         `db:"guest_session_id"`
+	Title           string             `db:"title"`
+	Status          string             `db:"status"`
+	CreatedAt       pgtype.Timestamptz `db:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `db:"updated_at"`
+	ModelID         uuid.UUID          `db:"model_id"`
+	GenerationState string             `db:"generation_state"`
+	RenamedByUser   bool               `db:"renamed_by_user"`
+	LastMessageAt   pgtype.Timestamptz `db:"last_message_at"`
+	DeletedAt       pgtype.Timestamptz `db:"deleted_at"`
+}
+
+type ConversationSummary struct {
+	ID              uuid.UUID          `db:"id"`
+	ConversationID  uuid.UUID          `db:"conversation_id"`
+	ModelID         uuid.UUID          `db:"model_id"`
+	Content         string             `db:"content"`
+	FromSequence    int32              `db:"from_sequence"`
+	ThroughSequence int32              `db:"through_sequence"`
+	Version         int32              `db:"version"`
+	InputTokens     int32              `db:"input_tokens"`
+	CreatedAt       pgtype.Timestamptz `db:"created_at"`
 }
 
 type DailyUsage struct {
@@ -60,6 +77,31 @@ type DailyUsage struct {
 	MessagesUsed     int32              `db:"messages_used"`
 	OutputTokensUsed int64              `db:"output_tokens_used"`
 	UpdatedAt        pgtype.Timestamptz `db:"updated_at"`
+}
+
+type Generation struct {
+	ID                 uuid.UUID          `db:"id"`
+	ConversationID     uuid.UUID          `db:"conversation_id"`
+	UserMessageID      uuid.UUID          `db:"user_message_id"`
+	AssistantMessageID uuid.UUID          `db:"assistant_message_id"`
+	ParentGenerationID *uuid.UUID         `db:"parent_generation_id"`
+	ModelID            uuid.UUID          `db:"model_id"`
+	ProviderID         uuid.UUID          `db:"provider_id"`
+	QuotaReservationID *uuid.UUID         `db:"quota_reservation_id"`
+	IdempotencyKey     string             `db:"idempotency_key"`
+	Status             string             `db:"status"`
+	Retryable          bool               `db:"retryable"`
+	FinishReason       *string            `db:"finish_reason"`
+	ErrorCode          *string            `db:"error_code"`
+	InputTokens        int32              `db:"input_tokens"`
+	OutputTokens       int32              `db:"output_tokens"`
+	CachedTokens       int32              `db:"cached_tokens"`
+	StreamOffset       int32              `db:"stream_offset"`
+	ProviderRequestID  *string            `db:"provider_request_id"`
+	AcceptedAt         pgtype.Timestamptz `db:"accepted_at"`
+	StartedAt          pgtype.Timestamptz `db:"started_at"`
+	CompletedAt        pgtype.Timestamptz `db:"completed_at"`
+	UpdatedAt          pgtype.Timestamptz `db:"updated_at"`
 }
 
 type GlazzMigrationChecksum struct {
@@ -78,6 +120,36 @@ type GuestSession struct {
 	ExpiresAt        pgtype.Timestamptz `db:"expires_at"`
 	MigratedUserID   *uuid.UUID         `db:"migrated_user_id"`
 	MigratedAt       pgtype.Timestamptz `db:"migrated_at"`
+}
+
+type Message struct {
+	ID             uuid.UUID          `db:"id"`
+	ConversationID uuid.UUID          `db:"conversation_id"`
+	Role           string             `db:"role"`
+	Content        string             `db:"content"`
+	Status         string             `db:"status"`
+	Sequence       int32              `db:"sequence"`
+	CreatedAt      pgtype.Timestamptz `db:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `db:"updated_at"`
+}
+
+type Model struct {
+	ID              uuid.UUID          `db:"id"`
+	Slug            string             `db:"slug"`
+	Name            string             `db:"name"`
+	Description     string             `db:"description"`
+	ContextWindow   int32              `db:"context_window"`
+	MaxOutputTokens int32              `db:"max_output_tokens"`
+	Capabilities    []byte             `db:"capabilities"`
+	Enabled         bool               `db:"enabled"`
+	Available       bool               `db:"available"`
+	Supported       bool               `db:"supported"`
+	Audience        []string           `db:"audience"`
+	DefaultFor      []string           `db:"default_for"`
+	SortOrder       int32              `db:"sort_order"`
+	Version         int32              `db:"version"`
+	CreatedAt       pgtype.Timestamptz `db:"created_at"`
+	UpdatedAt       pgtype.Timestamptz `db:"updated_at"`
 }
 
 type OutboxEvent struct {
@@ -101,6 +173,28 @@ type OutboxReceipt struct {
 	CompletedAt pgtype.Timestamptz `db:"completed_at"`
 }
 
+type Provider struct {
+	ID           uuid.UUID          `db:"id"`
+	Code         string             `db:"code"`
+	DisplayName  string             `db:"display_name"`
+	Adapter      string             `db:"adapter"`
+	Enabled      bool               `db:"enabled"`
+	HealthStatus string             `db:"health_status"`
+	Settings     []byte             `db:"settings"`
+	Version      int32              `db:"version"`
+	CreatedAt    pgtype.Timestamptz `db:"created_at"`
+	UpdatedAt    pgtype.Timestamptz `db:"updated_at"`
+}
+
+type ProviderModel struct {
+	ProviderID      uuid.UUID          `db:"provider_id"`
+	ModelID         uuid.UUID          `db:"model_id"`
+	ProviderModelID string             `db:"provider_model_id"`
+	Available       bool               `db:"available"`
+	Metadata        []byte             `db:"metadata"`
+	SyncedAt        pgtype.Timestamptz `db:"synced_at"`
+}
+
 type QuotaReservation struct {
 	ID                   uuid.UUID          `db:"id"`
 	ActorType            string             `db:"actor_type"`
@@ -119,6 +213,20 @@ type TermsAcceptance struct {
 	PrivacyVersion string             `db:"privacy_version"`
 	IpHash         []byte             `db:"ip_hash"`
 	AcceptedAt     pgtype.Timestamptz `db:"accepted_at"`
+}
+
+type UsageLedger struct {
+	ID                      uuid.UUID          `db:"id"`
+	GenerationID            uuid.UUID          `db:"generation_id"`
+	ActorType               string             `db:"actor_type"`
+	ActorID                 uuid.UUID          `db:"actor_id"`
+	ProviderID              uuid.UUID          `db:"provider_id"`
+	ModelID                 uuid.UUID          `db:"model_id"`
+	InputTokens             int32              `db:"input_tokens"`
+	OutputTokens            int32              `db:"output_tokens"`
+	CachedTokens            int32              `db:"cached_tokens"`
+	EstimatedCostMicrounits int64              `db:"estimated_cost_microunits"`
+	OccurredAt              pgtype.Timestamptz `db:"occurred_at"`
 }
 
 type User struct {

@@ -37,7 +37,7 @@ OpenCode Go is a development adapter, not the production provider.
 The API and worker can be started with `go run ./cmd/api` and
 `go run ./cmd/worker` from `apps/api`.
 
-The complete M2 stack starts from the repository root with:
+The complete development stack starts from the repository root with:
 
 ```bash
 docker compose -f deploy/compose.yaml up --build
@@ -52,3 +52,11 @@ Redis protection is unavailable.
 Generated files under `packages/contracts/generated` and
 `apps/api/internal/platform/api/generated.gen.go` are committed. CI regenerates
 them and rejects drift.
+
+## Remote execution
+
+Use [Remote Development Runbook](./runbooks/remote-development.md) when source
+remains on a contributor workstation but dependencies, generation, checks, Docker,
+and development services run on the shared development server. The local checkout
+remains authoritative for Git history; the remote clone is a disposable execution
+workspace.

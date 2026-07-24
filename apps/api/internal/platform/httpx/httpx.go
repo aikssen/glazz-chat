@@ -124,6 +124,10 @@ func MaxBody(bytes int64) func(http.Handler) http.Handler {
 func Timeout(duration time.Duration) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+			if strings.EqualFold(request.Header.Get("Upgrade"), "websocket") {
+				next.ServeHTTP(response, request)
+				return
+			}
 			ctx, cancel := context.WithTimeout(request.Context(), duration)
 			defer cancel()
 			next.ServeHTTP(response, request.WithContext(ctx))

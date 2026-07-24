@@ -10,12 +10,15 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/aikssen/glazz-chat/apps/api/internal/chat"
+	"github.com/aikssen/glazz-chat/apps/api/internal/conversations"
 	"github.com/aikssen/glazz-chat/apps/api/internal/guests"
 	"github.com/aikssen/glazz-chat/apps/api/internal/identity/browser"
 	identityoauth "github.com/aikssen/glazz-chat/apps/api/internal/identity/oauth"
 	"github.com/aikssen/glazz-chat/apps/api/internal/identity/sessions"
 	"github.com/aikssen/glazz-chat/apps/api/internal/identity/tokens"
 	"github.com/aikssen/glazz-chat/apps/api/internal/identity/users"
+	"github.com/aikssen/glazz-chat/apps/api/internal/models"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/clock"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/config"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/database"
@@ -23,6 +26,9 @@ import (
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/redisx"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/server"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/telemetry"
+	"github.com/aikssen/glazz-chat/apps/api/internal/provider"
+	"github.com/aikssen/glazz-chat/apps/api/internal/quota"
+	"github.com/aikssen/glazz-chat/apps/api/internal/realtime"
 )
 
 func main() {
@@ -92,6 +98,30 @@ func run(logger *slog.Logger) error {
 	guestService := guests.New(
 		pool, idSource, timeSource, cfg.Cookies, 30*24*time.Hour,
 	)
+	modelService := models.New(pool)
+	conversationService := conversations.New(pool, modelService, idSource, timeSource)
+	tickets := realtime.NewTickets(redisClient, timeSource, 30*time.Second)
+	broker := realtime.NewBroker(redisClient, idSource, timeSource)
+	quotaService := quota.New(
+		pool, redisClient, idSource, timeSource, quota.DefaultPolicy(), cfg.Cookies.SigningKey,
+	)
+	gateways := chat.Gateways{"fake": provider.NewFake(provider.FakeOptions{})}
+	if cfg.Provider.Kind != "fake" {
+		gateway, err := provider.NewOpenAICompatible(
+			cfg.Provider.BaseURL, cfg.Provider.APIKey, nil, provider.DefaultOptions(),
+		)
+		if err != nil {
+			return err
+		}
+		gateways["fake"] = provider.NewResilient(gateway, provider.DefaultResilienceOptions())
+	}
+	chatService := chat.New(
+		rootCtx, pool, conversationService, modelService, quotaService, broker,
+		gateways, idSource, timeSource,
+	)
+	realtimeHandler := realtime.NewHandler(
+		tickets, broker, chatService, timeSource, cfg.Runtime.AllowedOrigins,
+	)
 	browserManager := browser.New(
 		cfg.Cookies, cfg.Auth.AccessTokenTTL, cfg.Auth.RefreshTokenTTL,
 	)
@@ -112,6 +142,12 @@ func run(logger *slog.Logger) error {
 		OAuth: oauthService, Sessions: sessionService, Browser: browserManager,
 		Auth: browser.Authenticate(keyRing, sessionService), Telemetry: telemetryRuntime,
 		Logger: logger, IDs: idSource,
+		Models: modelService, Chats: conversationService,
+		Tickets: tickets, Realtime: realtimeHandler,
+		ChatEngine: chatService,
+		ResolveUser: func(request *http.Request) (browser.Actor, error) {
+			return browser.Resolve(request, keyRing, sessionService)
+		},
 	})
 	httpServer := &http.Server{
 		Addr: cfg.Runtime.APIAddress, Handler: handler,

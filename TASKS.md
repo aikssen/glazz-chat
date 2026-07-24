@@ -34,6 +34,13 @@ Rules:
 | M5 | Integrated, tested, observable release candidate |
 | M6 | Approved provider and production deployment |
 
+Current progress: M3 is in progress. The provider-neutral types and deterministic
+fake are complete. Schema, OpenAI-compatible streaming, public catalog,
+conversation HTTP APIs, WebSocket transport, durable generation, cancellation,
+retry, context, summary, title, safety, and usage slices are implemented but remain
+in progress until every acceptance case below is automated. Do not create `v0.3.0`
+until Phase 4 and Phase 5 exit criteria and CI are green.
+
 ## Phase 0: API and architecture contract
 
 **Objective:** Turn the product decisions into reviewable, executable contracts
@@ -350,30 +357,30 @@ implementation start.
 **Objective:** Stream through a provider-neutral interface using a deterministic fake
 and OpenCode Go only for development.
 
-- [ ] **MODEL-001: Create provider/model/configuration schema**
+- [-] **MODEL-001: Create provider/model/configuration schema**
   - Depends on: PLAT-002
   - Add providers, models, provider mapping, exposure, typed settings, and audit.
   - Acceptance: constraints prevent exposing unsupported/unavailable models.
 
-- [ ] **MODEL-002: Define provider-neutral domain types**
+- [x] **MODEL-002: Define provider-neutral domain types**
   - Depends on: API-010
   - Define requests, messages, chunks, usage, finish reasons, errors, and capabilities.
   - Acceptance: types contain no OpenCode/OpenAI SDK-specific structures.
 
-- [ ] **MODEL-003: Implement deterministic fake provider**
+- [x] **MODEL-003: Implement deterministic fake provider**
   - Depends on: MODEL-002
   - Support configurable chunks, latency, usage, cancellation, partial failure, and
     catalog.
   - Acceptance: tests and local E2E can run with no external API key.
 
-- [ ] **MODEL-004: Implement OpenAI-compatible adapter**
+- [-] **MODEL-004: Implement OpenAI-compatible adapter**
   - Depends on: MODEL-002, PLAT-005
   - Add streamed Chat Completions, timeouts, normalized errors/usage, cancellation,
     and safe logging.
   - Acceptance: synthetic contract suite covers normal, malformed, rate-limited,
     timeout, disconnect, and partial stream.
 
-- [ ] **MODEL-005: Configure OpenCode Go development provider**
+- [-] **MODEL-005: Configure OpenCode Go development provider**
   - Depends on: MODEL-004, FOUND-008
   - Use configured `/zen/go/v1`, map `deepseek-v4-flash`, and keep provider details
     out of domain/public APIs.
@@ -385,12 +392,12 @@ and OpenCode Go only for development.
     never auto-enable.
   - Acceptance: repeated sync is idempotent and catalog changes are audited.
 
-- [ ] **MODEL-007: Implement public model catalog**
+- [-] **MODEL-007: Implement public model catalog**
   - Depends on: MODEL-006, AUTH-005, GUEST-002
   - Filter enabled/supported models by actor; guests get default only.
   - Acceptance: disabled and protocol-unsupported models cannot be selected.
 
-- [ ] **MODEL-008: Implement provider resilience**
+- [-] **MODEL-008: Implement provider resilience**
   - Depends on: MODEL-004, PLAT-008
   - Add circuit breaker, pre-stream retry, global concurrency/spend guard, and health.
   - Acceptance: failure injection proves no replay after partial output and correct
@@ -400,82 +407,82 @@ and OpenCode Go only for development.
 
 **Objective:** Deliver the durable chat lifecycle and versioned WebSocket behavior.
 
-- [ ] **CHAT-001: Create conversation/chat schema**
+- [-] **CHAT-001: Create conversation/chat schema**
   - Depends on: PLAT-002, AUTH-001, GUEST-001, MODEL-001
   - Add conversations, messages, generations, summaries, usage ledger, outbox, and
     ownership/state constraints.
   - Acceptance: exactly-one-owner and one-active-generation constraints are tested.
 
-- [ ] **CONV-001: Implement conversation repository/service**
+- [-] **CONV-001: Implement conversation repository/service**
   - Depends on: CHAT-001
   - Add create/get/list/search/rename/archive/delete/model-change ownership rules.
   - Acceptance: guest restriction, user IDOR, archived filters, cursor stability, and
     idle-only model change tests pass.
 
-- [ ] **CONV-002: Implement conversation HTTP API**
+- [-] **CONV-002: Implement conversation HTTP API**
   - Depends on: CONV-001
   - Expose contract endpoints and message pagination.
   - Acceptance: handler/contract tests cover auth, validation, errors, caching, and
     idempotency.
 
-- [ ] **WS-005: Implement one-time WebSocket tickets**
+- [-] **WS-005: Implement one-time WebSocket tickets**
   - Depends on: AUTH-005, GUEST-002, PLAT-004
   - Issue hashed 30-second single-use tickets for users/guests.
   - Acceptance: replay, expiry, actor mismatch, and Redis failure are denied.
 
-- [ ] **WS-006: Implement WebSocket connection lifecycle**
+- [-] **WS-006: Implement WebSocket connection lifecycle**
   - Depends on: ADR-001, WS-005, PLAT-007
   - Validate origin/ticket, heartbeat, bounded queues, graceful close, resume buffer,
     and cross-instance pub/sub.
   - Acceptance: lifecycle fixtures and reconnect/load tests pass.
 
-- [ ] **CHAT-002: Implement generation state machine**
+- [-] **CHAT-002: Implement generation state machine**
   - Depends on: CHAT-001, MODEL-003, QUOTA-001
   - Reserve quota, persist messages/generation, stream/checkpoint, reconcile usage,
     and finalize terminal state.
   - Acceptance: every allowed/forbidden transition has deterministic tests.
 
-- [ ] **CHAT-003: Implement `chat.generate`**
+- [-] **CHAT-003: Implement `chat.generate`**
   - Depends on: CHAT-002, WS-006, MODEL-004
   - Validate content/safety, commit before acknowledgement, stream ordered deltas.
   - Acceptance: duplicate idempotency key produces one provider call and one message
     pair.
 
-- [ ] **CHAT-004: Implement cancellation**
+- [-] **CHAT-004: Implement cancellation**
   - Depends on: CHAT-003
   - Propagate cancellation, persist partial state, release leases, reconcile quota.
   - Acceptance: cancellation works before first token, mid-stream, after completion,
     and across reconnect.
 
-- [ ] **CHAT-005: Implement retry of latest failed/cancelled generation**
+- [-] **CHAT-005: Implement retry of latest failed/cancelled generation**
   - Depends on: CHAT-004, CONV-002
   - Enforce latest-only, no visible branch, new idempotent generation.
   - Acceptance: completed/non-latest retries are rejected and concurrency is safe.
 
-- [ ] **CHAT-006: Implement context builder**
+- [-] **CHAT-006: Implement context builder**
   - Depends on: CHAT-002, MODEL-007
   - Build system prompt + versioned summary + recent messages within model limits.
   - Acceptance: role ordering, excluded partial responses, injection boundaries, and
     token budgets are tested.
 
-- [ ] **CHAT-007: Implement conversation summarization**
+- [-] **CHAT-007: Implement conversation summarization**
   - Depends on: CHAT-006, PLAT-009
   - Trigger at 70%, lock per conversation, use configurable cheap model, version
     contiguous coverage.
   - Acceptance: concurrent triggers create one valid summary and retain originals.
 
-- [ ] **CHAT-008: Implement title generation**
+- [-] **CHAT-008: Implement title generation**
   - Depends on: CHAT-003
   - Generate a safe short title asynchronously after initial exchange.
   - Acceptance: failures do not affect chat; user-renamed titles are never replaced.
 
-- [ ] **CHAT-009: Implement safety policy pipeline**
+- [-] **CHAT-009: Implement safety policy pipeline**
   - Depends on: CHAT-003, SEC-001
   - Add size/format checks, configurable input/output categories, abuse signals, and
     report hooks independent of provider.
   - Acceptance: blocked content uses stable codes and content does not enter logs.
 
-- [ ] **USAGE-001: Implement usage API and aggregates**
+- [-] **USAGE-001: Implement usage API and aggregates**
   - Depends on: CHAT-003, QUOTA-001
   - Expose current usage/reset and aggregate non-identifying metrics.
   - Acceptance: reserved/actual/refunded values reconcile under failure.

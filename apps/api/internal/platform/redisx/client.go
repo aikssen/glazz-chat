@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -164,4 +165,63 @@ func (c *Client) Subscribe(ctx context.Context, topic string) (*redis.PubSub, er
 		return nil, fmt.Errorf("subscribe Redis topic: %w", err)
 	}
 	return subscription, nil
+}
+
+func (c *Client) NextSequence(
+	ctx context.Context,
+	namespace, id string,
+	ttl time.Duration,
+) (int64, error) {
+	if ttl <= 0 {
+		return 0, errors.New("sequence TTL must be positive")
+	}
+	key := c.key("sequence", namespace, id)
+	sequence, err := c.client.Incr(ctx, key).Result()
+	if err != nil {
+		return 0, fmt.Errorf("increment Redis sequence: %w", err)
+	}
+	if err := c.client.Expire(ctx, key, ttl).Err(); err != nil {
+		return 0, fmt.Errorf("expire Redis sequence: %w", err)
+	}
+	return sequence, nil
+}
+
+func (c *Client) AppendReplay(
+	ctx context.Context,
+	namespace, id string,
+	sequence int64,
+	payload string,
+	limit int64,
+	ttl time.Duration,
+) error {
+	if sequence <= 0 || limit <= 0 || ttl <= 0 {
+		return errors.New("positive sequence, replay limit, and TTL are required")
+	}
+	key := c.key("replay", namespace, id)
+	pipe := c.client.TxPipeline()
+	pipe.ZAdd(ctx, key, redis.Z{Score: float64(sequence), Member: payload})
+	pipe.ZRemRangeByRank(ctx, key, 0, -(limit + 1))
+	pipe.Expire(ctx, key, ttl)
+	if _, err := pipe.Exec(ctx); err != nil {
+		return fmt.Errorf("append Redis replay event: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) ReplayAfter(
+	ctx context.Context,
+	namespace, id string,
+	sequence int64,
+	limit int64,
+) ([]string, error) {
+	if sequence < 0 || limit <= 0 {
+		return nil, errors.New("non-negative sequence and positive limit are required")
+	}
+	values, err := c.client.ZRangeByScore(ctx, c.key("replay", namespace, id), &redis.ZRangeBy{
+		Min: strconv.FormatInt(sequence+1, 10), Max: "+inf", Count: limit,
+	}).Result()
+	if err != nil {
+		return nil, fmt.Errorf("read Redis replay events: %w", err)
+	}
+	return values, nil
 }

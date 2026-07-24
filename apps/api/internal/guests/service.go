@@ -19,11 +19,15 @@ import (
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/clock"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/config"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/database"
+	"github.com/aikssen/glazz-chat/apps/api/internal/platform/httpx"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/ids"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/store"
 )
 
-const CookieName = "glazz_guest"
+const (
+	CookieName     = "glazz_guest"
+	CSRFCookieName = "glazz_guest_csrf"
+)
 
 var ErrGuestUnauthenticated = errors.New("guest session is missing, expired, or migrated")
 
@@ -65,6 +69,9 @@ func (service *Service) CreateOrResume(
 		_ = service.database.Queries().TouchGuestSession(ctx, store.TouchGuestSessionParams{
 			ID: record.ID, LastSeenAt: timestamp(service.clock.Now()),
 		})
+		if err := service.issueCSRF(response); err != nil {
+			return Allowance{}, false, err
+		}
 		return allowance(record), false, nil
 	}
 
@@ -94,7 +101,29 @@ func (service *Service) CreateOrResume(
 		Secure:   service.cookies.Secure,
 		SameSite: service.sameSite(),
 	})
+	if err := service.issueCSRF(response); err != nil {
+		return Allowance{}, false, err
+	}
 	return allowance(record), true, nil
+}
+
+func (service *Service) CSRF(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if request.Method == http.MethodGet || request.Method == http.MethodHead ||
+			request.Method == http.MethodOptions {
+			next.ServeHTTP(response, request)
+			return
+		}
+		cookie, err := request.Cookie(CSRFCookieName)
+		header := request.Header.Get("X-CSRF-Token")
+		_, valid := service.verify(header)
+		if err != nil || header == "" ||
+			subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(header)) != 1 || !valid {
+			httpx.WriteError(response, request, http.StatusForbidden, "forbidden", "CSRF validation failed.")
+			return
+		}
+		next.ServeHTTP(response, request)
+	})
 }
 
 func (service *Service) Current(ctx context.Context, request *http.Request) (Allowance, error) {
@@ -160,6 +189,19 @@ func (service *Service) sameSite() http.SameSite {
 		return http.SameSiteStrictMode
 	}
 	return http.SameSiteLaxMode
+}
+
+func (service *Service) issueCSRF(response http.ResponseWriter) error {
+	raw, err := ids.SecureToken(32)
+	if err != nil {
+		return err
+	}
+	http.SetCookie(response, &http.Cookie{
+		Name: CSRFCookieName, Value: service.sign(raw), Path: "/",
+		Domain: service.cookies.Domain, MaxAge: int(service.lifetime.Seconds()),
+		HttpOnly: false, Secure: service.cookies.Secure, SameSite: service.sameSite(),
+	})
+	return nil
 }
 
 func allowance(record store.GuestSession) Allowance {

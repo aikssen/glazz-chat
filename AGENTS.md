@@ -24,8 +24,10 @@ Read the relevant sources in this order:
 2. [ARCHITECTURE.md](./ARCHITECTURE.md) for system boundaries and contracts
 3. [DESIGN.md](./DESIGN.md) for frontend behavior and visual rules
 4. [TASKS.md](./TASKS.md) for sequencing and acceptance criteria
-5. The OpenAPI/WebSocket contracts and ADRs relevant to the slice
-6. Existing tests and neighboring implementation
+5. [docs/runbooks/remote-development.md](./docs/runbooks/remote-development.md)
+   when builds, tests, generation, or services will run on the development server
+6. The OpenAPI/WebSocket contracts and ADRs relevant to the slice
+7. Existing tests and neighboring implementation
 
 Do not implement a later phase while a required contract or dependency task remains
 open unless the owner explicitly approves it.
