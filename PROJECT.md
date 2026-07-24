@@ -1,8 +1,12 @@
 # Glazz
 
+> This is the canonical product definition. The portfolio-oriented product matrix
+> is in [`docs/product-capabilities.md`](./docs/product-capabilities.md); the
+> documentation entry point is [`README.md`](./README.md).
+
 ## Document status
 
-- Status: Phases 6-8 complete; M4 release pending CI and `v0.4.0` tag
+- Status: M4 published as `v0.4.0`; Phase 9/M5 in progress
 - Product domain: `https://glazz.hlab.sh`
 - Primary audience: General public
 - Interface languages: Spanish and English
@@ -258,17 +262,17 @@ Numeric business targets are deferred until a baseline cohort exists.
 
 ## Principal risks
 
-| Risk | Mitigation |
-| --- | --- |
-| Development provider differs from production | Provider-neutral domain interface, contract tests, production-provider approval gate |
-| Guest limits bypassed through cookies or IP rotation | Signed identity, IP and device signals, Redis rate limits, global budget circuit breaker |
-| WebSocket disconnect duplicates generations | Idempotency keys, persisted generation state, resume cursor, single active generation |
-| JWT or refresh-token theft | HttpOnly cookies, rotation, reuse detection, session revocation, CSRF and origin controls |
-| Model catalog changes | Internal catalog, explicit admin enablement, capability validation |
-| System prompt treated as a safety boundary | Separate input/output policy pipeline, limits, reporting, monitoring |
-| Context summaries distort prior intent | Versioned summaries, thresholds, tests, original message retention |
-| Public launch exceeds provider capacity | Global concurrency/cost limits, circuit breaker, approved fallback adapter |
-| Bilingual copy diverges | Typed translation keys, parity checks, English fallback |
+| Risk                                                 | Mitigation                                                                                |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Development provider differs from production         | Provider-neutral domain interface, contract tests, production-provider approval gate      |
+| Guest limits bypassed through cookies or IP rotation | Signed identity, IP and device signals, Redis rate limits, global budget circuit breaker  |
+| WebSocket disconnect duplicates generations          | Idempotency keys, persisted generation state, resume cursor, single active generation     |
+| JWT or refresh-token theft                           | HttpOnly cookies, rotation, reuse detection, session revocation, CSRF and origin controls |
+| Model catalog changes                                | Internal catalog, explicit admin enablement, capability validation                        |
+| System prompt treated as a safety boundary           | Separate input/output policy pipeline, limits, reporting, monitoring                      |
+| Context summaries distort prior intent               | Versioned summaries, thresholds, tests, original message retention                        |
+| Public launch exceeds provider capacity              | Global concurrency/cost limits, circuit breaker, approved fallback adapter                |
+| Bilingual copy diverges                              | Typed translation keys, parity checks, English fallback                                   |
 
 ## Release gates
 

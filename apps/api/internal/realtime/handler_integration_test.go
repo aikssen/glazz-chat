@@ -16,6 +16,7 @@ import (
 	"github.com/coder/websocket"
 	"github.com/coder/websocket/wsjson"
 	"github.com/google/uuid"
+	"go.uber.org/goleak"
 
 	"github.com/aikssen/glazz-chat/apps/api/internal/conversations"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/clock"
@@ -204,6 +205,7 @@ func TestWebSocketHeartbeatTimeout(t *testing.T) {
 }
 
 func TestWebSocketReconnectLoad(t *testing.T) {
+	baseline := goleak.IgnoreCurrent()
 	fixture := newWebSocketFixture(t)
 	const connections = 24
 	var wait sync.WaitGroup
@@ -235,16 +237,19 @@ func TestWebSocketReconnectLoad(t *testing.T) {
 	for err := range errorsFound {
 		t.Error(err)
 	}
+	fixture.close()
+	goleak.VerifyNone(t, baseline)
 }
 
 type webSocketFixture struct {
-	t       *testing.T
-	ctx     context.Context
-	store   *redisx.Client
-	tickets *Tickets
-	handler *Handler
-	server  *httptest.Server
-	actor   conversations.Actor
+	t         *testing.T
+	ctx       context.Context
+	store     *redisx.Client
+	tickets   *Tickets
+	handler   *Handler
+	server    *httptest.Server
+	actor     conversations.Actor
+	closeOnce sync.Once
 }
 
 func newWebSocketFixture(t *testing.T) *webSocketFixture {
@@ -277,10 +282,16 @@ func newWebSocketFixture(t *testing.T) *webSocketFixture {
 		},
 	))
 	t.Cleanup(func() {
-		fixture.server.Close()
-		_ = store.Close()
+		fixture.close()
 	})
 	return fixture
+}
+
+func (fixture *webSocketFixture) close() {
+	fixture.closeOnce.Do(func() {
+		fixture.server.Close()
+		_ = fixture.store.Close()
+	})
 }
 
 func (fixture *webSocketFixture) dial(t *testing.T) *websocket.Conn {

@@ -1,5 +1,9 @@
 # Glazz Product Design
 
+> This is the canonical interaction and visual specification. Product capabilities
+> and implementation state are summarized in
+> [`docs/product-capabilities.md`](./docs/product-capabilities.md).
+
 ## 1. Design thesis
 
 Glazz is a public-facing AI chat, not a marketing page wrapped around a demo. The
@@ -64,39 +68,39 @@ shadcn/ui. Components do not hardcode palette values.
 
 ### 4.1 Light theme
 
-| Token | Value | Use |
-| --- | --- | --- |
-| `--background` | `#FAFAF8` | Main paper surface |
-| `--foreground` | `#191817` | Primary text |
-| `--surface` | `#FFFFFF` | Menus, dialogs, composer |
-| `--surface-subtle` | `#F2F0EC` | Secondary bands and hover |
-| `--border` | `#D9D5CE` | Dividers and controls |
-| `--muted-foreground` | `#625E57` | Secondary text |
-| `--primary` | `#C74312` | Primary action, active signal |
-| `--primary-foreground` | `#FFFFFF` | Text on primary |
-| `--brand-bright` | `#FF6A2A` | Large accent and streaming rail |
-| `--success` | `#0F766E` | Connected/completed |
-| `--warning` | `#A16207` | Quota warning |
-| `--destructive` | `#B42318` | Destructive actions |
-| `--ring` | `#C74312` | Focus ring |
+| Token                  | Value     | Use                             |
+| ---------------------- | --------- | ------------------------------- |
+| `--background`         | `#FAFAF8` | Main paper surface              |
+| `--foreground`         | `#191817` | Primary text                    |
+| `--surface`            | `#FFFFFF` | Menus, dialogs, composer        |
+| `--surface-subtle`     | `#F2F0EC` | Secondary bands and hover       |
+| `--border`             | `#D9D5CE` | Dividers and controls           |
+| `--muted-foreground`   | `#625E57` | Secondary text                  |
+| `--primary`            | `#C74312` | Primary action, active signal   |
+| `--primary-foreground` | `#FFFFFF` | Text on primary                 |
+| `--brand-bright`       | `#FF6A2A` | Large accent and streaming rail |
+| `--success`            | `#0F766E` | Connected/completed             |
+| `--warning`            | `#A16207` | Quota warning                   |
+| `--destructive`        | `#B42318` | Destructive actions             |
+| `--ring`               | `#C74312` | Focus ring                      |
 
 ### 4.2 Dark theme
 
-| Token | Value | Use |
-| --- | --- | --- |
-| `--background` | `#151412` | Main background |
-| `--foreground` | `#F5F3EF` | Primary text |
-| `--surface` | `#201E1B` | Menus, dialogs, composer |
-| `--surface-subtle` | `#292622` | Secondary bands and hover |
-| `--border` | `#454039` | Dividers and controls |
-| `--muted-foreground` | `#B8B2A8` | Secondary text |
-| `--primary` | `#FF7A45` | Primary action |
-| `--primary-foreground` | `#21120C` | Text on primary |
-| `--brand-bright` | `#FF8B5C` | Streaming rail |
-| `--success` | `#5EEAD4` | Connected/completed |
-| `--warning` | `#F4C95D` | Quota warning |
-| `--destructive` | `#FF7B72` | Destructive actions |
-| `--ring` | `#FF9B73` | Focus ring |
+| Token                  | Value     | Use                       |
+| ---------------------- | --------- | ------------------------- |
+| `--background`         | `#151412` | Main background           |
+| `--foreground`         | `#F5F3EF` | Primary text              |
+| `--surface`            | `#201E1B` | Menus, dialogs, composer  |
+| `--surface-subtle`     | `#292622` | Secondary bands and hover |
+| `--border`             | `#454039` | Dividers and controls     |
+| `--muted-foreground`   | `#B8B2A8` | Secondary text            |
+| `--primary`            | `#FF7A45` | Primary action            |
+| `--primary-foreground` | `#21120C` | Text on primary           |
+| `--brand-bright`       | `#FF8B5C` | Streaming rail            |
+| `--success`            | `#5EEAD4` | Connected/completed       |
+| `--warning`            | `#F4C95D` | Quota warning             |
+| `--destructive`        | `#FF7B72` | Destructive actions       |
+| `--ring`               | `#FF9B73` | Focus ring                |
 
 Validate all token combinations against WCAG 2.2 AA. Normal text requires at least
 4.5:1; large text and meaningful UI graphics require at least 3:1. Color is never
@@ -104,11 +108,11 @@ the only status cue.
 
 ### 4.3 Typography
 
-| Role | Family | Weights | Notes |
-| --- | --- | --- | --- |
-| Display/brand | Outfit | 500, 600, 700 | Restrained use in product name and major screen titles |
-| Interface/body | Work Sans | 400, 500, 600 | High legibility for messages and controls |
-| Code/data | JetBrains Mono | 400, 500 | Code blocks, token/diagnostic values |
+| Role           | Family         | Weights       | Notes                                                  |
+| -------------- | -------------- | ------------- | ------------------------------------------------------ |
+| Display/brand  | Outfit         | 500, 600, 700 | Restrained use in product name and major screen titles |
+| Interface/body | Work Sans      | 400, 500, 600 | High legibility for messages and controls              |
+| Code/data      | JetBrains Mono | 400, 500      | Code blocks, token/diagnostic values                   |
 
 Use `next/font` or self-hosted assets to avoid layout shift and third-party runtime
 font requests. Letter spacing is `0`; do not use negative tracking. Body text starts
@@ -116,14 +120,14 @@ at 16px with a 1.5-1.65 line height. Chat content measure is 68-76 characters.
 
 Suggested scale:
 
-| Token | Size / line-height |
-| --- | --- |
-| `display` | 32 / 38 |
-| `title` | 24 / 32 |
-| `heading` | 18 / 26 |
-| `body` | 16 / 26 |
-| `ui` | 14 / 20 |
-| `caption` | 12 / 18 |
+| Token     | Size / line-height |
+| --------- | ------------------ |
+| `display` | 32 / 38            |
+| `title`   | 24 / 32            |
+| `heading` | 18 / 26            |
+| `body`    | 16 / 26            |
+| `ui`      | 14 / 20            |
+| `caption` | 12 / 18            |
 
 Do not scale type with viewport width.
 
@@ -363,4 +367,3 @@ All animation has a reduced-motion alternative.
 - [ ] No nested cards, decorative orbs, emoji icons, or generic purple AI styling
 - [ ] Browser console has no errors or hydration warnings
 - [ ] Playwright visual checks cover guest, authenticated, dark, mobile, and admin
-

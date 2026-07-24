@@ -20,14 +20,16 @@ finish a task faster.
 
 Read the relevant sources in this order:
 
-1. [PROJECT.md](./PROJECT.md) for product scope and business rules
-2. [ARCHITECTURE.md](./ARCHITECTURE.md) for system boundaries and contracts
-3. [DESIGN.md](./DESIGN.md) for frontend behavior and visual rules
-4. [TASKS.md](./TASKS.md) for sequencing and acceptance criteria
-5. [docs/runbooks/remote-development.md](./docs/runbooks/remote-development.md)
+1. [README.md](./README.md) and [docs/README.md](./docs/README.md) for repository
+   orientation and the documentation map
+2. [PROJECT.md](./PROJECT.md) for product scope and business rules
+3. [ARCHITECTURE.md](./ARCHITECTURE.md) for system boundaries and contracts
+4. [DESIGN.md](./DESIGN.md) for frontend behavior and visual rules
+5. [TASKS.md](./TASKS.md) for sequencing and acceptance criteria
+6. [docs/runbooks/remote-development.md](./docs/runbooks/remote-development.md)
    when builds, tests, generation, or services will run on the development server
-6. The OpenAPI/WebSocket contracts and ADRs relevant to the slice
-7. Existing tests and neighboring implementation
+7. The OpenAPI/WebSocket contracts and ADRs relevant to the slice
+8. Existing tests and neighboring implementation
 
 Do not implement a later phase while a required contract or dependency task remains
 open unless the owner explicitly approves it.

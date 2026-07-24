@@ -16,6 +16,42 @@ Rules:
 
 ## 2026-07-24
 
+### Technical documentation consolidated
+
+- Added a detailed repository `README.md` covering the product, capabilities,
+  architecture, exact stack, local/remote execution, provider and Google OAuth
+  configuration, tests, security, observability, and troubleshooting.
+- Added a documentation index plus portfolio-oriented capability, technical
+  architecture, data-model/ERD, and security/production-readiness documents.
+- Added 20 Mermaid context, container, component, sequence, state, trust,
+  deployment, and ER diagrams derived from the contracts and SQL migrations.
+- Rendered every Mermaid block successfully with Mermaid CLI `11.16.0`, checked
+  all new relative links, and formatted the complete changed documentation set
+  with the repository-pinned Prettier version.
+- Corrected the stale Phase 8/M4 release status and linked canonical sources to the
+  new review-oriented documentation.
+
+### M4 published
+
+- GitHub Actions run `30118902670` passed E2E, presubmit, and security jobs for
+  commit `009efc9`.
+- Created and pushed annotated milestone tag `v0.4.0`.
+
+### Phase 9 verification and hardening started
+
+- Formally started M5/Phase 9 and accepted QA-001 through QA-004 from current
+  backend, frontend, accessibility, and deterministic browser evidence.
+- Changed the WebSocket handler to cancel and join all per-connection loops before
+  returning.
+- Added pinned `go.uber.org/goleak` `v1.3.0` coverage to the 24-connection
+  reconnect test after verifying its API through Context7 and its versions through
+  the official Go module proxy.
+- Passed ten reconnect/leak cycles under the race detector and the complete
+  race-enabled integration suite against isolated PostgreSQL and Redis services.
+- Updated the LAN smoke to validate the mobile connection indicator and to automate
+  OAuth only in deterministic test mode; the deployed preview passed realtime and
+  live-provider chat verification with production-like OAuth configuration.
+
 ### Phase 8 completed
 
 - Closed WEB-011 and accepted M4-A07. All Phase 8 tasks are complete.

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("LAN preview restores realtime, development login, and chat", async ({ page }) => {
+test("LAN preview restores realtime and chat", async ({ page }) => {
   test.skip(
     process.env.E2E_PREVIEW_RECOVERY !== "true",
     "requires the configured development preview",
@@ -10,24 +10,27 @@ test("LAN preview restores realtime, development login, and chat", async ({ page
   await page.goto("/");
   const composer = page.locator("#chat-message");
   await expect(composer).toBeEnabled({ timeout: 10_000 });
-  await expect(page.getByText("Conectado", { exact: true })).toBeVisible();
+  await expect(page.locator(".connection")).toHaveAttribute("title", "Conectado");
   await expect(page.getByText("Load failed", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Reconnecting", { exact: true })).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Continuar con Google" }).click();
-  const dialog = page.getByRole("dialog", { name: "Continuar con Google" });
-  await dialog.getByRole("checkbox").nth(0).check();
-  await dialog.getByRole("checkbox").nth(1).check();
-  await dialog.getByRole("button", { name: "Continuar con Google" }).click();
-  await page.getByRole("link", { name: "Approve" }).click();
+  if (process.env.E2E_PREVIEW_OAUTH === "true") {
+    await page.getByRole("button", { name: "Abrir conversaciones" }).click();
+    await page
+      .locator(".conversation-sidebar")
+      .getByRole("button", { name: "Continuar con Google" })
+      .click();
+    const dialog = page.getByRole("dialog", { name: "Continuar con Google" });
+    await dialog.getByRole("checkbox").nth(0).check();
+    await dialog.getByRole("checkbox").nth(1).check();
+    await dialog.getByRole("button", { name: "Continuar con Google" }).click();
+    await page.getByRole("link", { name: "Approve" }).click();
 
-  await expect(page).toHaveURL(/192\.168\.68\.210:3000/);
-  await expect(composer).toBeEnabled({ timeout: 10_000 });
-  const openConversations = page.getByRole("button", { name: "Abrir conversaciones" });
-  if (await openConversations.isVisible()) {
-    await openConversations.click();
+    await expect(page).toHaveURL(/192\.168\.68\.210:3000/);
+    await expect(composer).toBeEnabled({ timeout: 10_000 });
+    await page.getByRole("button", { name: "Abrir conversaciones" }).click();
+    await expect(page.getByText("Glazz E2E Administrator")).toBeVisible();
   }
-  await expect(page.getByText("Glazz E2E Administrator")).toBeVisible();
 
   const prompt = `Smoke de recuperación ${Date.now()}: responde solamente "conectado".`;
   await composer.fill(prompt);

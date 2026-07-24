@@ -35,24 +35,25 @@ Rules:
 
 ## Milestones
 
-| Milestone | Owned phases | Outcome | Implementation | Acceptance | Release |
-| --- | --- | --- | --- | --- | --- |
-| M0 | Phase 0 | Reviewed contracts and threat model | Complete | Complete | `v0.1.0` |
-| M1 | Phase 1 | Reproducible monorepo foundation | Complete | Complete | No standalone tag; predates M2 rule |
-| M2 | Phases 2-3 | Local platform, identity, guests, and quotas | Complete | Complete | `v0.2.0` |
-| M3 | Phases 4-5 | Provider-neutral streamed chat backend | Complete | Complete | `v0.3.0` |
-| M4 | Phases 6-8 | Responsive web application and admin surface | Complete | Complete locally | `v0.4.0` pending CI/tag |
-| M5 | Phase 9 | Integrated, tested, observable release candidate | Not started | Open | `v0.5.0` reserved |
-| M6 | Phase 10 | Approved provider and production deployment | Not started | Open | `v0.6.0` reserved |
-| Post-MVP | Phase 11 | Explicitly non-release-critical backlog | Not started | Not applicable | Future planning |
+| Milestone | Owned phases | Outcome                                          | Implementation | Acceptance     | Release                             |
+| --------- | ------------ | ------------------------------------------------ | -------------- | -------------- | ----------------------------------- |
+| M0        | Phase 0      | Reviewed contracts and threat model              | Complete       | Complete       | `v0.1.0`                            |
+| M1        | Phase 1      | Reproducible monorepo foundation                 | Complete       | Complete       | No standalone tag; predates M2 rule |
+| M2        | Phases 2-3   | Local platform, identity, guests, and quotas     | Complete       | Complete       | `v0.2.0`                            |
+| M3        | Phases 4-5   | Provider-neutral streamed chat backend           | Complete       | Complete       | `v0.3.0`                            |
+| M4        | Phases 6-8   | Responsive web application and admin surface     | Complete       | Complete       | `v0.4.0`                            |
+| M5        | Phase 9      | Integrated, tested, observable release candidate | In progress    | Open           | `v0.5.0` reserved                   |
+| M6        | Phase 10     | Approved provider and production deployment      | Not started    | Open           | `v0.6.0` reserved                   |
+| Post-MVP  | Phase 11     | Explicitly non-release-critical backlog          | Not started    | Not applicable | Future planning                     |
 
-Current progress: M3 is published as `v0.3.0`. Phases 6-8 and M4 local acceptance
-are complete; the M4 release remains open until CI is green and `v0.4.0` is tagged.
-Granular acceptance evidence is tracked in `docs/m3-chat-backend.md` and
-`docs/m4-web-application.md`. A `[-]` task means its implementation exists but at
-least one acceptance criterion is still pending; it does not mean the feature is
-unavailable. M5 has not formally started. Preflight evidence in
-`docs/m5-release-candidate.md` is reusable but does not complete Phase 9.
+Current progress: M4 is published as `v0.4.0`. Phases 6-8 and M4 acceptance are
+complete.
+Granular acceptance evidence is tracked in `docs/m3-chat-backend.md`,
+`docs/m4-web-application.md`, and `docs/m5-release-candidate.md`. A `[-]` task
+means its implementation exists but at least one acceptance criterion is still
+pending; it does not mean the feature is unavailable. M5 and Phase 9 are in
+progress with their functional test gates accepted; resilience, security, visual,
+privacy, performance, and contract review remain open.
 
 ## Phase 0: API and architecture contract
 
@@ -724,7 +725,8 @@ Phase 8.
 
 **Phase 8 exit:** Complete on 2026-07-24. All M4 MVP screens and states are
 integrated in Spanish/English, including exact guest token exhaustion and expired
-session renewal. The M4 release gate remains pending CI and the `v0.4.0` tag.
+session renewal. GitHub Actions run `30118902670` passed and M4 was published as
+`v0.4.0`.
 
 ## Phase 9: Verification, hardening, and performance
 
@@ -732,22 +734,22 @@ session renewal. The M4 release gate remains pending CI and the `v0.4.0` tag.
 
 **Milestone acceptance ledger:** `docs/m5-release-candidate.md`
 
-- [ ] **QA-001: Complete backend unit/integration suite**
+- [x] **QA-001: Complete backend unit/integration suite**
   - Depends on: all backend MVP tasks
   - Acceptance: domain, repositories, handlers, jobs, adapters, and concurrency
     critical paths pass with real PostgreSQL/Redis.
 
-- [ ] **QA-002: Complete Go race and leak testing**
+- [x] **QA-002: Complete Go race and leak testing**
   - Depends on: QA-001
   - Exercise WebSockets, refresh rotation, migration, quota, cancellation, worker.
   - Acceptance: `go test -race ./...` passes; no goroutine/stream leaks in scenarios.
 
-- [ ] **QA-003: Complete frontend component/accessibility suite**
+- [x] **QA-003: Complete frontend component/accessibility suite**
   - Depends on: all web MVP tasks
   - Acceptance: axe, keyboard, focus, localization, streaming reducer, malicious
     Markdown, 200% zoom behaviors pass.
 
-- [ ] **QA-004: Complete Playwright E2E suite**
+- [x] **QA-004: Complete Playwright E2E suite**
   - Depends on: WEB-018
   - Cover guest, limit, OAuth stub/migration, registered chat, cancel/retry, archive,
     sessions, deletion, admin, themes/locales, mobile.

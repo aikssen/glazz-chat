@@ -8,24 +8,24 @@
 
 ## Status
 
-M4 implementation and local acceptance are complete. The milestone is not tagged;
-`v0.4.0` remains pending until CI runs green on the consolidated commit.
-Phases 6, 7, and 8 are complete.
+M4 implementation and acceptance are complete. GitHub Actions run `30118902670`
+passed E2E, presubmit, and security jobs for commit `009efc9`; the milestone is
+published as `v0.4.0`. Phases 6, 7, and 8 are complete.
 
-The application remains available as a testable preview until the release gate is
-published.
+The application remains available as a mutable development preview. The immutable
+milestone reference is the `v0.4.0` Git tag.
 
 ## Acceptance ledger
 
-| ID | Phase | Acceptance | Status | Evidence |
-| --- | --- | --- | --- | --- |
-| M4-A01 | 6 | Typed settings validate values, reject stale versions, invalidate cache, and audit changes | Accepted | Unit and PostgreSQL/Redis integration tests |
-| M4-A02 | 6 | Model administration rejects invalid exposure and atomically preserves valid defaults | Accepted | PostgreSQL integration tests |
-| M4-A03 | 6 | Role changes require recent auth and preserve an active administrator under concurrency | Accepted | HTTP and concurrent PostgreSQL integration tests |
-| M4-A04 | 6 | Usage exposes aggregate tokens, failures, latency, and error codes; audit reads redact sensitive values | Accepted | SQL aggregation, redaction, and pagination tests |
-| M4-A05 | 6 | Account deletion, purge, and guest cleanup preserve required anonymous aggregates | Accepted | Existing Phase 6 lifecycle integration tests |
-| M4-A06 | 7 | Frontend foundation and design-system acceptance | Accepted | Unit tests, WCAG checks, responsive visual matrix, live-provider smoke, and PWA policy/offline tests |
-| M4-A07 | 8 | Integrated user and administration journeys | Accepted | Standard responsive E2E plus isolated 2,000-token and expiry edge profiles |
+| ID     | Phase | Acceptance                                                                                              | Status   | Evidence                                                                                             |
+| ------ | ----- | ------------------------------------------------------------------------------------------------------- | -------- | ---------------------------------------------------------------------------------------------------- |
+| M4-A01 | 6     | Typed settings validate values, reject stale versions, invalidate cache, and audit changes              | Accepted | Unit and PostgreSQL/Redis integration tests                                                          |
+| M4-A02 | 6     | Model administration rejects invalid exposure and atomically preserves valid defaults                   | Accepted | PostgreSQL integration tests                                                                         |
+| M4-A03 | 6     | Role changes require recent auth and preserve an active administrator under concurrency                 | Accepted | HTTP and concurrent PostgreSQL integration tests                                                     |
+| M4-A04 | 6     | Usage exposes aggregate tokens, failures, latency, and error codes; audit reads redact sensitive values | Accepted | SQL aggregation, redaction, and pagination tests                                                     |
+| M4-A05 | 6     | Account deletion, purge, and guest cleanup preserve required anonymous aggregates                       | Accepted | Existing Phase 6 lifecycle integration tests                                                         |
+| M4-A06 | 7     | Frontend foundation and design-system acceptance                                                        | Accepted | Unit tests, WCAG checks, responsive visual matrix, live-provider smoke, and PWA policy/offline tests |
+| M4-A07 | 8     | Integrated user and administration journeys                                                             | Accepted | Standard responsive E2E plus isolated 2,000-token and expiry edge profiles                           |
 
 ## Test now
 
@@ -33,7 +33,7 @@ published.
 - The composer becomes available when the status rail reads `Conectado`.
 - Guest chat works immediately and enforces the configured short trial.
 - Deterministic development login is available from the Google login flow.
-- This environment is a development preview and is not the `v0.4.0` release.
+- This environment tracks ongoing development beyond the immutable `v0.4.0` tag.
 
 ## Implemented
 
@@ -147,7 +147,8 @@ claimed it. Reload is now gated by explicit acceptance of a waiting update.
 Automated checks prove that only same-origin navigation is cached, API routes are
 excluded, offline status is visible, and initial installation remains stable.
 
-## Remaining before `v0.4.0`
+## Release
 
-- Consolidate the validated work in a local commit, run CI, and create the
-  annotated `v0.4.0` tag only after CI is green.
+- Annotated tag: `v0.4.0`
+- Commit: `009efc9`
+- CI: GitHub Actions run `30118902670`, all jobs successful

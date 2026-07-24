@@ -1,5 +1,10 @@
 # Glazz Architecture
 
+> This is the canonical detailed architecture specification. For review-oriented
+> Mermaid context, container, component, sequence, and deployment diagrams, see
+> [`docs/technical-architecture.md`](./docs/technical-architecture.md). For the
+> relational model, see [`docs/data-model.md`](./docs/data-model.md).
+
 ## 1. Purpose
 
 This document is the technical source of truth for the Glazz MVP. It defines
@@ -203,33 +208,33 @@ Required resilience:
 
 ## 5. Backend slices
 
-| Slice | Owns |
-| --- | --- |
-| `identity` | Google callback, users, identities, JWTs, refresh rotation, device sessions |
-| `guests` | Anonymous cookie identity, limits, retention, migration ownership |
-| `conversations` | CRUD, archive/search, ownership, message pagination |
-| `chat` | Generation lifecycle, WebSocket commands/events, cancellation, retry, summaries |
-| `models` | Internal catalog, provider mapping, supported capabilities, sync |
-| `quotas` | Daily usage, concurrency, guest allowance, global budgets |
-| `admin` | Runtime settings, user roles, audits, usage views, maintenance |
-| `privacy` | Terms consent, account deletion, data purge |
-| `platform` | Config, DB, Redis, telemetry, HTTP, IDs, clock, outbox |
+| Slice           | Owns                                                                            |
+| --------------- | ------------------------------------------------------------------------------- |
+| `identity`      | Google callback, users, identities, JWTs, refresh rotation, device sessions     |
+| `guests`        | Anonymous cookie identity, limits, retention, migration ownership               |
+| `conversations` | CRUD, archive/search, ownership, message pagination                             |
+| `chat`          | Generation lifecycle, WebSocket commands/events, cancellation, retry, summaries |
+| `models`        | Internal catalog, provider mapping, supported capabilities, sync                |
+| `quotas`        | Daily usage, concurrency, guest allowance, global budgets                       |
+| `admin`         | Runtime settings, user roles, audits, usage views, maintenance                  |
+| `privacy`       | Terms consent, account deletion, data purge                                     |
+| `platform`      | Config, DB, Redis, telemetry, HTTP, IDs, clock, outbox                          |
 
 Slices communicate through explicit application interfaces or domain events, not
 by importing another slice's persistence implementation.
 
 ## 6. Frontend slices
 
-| Slice | Owns |
-| --- | --- |
-| `auth` | User/session state, Google login entry, logout, reauthentication |
-| `guest` | Anonymous allowance display and login conversion gate |
-| `conversations` | Sidebar list, search, rename, archive, delete |
-| `chat` | Transcript, composer, streaming state, cancel, retry |
-| `models` | Model selector and capability display |
-| `settings` | Theme, language, sessions, account deletion |
-| `admin` | Models, quotas, prompts, maintenance, audit and usage views |
-| `realtime` | Connection state, reconnect, event ordering, subscriptions |
+| Slice           | Owns                                                             |
+| --------------- | ---------------------------------------------------------------- |
+| `auth`          | User/session state, Google login entry, logout, reauthentication |
+| `guest`         | Anonymous allowance display and login conversion gate            |
+| `conversations` | Sidebar list, search, rename, archive, delete                    |
+| `chat`          | Transcript, composer, streaming state, cancel, retry             |
+| `models`        | Model selector and capability display                            |
+| `settings`      | Theme, language, sessions, account deletion                      |
+| `admin`         | Models, quotas, prompts, maintenance, audit and usage views      |
+| `realtime`      | Connection state, reconnect, event ordering, subscriptions       |
 
 Route segments compose features. They do not become a second backend and do not
 duplicate authorization logic.
@@ -241,33 +246,33 @@ UTC `timestamptz`. User-visible ordering uses `(created_at, id)`.
 
 ### 7.1 Identity
 
-| Table | Important fields and constraints |
-| --- | --- |
-| `users` | `id`, `email`, `display_name`, `avatar_url`, `locale`, `role`, `plan`, `status`, timestamps; unique normalized email |
-| `user_identities` | `user_id`, `provider`, `provider_subject`, verified email; unique `(provider, provider_subject)` |
-| `auth_sessions` | hashed refresh token family/current token, device metadata, expiry, revoked/reuse timestamps |
-| `terms_acceptances` | user, terms/privacy versions, accepted timestamp, IP hash |
+| Table               | Important fields and constraints                                                                                     |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `users`             | `id`, `email`, `display_name`, `avatar_url`, `locale`, `role`, `plan`, `status`, timestamps; unique normalized email |
+| `user_identities`   | `user_id`, `provider`, `provider_subject`, verified email; unique `(provider, provider_subject)`                     |
+| `auth_sessions`     | hashed refresh token family/current token, device metadata, expiry, revoked/reuse timestamps                         |
+| `terms_acceptances` | user, terms/privacy versions, accepted timestamp, IP hash                                                            |
 
 Roles are `user` and `admin`; plan is independently `free`, `pro`, or future values.
 Authorization checks role, not plan labels.
 
 ### 7.2 Guests and ownership
 
-| Table | Important fields and constraints |
-| --- | --- |
+| Table            | Important fields and constraints                                                                       |
+| ---------------- | ------------------------------------------------------------------------------------------------------ |
 | `guest_sessions` | signed-cookie public ID hash, first/last seen, prompt count, output token count, expiry, migrated user |
-| `conversations` | nullable `user_id` xor `guest_session_id`, title, model, status, summary pointer, timestamps |
+| `conversations`  | nullable `user_id` xor `guest_session_id`, title, model, status, summary pointer, timestamps           |
 
 A database check guarantees exactly one owner. Migration locks the guest row and
 conversation, assigns the user, records migration, and commits in one transaction.
 
 ### 7.3 Chat
 
-| Table | Important fields and constraints |
-| --- | --- |
-| `messages` | conversation, role, sanitized content, status, sequence, token estimates, timestamps |
-| `generations` | conversation, user message, assistant message, model, provider, state, idempotency key, usage, error class |
-| `conversation_summaries` | conversation, version, covered message sequence, content, model, token count |
+| Table                    | Important fields and constraints                                                                           |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| `messages`               | conversation, role, sanitized content, status, sequence, token estimates, timestamps                       |
+| `generations`            | conversation, user message, assistant message, model, provider, state, idempotency key, usage, error class |
+| `conversation_summaries` | conversation, version, covered message sequence, content, model, token count                               |
 
 Message roles for the MVP are `user` and `assistant`. The effective system prompt
 and summaries are not inserted as user-visible messages.
@@ -287,17 +292,17 @@ automatically included in subsequent context.
 
 ### 7.4 Models, configuration, and usage
 
-| Table | Important fields and constraints |
-| --- | --- |
-| `providers` | internal key, adapter kind, enabled, encrypted secret reference, health |
-| `models` | internal ID, display name, context/output limits, capabilities, lifecycle |
-| `provider_models` | provider, model, upstream ID, price metadata, sync state |
-| `model_exposure` | model, audience, enabled, ordering, effective limits |
-| `runtime_settings` | typed key, JSON value, version, updated by |
-| `usage_ledger` | actor, conversation, generation, model/provider, input/output/cached tokens, estimated cost |
-| `daily_usage` | aggregate counters by actor/date |
-| `admin_audit_log` | actor, action, target, redacted before/after, request metadata |
-| `outbox_events` | event type, payload, attempts, availability, processed timestamp |
+| Table              | Important fields and constraints                                                            |
+| ------------------ | ------------------------------------------------------------------------------------------- |
+| `providers`        | internal key, adapter kind, enabled, encrypted secret reference, health                     |
+| `models`           | internal ID, display name, context/output limits, capabilities, lifecycle                   |
+| `provider_models`  | provider, model, upstream ID, price metadata, sync state                                    |
+| `model_exposure`   | model, audience, enabled, ordering, effective limits                                        |
+| `runtime_settings` | typed key, JSON value, version, updated by                                                  |
+| `usage_ledger`     | actor, conversation, generation, model/provider, input/output/cached tokens, estimated cost |
+| `daily_usage`      | aggregate counters by actor/date                                                            |
+| `admin_audit_log`  | actor, action, target, redacted before/after, request metadata                              |
+| `outbox_events`    | event type, payload, attempts, availability, processed timestamp                            |
 
 Provider sync updates metadata and marks missing models unavailable. It never
 enables a model for users.
@@ -337,54 +342,54 @@ or prompt content.
 
 ### 8.2 Public and runtime
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| `GET` | `/health/live` | Process liveness; no dependency checks |
-| `GET` | `/health/ready` | Database/Redis readiness; provider status is reported but does not block admin access |
-| `GET` | `/config/public` | Locale, maintenance, legal versions, guest policy, feature flags |
-| `GET` | `/models` | Enabled models for the current actor |
+| Method | Path             | Purpose                                                                               |
+| ------ | ---------------- | ------------------------------------------------------------------------------------- |
+| `GET`  | `/health/live`   | Process liveness; no dependency checks                                                |
+| `GET`  | `/health/ready`  | Database/Redis readiness; provider status is reported but does not block admin access |
+| `GET`  | `/config/public` | Locale, maintenance, legal versions, guest policy, feature flags                      |
+| `GET`  | `/models`        | Enabled models for the current actor                                                  |
 
 ### 8.3 Guest
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| `POST` | `/guest-sessions` | Create/resume signed guest session |
-| `GET` | `/guest-sessions/current` | Remaining allowance and expiry |
+| Method | Path                      | Purpose                            |
+| ------ | ------------------------- | ---------------------------------- |
+| `POST` | `/guest-sessions`         | Create/resume signed guest session |
+| `GET`  | `/guest-sessions/current` | Remaining allowance and expiry     |
 
 The raw guest identifier is never returned. Cookies are signed, rotated when
 appropriate, and scoped to the API domain.
 
 ### 8.4 Authentication and sessions
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| `GET` | `/auth/google/start` | Create OAuth state/PKCE and redirect to Google |
-| `GET` | `/auth/google/callback` | Validate callback, login, migrate guest conversation, set cookies |
-| `POST` | `/auth/refresh` | Rotate refresh token and issue access token |
-| `POST` | `/auth/logout` | Revoke current session and clear cookies |
-| `GET` | `/me` | Current user and effective permissions |
-| `GET` | `/me/sessions` | List active device sessions |
-| `DELETE` | `/me/sessions/{sessionId}` | Revoke one device session |
-| `POST` | `/me/reauthenticate` | Start recent-auth flow for destructive action |
-| `DELETE` | `/me` | Request account deletion |
-| `GET` | `/me/deletion` | Read deletion-job state |
-| `POST` | `/auth/ws-ticket` | Issue single-use, short-lived WebSocket ticket |
+| Method   | Path                       | Purpose                                                           |
+| -------- | -------------------------- | ----------------------------------------------------------------- |
+| `GET`    | `/auth/google/start`       | Create OAuth state/PKCE and redirect to Google                    |
+| `GET`    | `/auth/google/callback`    | Validate callback, login, migrate guest conversation, set cookies |
+| `POST`   | `/auth/refresh`            | Rotate refresh token and issue access token                       |
+| `POST`   | `/auth/logout`             | Revoke current session and clear cookies                          |
+| `GET`    | `/me`                      | Current user and effective permissions                            |
+| `GET`    | `/me/sessions`             | List active device sessions                                       |
+| `DELETE` | `/me/sessions/{sessionId}` | Revoke one device session                                         |
+| `POST`   | `/me/reauthenticate`       | Start recent-auth flow for destructive action                     |
+| `DELETE` | `/me`                      | Request account deletion                                          |
+| `GET`    | `/me/deletion`             | Read deletion-job state                                           |
+| `POST`   | `/auth/ws-ticket`          | Issue single-use, short-lived WebSocket ticket                    |
 
 OAuth state is server-held and bound to the browser session. Redirect targets are
 allowlisted. The callback never accepts an arbitrary return URL.
 
 ### 8.5 Conversations and messages
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| `GET` | `/conversations` | List/search/filter active or archived conversations |
-| `POST` | `/conversations` | Create conversation; guests are restricted to one |
-| `GET` | `/conversations/{conversationId}` | Conversation metadata |
-| `PATCH` | `/conversations/{conversationId}` | Rename, archive/unarchive, change model when idle |
-| `DELETE` | `/conversations/{conversationId}` | Delete owned conversation |
-| `GET` | `/conversations/{conversationId}/messages` | Cursor-paginated transcript |
-| `POST` | `/conversations/{conversationId}/retry` | Retry latest failed/cancelled generation |
-| `GET` | `/usage` | Effective limits, usage, reset time |
+| Method   | Path                                       | Purpose                                             |
+| -------- | ------------------------------------------ | --------------------------------------------------- |
+| `GET`    | `/conversations`                           | List/search/filter active or archived conversations |
+| `POST`   | `/conversations`                           | Create conversation; guests are restricted to one   |
+| `GET`    | `/conversations/{conversationId}`          | Conversation metadata                               |
+| `PATCH`  | `/conversations/{conversationId}`          | Rename, archive/unarchive, change model when idle   |
+| `DELETE` | `/conversations/{conversationId}`          | Delete owned conversation                           |
+| `GET`    | `/conversations/{conversationId}/messages` | Cursor-paginated transcript                         |
+| `POST`   | `/conversations/{conversationId}/retry`    | Retry latest failed/cancelled generation            |
+| `GET`    | `/usage`                                   | Effective limits, usage, reset time                 |
 
 Chat generation is commanded over WebSocket. Conversation creation and metadata
 remain REST resources so mobile and degraded clients can use stable semantics.
@@ -394,17 +399,17 @@ remain REST resources so mobile and degraded clients can use stable semantics.
 All endpoints require `admin`; changes require CSRF protection, recent auth for
 high-impact operations, and audit logging.
 
-| Method | Path | Purpose |
-| --- | --- | --- |
-| `GET` | `/admin/models` | Internal catalog, provider mapping, exposure status |
-| `POST` | `/admin/models/sync` | Enqueue provider metadata synchronization |
-| `PATCH` | `/admin/models/{modelId}` | Enable, disable, order, or limit a model |
-| `GET` | `/admin/settings` | Read typed runtime settings |
-| `PATCH` | `/admin/settings/{key}` | Update quota, prompt, safety, or maintenance setting |
-| `GET` | `/admin/users` | Search users without conversation content |
-| `PATCH` | `/admin/users/{userId}/role` | Promote or demote user |
-| `GET` | `/admin/usage` | Aggregate usage, latency, errors, and estimated cost |
-| `GET` | `/admin/audit-log` | Cursor-paginated administrative audit trail |
+| Method  | Path                         | Purpose                                              |
+| ------- | ---------------------------- | ---------------------------------------------------- |
+| `GET`   | `/admin/models`              | Internal catalog, provider mapping, exposure status  |
+| `POST`  | `/admin/models/sync`         | Enqueue provider metadata synchronization            |
+| `PATCH` | `/admin/models/{modelId}`    | Enable, disable, order, or limit a model             |
+| `GET`   | `/admin/settings`            | Read typed runtime settings                          |
+| `PATCH` | `/admin/settings/{key}`      | Update quota, prompt, safety, or maintenance setting |
+| `GET`   | `/admin/users`               | Search users without conversation content            |
+| `PATCH` | `/admin/users/{userId}/role` | Promote or demote user                               |
+| `GET`   | `/admin/usage`               | Aggregate usage, latency, errors, and estimated cost |
+| `GET`   | `/admin/audit-log`           | Cursor-paginated administrative audit trail          |
 
 ## 9. WebSocket protocol
 
@@ -440,33 +445,33 @@ are reported and ignored unless the major protocol version is unsupported.
 
 ### 9.2 Client commands
 
-| Event | Payload | Result |
-| --- | --- | --- |
-| `connection.resume` | last server sequence | Replays buffered events or returns resync requirement |
-| `chat.generate` | conversation ID, content, idempotency key | Validates, persists user message, starts generation |
-| `chat.cancel` | conversation ID, generation ID | Cancels owned active generation |
-| `heartbeat.pong` | heartbeat ID | Keeps connection alive |
+| Event               | Payload                                   | Result                                                |
+| ------------------- | ----------------------------------------- | ----------------------------------------------------- |
+| `connection.resume` | last server sequence                      | Replays buffered events or returns resync requirement |
+| `chat.generate`     | conversation ID, content, idempotency key | Validates, persists user message, starts generation   |
+| `chat.cancel`       | conversation ID, generation ID            | Cancels owned active generation                       |
+| `heartbeat.pong`    | heartbeat ID                              | Keeps connection alive                                |
 
 Content limits are enforced before persistence. A command is acknowledged only
 after its durable state is committed.
 
 ### 9.3 Server events
 
-| Event | Meaning |
-| --- | --- |
-| `connection.ready` | Authenticated actor, heartbeat interval, server time |
-| `command.acknowledged` | Command accepted and committed |
-| `command.rejected` | Stable error code and safe details |
-| `chat.started` | Generation and assistant message IDs |
-| `chat.delta` | Ordered text delta and offset |
-| `chat.completed` | Final status, usage, finish reason |
-| `chat.cancelled` | Cancellation confirmed, partial content status |
-| `chat.failed` | Retryable flag and normalized error code |
-| `quota.updated` | Remaining actor quota and reset time |
-| `conversation.updated` | Metadata changed, including generated title |
-| `maintenance.changed` | Service became limited or available |
-| `heartbeat.ping` | Connection liveness probe |
-| `connection.resync_required` | Buffer missed; refetch REST resources |
+| Event                        | Meaning                                              |
+| ---------------------------- | ---------------------------------------------------- |
+| `connection.ready`           | Authenticated actor, heartbeat interval, server time |
+| `command.acknowledged`       | Command accepted and committed                       |
+| `command.rejected`           | Stable error code and safe details                   |
+| `chat.started`               | Generation and assistant message IDs                 |
+| `chat.delta`                 | Ordered text delta and offset                        |
+| `chat.completed`             | Final status, usage, finish reason                   |
+| `chat.cancelled`             | Cancellation confirmed, partial content status       |
+| `chat.failed`                | Retryable flag and normalized error code             |
+| `quota.updated`              | Remaining actor quota and reset time                 |
+| `conversation.updated`       | Metadata changed, including generated title          |
+| `maintenance.changed`        | Service became limited or available                  |
+| `heartbeat.ping`             | Connection liveness probe                            |
+| `connection.resync_required` | Buffer missed; refetch REST resources                |
 
 Deltas are transient but the server periodically checkpoints the assistant message
 and always writes terminal state. On reconnect, REST is authoritative if event
@@ -605,19 +610,19 @@ calls without recording message content.
 
 ## 14. Testing strategy
 
-| Layer | Required coverage |
-| --- | --- |
-| Unit | Domain policies, state machines, quota calculations, token/context logic |
-| Repository integration | Real PostgreSQL/Redis through containers; constraints and transactions |
-| Contract | OpenAPI validation, generated client compatibility, WebSocket fixtures |
-| Provider adapter | Recorded synthetic streams and error cases; no secret-dependent unit tests |
-| Handler | Authn/authz, validation, idempotency, error mapping |
-| Race/concurrency | `go test -race`, generation locks, refresh rotation, guest migration |
-| Frontend component | Rendering, keyboard, accessibility, streaming reducers |
-| E2E | Guest limit/login migration, registered chat, cancellation, retry, admin, deletion |
-| Resilience | Provider timeout, Redis loss, reconnect, duplicate commands, worker retry |
-| Security | Dependency scans, secret scan, SAST, auth abuse cases, OWASP-focused tests |
-| Performance | WebSocket fan-out, message pagination, p95 first-token and API targets |
+| Layer                  | Required coverage                                                                  |
+| ---------------------- | ---------------------------------------------------------------------------------- |
+| Unit                   | Domain policies, state machines, quota calculations, token/context logic           |
+| Repository integration | Real PostgreSQL/Redis through containers; constraints and transactions             |
+| Contract               | OpenAPI validation, generated client compatibility, WebSocket fixtures             |
+| Provider adapter       | Recorded synthetic streams and error cases; no secret-dependent unit tests         |
+| Handler                | Authn/authz, validation, idempotency, error mapping                                |
+| Race/concurrency       | `go test -race`, generation locks, refresh rotation, guest migration               |
+| Frontend component     | Rendering, keyboard, accessibility, streaming reducers                             |
+| E2E                    | Guest limit/login migration, registered chat, cancellation, retry, admin, deletion |
+| Resilience             | Provider timeout, Redis loss, reconnect, duplicate commands, worker retry          |
+| Security               | Dependency scans, secret scan, SAST, auth abuse cases, OWASP-focused tests         |
+| Performance            | WebSocket fan-out, message pagination, p95 first-token and API targets             |
 
 Tests use injected clock/ID/provider dependencies and deterministic fixtures.
 Coverage thresholds are not a substitute for behavior-focused critical-path tests.
@@ -642,19 +647,22 @@ Production:
 Backups are off locally. Production launch requires configured backups, restore
 instructions, and a successful restore drill.
 
-## 16. Architecture decisions to record
+## 16. Architecture decision status
 
-Create ADRs before implementation for:
+Recorded:
 
-1. HTTP router and WebSocket library
-2. OpenAPI and AsyncAPI generation toolchain
-3. JWT signing and key rotation mechanism
-4. PostgreSQL job/outbox implementation
-5. Provider adapter and development OpenCode Go mapping
-6. Production hosting and production LLM provider
-7. Markdown renderer and sanitizer
-8. i18n library and locale-routing strategy
-9. Error tracking vendor
+1. [HTTP router and WebSocket library](./docs/adr/0001-http-router-and-websocket.md)
+2. [OpenAPI and AsyncAPI generation toolchain](./docs/adr/0002-contract-toolchain.md)
+3. [JWT signing and key rotation mechanism](./docs/adr/0003-jwt-signing-and-rotation.md)
+4. [Goroutine leak detection](./docs/adr/0004-goroutine-leak-detection.md)
+
+ADRs still required before the corresponding production gate:
+
+1. PostgreSQL job/outbox evolution if the current implementation changes
+2. Production provider adapter and approved LLM provider
+3. Production API, PostgreSQL, and Redis hosting
+4. Hosted error tracking and telemetry retention
+5. Backup, point-in-time recovery, and restore policy
 
 ## 17. External technical references
 

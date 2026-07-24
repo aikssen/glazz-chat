@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -91,9 +92,19 @@ func (handler *Handler) Serve(
 	lastPong := atomic.Int64{}
 	lastPong.Store(handler.clock.Now().UnixNano())
 
-	go handler.writeLoop(ctx, connection, outgoing, failures)
-	go handler.subscriptionLoop(ctx, subscription.Channel(), outgoing, failures)
-	go handler.heartbeatLoop(ctx, actor, lastPong.Load, failures)
+	var loops sync.WaitGroup
+	startLoop := func(loop func()) {
+		loops.Add(1)
+		go func() {
+			defer loops.Done()
+			loop()
+		}()
+	}
+	startLoop(func() { handler.writeLoop(ctx, connection, outgoing, failures) })
+	startLoop(func() {
+		handler.subscriptionLoop(ctx, subscription.Channel(), outgoing, failures)
+	})
+	startLoop(func() { handler.heartbeatLoop(ctx, actor, lastPong.Load, failures) })
 
 	if _, err := handler.broker.Emit(ctx, actor, "connection.ready", requestID(request), map[string]any{
 		"actorType": string(actor.Type), "heartbeatIntervalMs": handler.heartbeatEvery.Milliseconds(),
@@ -104,9 +115,9 @@ func (handler *Handler) Serve(
 	}
 
 	readError := make(chan error, 1)
-	go func() {
+	startLoop(func() {
 		readError <- handler.readLoop(ctx, connection, actor, outgoing, &lastPong)
-	}()
+	})
 	select {
 	case err := <-readError:
 		handler.closeForError(connection, err)
@@ -115,6 +126,10 @@ func (handler *Handler) Serve(
 	case <-ctx.Done():
 		_ = connection.Close(websocket.StatusGoingAway, "server shutting down")
 	}
+	cancel()
+	_ = subscription.Close()
+	connection.CloseNow()
+	loops.Wait()
 }
 
 func (handler *Handler) readLoop(
