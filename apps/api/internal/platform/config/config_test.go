@@ -90,6 +90,28 @@ func TestLoadRejectsPartialOAuthConfiguration(t *testing.T) {
 	}
 }
 
+func TestLoadEnablesDeterministicOAuthOnlyWithExplicitProfile(t *testing.T) {
+	setValidEnvironment(t)
+	t.Setenv("OAUTH_TEST_MODE", "true")
+	t.Setenv("OAUTH_TEST_EMAIL", "e2e-admin@example.com")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if !cfg.OAuth.Enabled || !cfg.OAuth.TestMode || cfg.OAuth.TestEmail != "e2e-admin@example.com" {
+		t.Fatalf("unexpected OAuth test config: %+v", cfg.OAuth)
+	}
+}
+
+func TestLoadRejectsDeterministicOAuthWithoutProfile(t *testing.T) {
+	setValidEnvironment(t)
+	t.Setenv("OAUTH_TEST_MODE", "true")
+	if _, err := Load(); err == nil {
+		t.Fatal("Load() error = nil")
+	}
+}
+
 func TestProductionRequiresSecureInputs(t *testing.T) {
 	setValidEnvironment(t)
 	t.Setenv("GLAZZ_ENV", "production")
@@ -124,6 +146,8 @@ func setValidEnvironment(t *testing.T) {
 		"GOOGLE_CLIENT_ID":            "",
 		"GOOGLE_CLIENT_SECRET":        "",
 		"GOOGLE_CALLBACK_URL":         "http://localhost:8080/api/v1/auth/google/callback",
+		"OAUTH_TEST_MODE":             "false",
+		"OAUTH_TEST_EMAIL":            "",
 		"JWT_ISSUER":                  "http://localhost:8080",
 		"JWT_AUDIENCE":                "glazz-web",
 		"JWT_ACTIVE_KID":              "test-1",
@@ -160,7 +184,8 @@ func clearEnvironment(t *testing.T) {
 		"REDIS_URL", "REDIS_PREFIX", "REDIS_HEALTH_TIMEOUT", "SHUTDOWN_TIMEOUT",
 		"HTTP_REQUEST_TIMEOUT", "HTTP_MAX_BODY_BYTES", "MAINTENANCE_MODE",
 		"CORS_ALLOWED_ORIGINS", "TRUSTED_PROXY_CIDRS", "GOOGLE_CLIENT_ID",
-		"GOOGLE_CLIENT_SECRET", "GOOGLE_CALLBACK_URL", "JWT_ISSUER", "JWT_AUDIENCE",
+		"GOOGLE_CLIENT_SECRET", "GOOGLE_CALLBACK_URL", "OAUTH_TEST_MODE",
+		"OAUTH_TEST_EMAIL", "JWT_ISSUER", "JWT_AUDIENCE",
 		"JWT_ACTIVE_KID", "JWT_PRIVATE_KEY_PATH", "JWT_ACCESS_TTL", "AUTH_REFRESH_TTL",
 		"AUTH_RECENT_TTL", "COOKIE_SIGNING_KEY", "COOKIE_DOMAIN", "COOKIE_SECURE",
 		"COOKIE_SAME_SITE", "TERMS_VERSION", "PRIVACY_VERSION", "BOOTSTRAP_ADMIN_EMAILS",

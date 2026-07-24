@@ -547,6 +547,42 @@ body {
   padding: 36px 24px 72px;
 }
 
+.transcript-end {
+  block-size: 1px;
+}
+
+.jump-latest {
+  position: sticky;
+  inset-block-end: 0.75rem;
+  margin-inline: auto;
+  z-index: 3;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 16%);
+}
+
+.pwa-status {
+  position: fixed;
+  inset-block-start: max(0.75rem, env(safe-area-inset-top));
+  inset-inline-end: 0.75rem;
+  z-index: 100;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-block-size: 2.5rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--foreground);
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 16%);
+  font-size: 0.875rem;
+  font-weight: 650;
+}
+
+.pwa-status svg {
+  inline-size: 1rem;
+  block-size: 1rem;
+}
+
 .message {
   position: relative;
   display: grid;

@@ -137,13 +137,8 @@ func (service *Service) Complete(
 	if state == "" || code == "" {
 		return Completion{}, ErrInvalidState
 	}
-	raw, err := service.states.Take(ctx, stateNamespace, state)
+	record, err := service.takeState(ctx, state)
 	if err != nil {
-		return Completion{}, ErrInvalidState
-	}
-	var record stateRecord
-	if err := json.Unmarshal([]byte(raw), &record); err != nil ||
-		record.Verifier == "" || record.Nonce == "" || record.ReturnTo == "" {
 		return Completion{}, ErrInvalidState
 	}
 	profile, err := service.provider.Exchange(ctx, code, record.Verifier, record.Nonce)
@@ -175,6 +170,30 @@ func (service *Service) Complete(
 	return Completion{
 		User: user, Credentials: credentials, ReturnTo: record.ReturnTo, Created: created,
 	}, nil
+}
+
+func (service *Service) Cancel(ctx context.Context, state string) (string, error) {
+	record, err := service.takeState(ctx, state)
+	if err != nil {
+		return "", err
+	}
+	return record.ReturnTo, nil
+}
+
+func (service *Service) takeState(ctx context.Context, state string) (stateRecord, error) {
+	if state == "" {
+		return stateRecord{}, ErrInvalidState
+	}
+	raw, err := service.states.Take(ctx, stateNamespace, state)
+	if err != nil {
+		return stateRecord{}, ErrInvalidState
+	}
+	var record stateRecord
+	if err := json.Unmarshal([]byte(raw), &record); err != nil ||
+		record.Verifier == "" || record.Nonce == "" || record.ReturnTo == "" {
+		return stateRecord{}, ErrInvalidState
+	}
+	return record, nil
 }
 
 func safeReturnPath(raw string) (string, error) {

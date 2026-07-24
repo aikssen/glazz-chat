@@ -158,12 +158,17 @@ func run(logger *slog.Logger) error {
 
 	var oauthService *identityoauth.Service
 	if cfg.OAuth.Enabled {
-		google, err := identityoauth.NewGoogle(rootCtx, cfg.OAuth)
+		var oauthProvider identityoauth.Provider
+		if cfg.OAuth.TestMode {
+			oauthProvider, err = identityoauth.NewDeterministic(cfg.OAuth)
+		} else {
+			oauthProvider, err = identityoauth.NewGoogle(rootCtx, cfg.OAuth)
+		}
 		if err != nil {
 			return err
 		}
 		oauthService = identityoauth.New(
-			redisClient, google, userService, sessionService, 10*time.Minute,
+			redisClient, oauthProvider, userService, sessionService, 10*time.Minute,
 		)
 	}
 

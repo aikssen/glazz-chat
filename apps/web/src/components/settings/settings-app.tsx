@@ -1,12 +1,13 @@
 "use client";
 
 import { Laptop, LogOut, MonitorCog, ShieldAlert, Smartphone, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { PageShell } from "@/components/page-shell";
 import { usePreferences } from "@/components/theme-provider";
 import { Button } from "@/components/ui/button";
 import { APIError, api } from "@/lib/api";
 import type { CurrentUser, Locale, Theme } from "@/lib/types";
+import { useDialogFocus } from "@/lib/use-dialog-focus";
 
 interface Session {
   id: string;
@@ -24,6 +25,9 @@ export function SettingsApp() {
   const [error, setError] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [confirmation, setConfirmation] = useState("");
+  const deletionDialogRef = useRef<HTMLDivElement>(null);
+  const closeDeletionDialog = useCallback(() => setConfirming(false), []);
+  useDialogFocus(confirming, deletionDialogRef, closeDeletionDialog);
 
   useEffect(() => {
     async function load() {
@@ -200,10 +204,12 @@ export function SettingsApp() {
       {confirming ? (
         <div className="dialog-backdrop" role="presentation">
           <div
+            ref={deletionDialogRef}
             className="dialog"
             role="alertdialog"
             aria-modal="true"
             aria-labelledby="delete-title"
+            tabIndex={-1}
           >
             <MonitorCog aria-hidden="true" />
             <h2 id="delete-title">{copy.delete}</h2>
@@ -220,7 +226,7 @@ export function SettingsApp() {
               />
             </label>
             <div className="dialog-actions">
-              <Button variant="ghost" onClick={() => setConfirming(false)}>
+              <Button variant="ghost" onClick={closeDeletionDialog}>
                 {locale === "es" ? "Cancelar" : "Cancel"}
               </Button>
               <Button

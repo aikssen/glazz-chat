@@ -22,6 +22,7 @@ export function ChatComposer({
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const textarea = useRef<HTMLTextAreaElement>(null);
+  const composing = useRef(false);
   const { locale } = usePreferences();
   const t = dictionary(locale);
 
@@ -50,13 +51,24 @@ export function ChatComposer({
           value={draft}
           disabled={disabled && !streaming}
           placeholder={t.composer}
+          onCompositionStart={() => {
+            composing.current = true;
+          }}
+          onCompositionEnd={() => {
+            composing.current = false;
+          }}
           onChange={(event) => {
             setDraft(event.target.value);
             event.currentTarget.style.height = "auto";
             event.currentTarget.style.height = `${Math.min(event.currentTarget.scrollHeight, 180)}px`;
           }}
           onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+            if (
+              event.key === "Enter" &&
+              !event.shiftKey &&
+              !composing.current &&
+              !event.nativeEvent.isComposing
+            ) {
               event.preventDefault();
               void submit();
             }

@@ -74,3 +74,25 @@ func TestStartRejectsUnsafeReturnPathsAndMissingConsent(t *testing.T) {
 		t.Fatalf("missing consent error = %v, want ErrConsentMissing", err)
 	}
 }
+
+func TestCancelConsumesStateAndRestoresReturnPath(t *testing.T) {
+	states := &memoryStates{values: map[string]string{}}
+	service := New(states, fakeProvider{}, nil, nil, time.Minute)
+	authorizationURL, err := service.Start(context.Background(), StartInput{
+		ReturnTo: "/?conversation=019f0000", TermsAccepted: true, PrivacyAccepted: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	state := strings.Split(strings.Split(authorizationURL, "state=")[1], "&")[0]
+	returnTo, err := service.Cancel(context.Background(), state)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if returnTo != "/?conversation=019f0000" {
+		t.Fatalf("return path = %q", returnTo)
+	}
+	if _, err := service.Cancel(context.Background(), state); !errors.Is(err, ErrInvalidState) {
+		t.Fatalf("replayed cancellation error = %v", err)
+	}
+}

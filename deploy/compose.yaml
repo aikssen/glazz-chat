@@ -46,6 +46,9 @@ services:
       DATABASE_MIGRATE_ON_STARTUP: "false"
       COOKIE_SECURE: "false"
       OTEL_SERVICE_NAME: glazz-api
+      OAUTH_TEST_MODE: ${OAUTH_TEST_MODE:-false}
+      OAUTH_TEST_EMAIL: ${OAUTH_TEST_EMAIL:-}
+      BOOTSTRAP_ADMIN_EMAILS: ${BOOTSTRAP_ADMIN_EMAILS:-}
     command: ["/bin/sh", "-c", "/app/migrate up && exec /app/api"]
     ports:
       - "8080:8080"

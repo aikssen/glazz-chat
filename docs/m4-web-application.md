@@ -27,15 +27,22 @@ M3 also remains untagged while its acceptance hardening is completed.
   deletion.
 - Safe Markdown/GFM rendering, code copy, PWA manifest, and navigation-only offline
   fallback without API or transcript caching.
+- Development-only deterministic OAuth approval and denial screens, with production
+  configuration guards and one-time callback state.
+- Visible offline/update states, focus-contained destructive/login dialogs, IME-safe
+  composition, bilingual legal drafts, and jump-to-latest transcript navigation.
 
 ## Verification completed
 
 - OpenAPI and AsyncAPI lint plus 14 WebSocket fixture validations.
 - Next.js production build, TypeScript, ESLint, and Prettier checks.
-- Ten frontend unit tests, including streaming idempotency and theme contrast.
-- Nine Playwright E2E checks across the responsive viewport matrix; the guest-limit
-  case runs once on mobile and verifies all four streamed prompts plus the login
-  gate.
+- Twelve frontend unit tests, including streaming idempotency, dictionary parity,
+  and theme contrast.
+- Sixteen Playwright E2E checks across the responsive viewport matrix. They cover
+  the guest limit, OAuth consent/denial, exactly-once migration, restored deep links,
+  authenticated settings, all administration views, account deletion, axe WCAG
+  A/AA checks, keyboard focus, IME input, inert malicious Markdown, 200% reflow, and
+  the PWA offline state.
 - `go test -race ./...`.
 - PostgreSQL/Redis integration suites for model sync, administration, deletion,
   retained anonymous aggregates, and guest cleanup.
@@ -54,13 +61,11 @@ barrier. Unit and browser regression checks cover the correction.
 
 - Finish the M3 acceptance cases listed in `docs/m3-chat-backend.md` and publish
   `v0.3.0` first.
-- Add deterministic Google OAuth stub E2E coverage for consent, denial, callback,
-  exactly-once guest migration, and restored deep links.
-- Complete authenticated E2E coverage for conversation ownership, sessions,
-  deletion, recent-auth recovery, and every administration surface.
-- Add axe, keyboard, focus, IME, malicious Markdown, 200% zoom, and screen-reader
-  announcement coverage.
-- Complete locale parity/fallback automation and bilingual legal draft routing.
-- Add visible PWA offline/update states and the jump-to-latest transcript control.
+- Complete authenticated E2E coverage for rename/archive/restore/delete, ownership
+  denial, session revocation, generation cancellation/retry, and recent-auth
+  recovery.
+- Verify browser-locale fallback and authenticated preference persistence.
+- Add explicit screen-reader announcement throttling and exercise the PWA waiting
+  update state.
 - Run full repository presubmit and CI, then create the annotated `v0.4.0` tag only
   after every M4 acceptance item is green.

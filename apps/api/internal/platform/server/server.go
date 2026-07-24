@@ -3,8 +3,10 @@ package server
 import (
 	"errors"
 	"fmt"
+	"html"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -100,6 +102,9 @@ func New(deps Dependencies) http.Handler {
 		router.Get("/ws", deps.websocket)
 		router.Get("/auth/google/start", deps.startGoogle)
 		router.Get("/auth/google/callback", deps.completeGoogle)
+		if deps.Config.OAuth.TestMode {
+			router.Get("/auth/test/authorize", deps.testAuthorize)
+		}
 
 		router.With(deps.Browser.CSRF).Post("/auth/refresh", deps.refresh)
 		router.Group(func(protected chi.Router) {
@@ -245,6 +250,20 @@ func (deps Dependencies) completeGoogle(response http.ResponseWriter, request *h
 		httpx.WriteError(response, request, http.StatusServiceUnavailable, "service_unavailable", "Google login is not configured.")
 		return
 	}
+	if request.URL.Query().Get("error") == "access_denied" {
+		returnTo, err := deps.OAuth.Cancel(request.Context(), request.URL.Query().Get("state"))
+		if err != nil {
+			httpx.WriteError(response, request, http.StatusBadRequest, "invalid_oauth_callback", "Google login could not be completed.")
+			return
+		}
+		http.Redirect(
+			response,
+			request,
+			deps.Config.Runtime.WebURL+withQuery(returnTo, "authError", "access_denied"),
+			http.StatusFound,
+		)
+		return
+	}
 	completion, err := deps.OAuth.Complete(
 		request.Context(),
 		request.URL.Query().Get("state"),
@@ -270,6 +289,57 @@ func (deps Dependencies) completeGoogle(response http.ResponseWriter, request *h
 		return
 	}
 	http.Redirect(response, request, deps.Config.Runtime.WebURL+completion.ReturnTo, http.StatusFound)
+}
+
+func (deps Dependencies) testAuthorize(response http.ResponseWriter, request *http.Request) {
+	if !deps.Config.OAuth.TestMode {
+		http.NotFound(response, request)
+		return
+	}
+	state := request.URL.Query().Get("state")
+	if state == "" {
+		httpx.WriteError(response, request, http.StatusBadRequest, "invalid_request", "OAuth state is required.")
+		return
+	}
+	switch request.URL.Query().Get("decision") {
+	case "approve":
+		http.Redirect(
+			response,
+			request,
+			withQuery(deps.Config.OAuth.CallbackURL, "state", state, "code", "glazz-e2e-approved"),
+			http.StatusFound,
+		)
+	case "deny":
+		http.Redirect(
+			response,
+			request,
+			withQuery(deps.Config.OAuth.CallbackURL, "state", state, "error", "access_denied"),
+			http.StatusFound,
+		)
+	default:
+		escapedState := url.QueryEscape(state)
+		response.Header().Set("Content-Type", "text/html; charset=utf-8")
+		response.WriteHeader(http.StatusOK)
+		_, _ = fmt.Fprintf(response, `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Glazz test authorization</title></head>
+<body><main><h1>Test authorization</h1><p>%s</p>
+<a href="?state=%s&amp;decision=approve">Approve</a>
+<a href="?state=%s&amp;decision=deny">Deny</a></main></body></html>`,
+			html.EscapeString(deps.Config.OAuth.TestEmail), escapedState, escapedState)
+	}
+}
+
+func withQuery(raw string, values ...string) string {
+	target, err := url.Parse(raw)
+	if err != nil {
+		return raw
+	}
+	query := target.Query()
+	for index := 0; index+1 < len(values); index += 2 {
+		query.Set(values[index], values[index+1])
+	}
+	target.RawQuery = query.Encode()
+	return target.String()
 }
 
 func (deps Dependencies) startReauthentication(response http.ResponseWriter, request *http.Request) {

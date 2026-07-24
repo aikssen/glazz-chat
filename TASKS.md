@@ -34,12 +34,13 @@ Rules:
 | M5 | Integrated, tested, observable release candidate |
 | M6 | Approved provider and production deployment |
 
-Current progress: M4 is in progress while M3 acceptance hardening continues. The
-provider-neutral chat backend, administration/privacy backend, responsive bilingual
-web shell, guest streaming journey, settings, and administration screens are
-implemented. Missing acceptance coverage is tracked on each task and in
-`docs/m3-chat-backend.md` and `docs/m4-web-application.md`. Do not create `v0.3.0`
-or `v0.4.0` until their respective phase exits and CI are green.
+Current progress: M5 verification has started while the remaining M3/M4 acceptance
+gaps are addressed. The provider-neutral chat backend, administration/privacy
+backend, responsive bilingual web shell, deterministic OAuth journey, settings,
+and administration screens are implemented. Missing acceptance coverage is tracked
+on each task and in `docs/m3-chat-backend.md`, `docs/m4-web-application.md`, and
+`docs/m5-release-candidate.md`. Do not create `v0.3.0` or `v0.4.0` until their
+respective phase exits and CI are green.
 
 ## Phase 0: API and architecture contract
 
@@ -655,12 +656,12 @@ wiring full journeys.
   - Exercise WebSockets, refresh rotation, migration, quota, cancellation, worker.
   - Acceptance: `go test -race ./...` passes; no goroutine/stream leaks in scenarios.
 
-- [ ] **QA-003: Complete frontend component/accessibility suite**
+- [-] **QA-003: Complete frontend component/accessibility suite**
   - Depends on: all web MVP tasks
   - Acceptance: axe, keyboard, focus, localization, streaming reducer, malicious
     Markdown, 200% zoom behaviors pass.
 
-- [ ] **QA-004: Complete Playwright E2E suite**
+- [-] **QA-004: Complete Playwright E2E suite**
   - Depends on: WEB-018
   - Cover guest, limit, OAuth stub/migration, registered chat, cancel/retry, archive,
     sessions, deletion, admin, themes/locales, mobile.

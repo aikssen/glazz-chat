@@ -17,6 +17,7 @@ import { APIError, API_URL, api, websocketURL } from "@/lib/api";
 import { dictionary } from "@/lib/i18n";
 import { appendDelta, finishAssistant, startAssistant } from "@/lib/streaming-reducer";
 import type { Conversation, CurrentUser, GuestAllowance, Message, Model, Usage } from "@/lib/types";
+import { useDialogFocus } from "@/lib/use-dialog-focus";
 import { ChatComposer } from "./chat-composer";
 import { ChatTranscript } from "./chat-transcript";
 import { ConversationSidebar } from "./conversation-sidebar";
@@ -58,6 +59,23 @@ export function ChatApp() {
   const socket = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<number | null>(null);
   const lastSequence = useRef(0);
+  const loginDialogRef = useRef<HTMLDivElement>(null);
+  const closeLoginDialog = useCallback(() => setLoginDialog(false), []);
+  useDialogFocus(loginDialog, loginDialogRef, closeLoginDialog);
+
+  useEffect(() => {
+    const location = new URL(window.location.href);
+    if (location.searchParams.get("authError") !== "access_denied") return;
+    queueMicrotask(() =>
+      setError(
+        locale === "es"
+          ? "Cancelaste el acceso con Google. Puedes continuar como invitado o intentarlo de nuevo."
+          : "You cancelled Google access. You can continue as a guest or try again.",
+      ),
+    );
+    location.searchParams.delete("authError");
+    window.history.replaceState({}, "", `${location.pathname}${location.search}`);
+  }, [locale]);
 
   const loadConversation = useCallback(async (id: string) => {
     setConversationID(id);
@@ -552,10 +570,12 @@ export function ChatApp() {
       {loginDialog ? (
         <div className="dialog-backdrop" role="presentation">
           <div
+            ref={loginDialogRef}
             className="dialog login-dialog"
             role="dialog"
             aria-modal="true"
             aria-labelledby="login-title"
+            tabIndex={-1}
           >
             <GoogleMark />
             <h2 id="login-title">{t.login}</h2>
@@ -595,7 +615,7 @@ export function ChatApp() {
               </span>
             </label>
             <div className="dialog-actions">
-              <Button variant="ghost" onClick={() => setLoginDialog(false)}>
+              <Button variant="ghost" onClick={closeLoginDialog}>
                 {locale === "es" ? "Cancelar" : "Cancel"}
               </Button>
               <Button disabled={!termsAccepted || !privacyAccepted} onClick={login}>

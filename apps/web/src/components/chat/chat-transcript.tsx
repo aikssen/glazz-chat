@@ -1,7 +1,7 @@
 "use client";
 
-import { AlertCircle, Bot, RotateCcw, UserRound } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { AlertCircle, ArrowDown, Bot, RotateCcw, UserRound } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { usePreferences } from "@/components/theme-provider";
 import { dictionary } from "@/lib/i18n";
@@ -18,12 +18,31 @@ export function ChatTranscript({
   onRetry: () => void;
 }) {
   const end = useRef<HTMLDivElement>(null);
+  const [atBottom, setAtBottom] = useState(true);
+  const atBottomRef = useRef(true);
   const { locale } = usePreferences();
   const t = dictionary(locale);
 
   useEffect(() => {
-    end.current?.scrollIntoView({ block: "end", behavior: streaming ? "auto" : "smooth" });
+    if (atBottomRef.current) {
+      end.current?.scrollIntoView({ block: "end", behavior: streaming ? "auto" : "smooth" });
+    }
   }, [messages, streaming]);
+
+  useEffect(() => {
+    const marker = end.current;
+    const root = marker?.closest(".chat-scroll");
+    if (!marker || !root) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        atBottomRef.current = entry.isIntersecting;
+        setAtBottom(entry.isIntersecting);
+      },
+      { root, threshold: 0.75 },
+    );
+    observer.observe(marker);
+    return () => observer.disconnect();
+  }, [messages.length]);
 
   if (messages.length === 0) {
     return (
@@ -71,7 +90,22 @@ export function ChatTranscript({
           </div>
         </article>
       ))}
-      <div ref={end} />
+      <div ref={end} className="transcript-end" />
+      {!atBottom ? (
+        <Button
+          className="jump-latest"
+          variant="outline"
+          size="icon"
+          onClick={() => {
+            atBottomRef.current = true;
+            end.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+          }}
+          aria-label={locale === "es" ? "Ir al mensaje más reciente" : "Jump to latest message"}
+          title={locale === "es" ? "Ir al mensaje más reciente" : "Jump to latest message"}
+        >
+          <ArrowDown />
+        </Button>
+      ) : null}
     </div>
   );
 }

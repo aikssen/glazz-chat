@@ -1,6 +1,6 @@
 import type { Locale } from "./types";
 
-const messages = {
+export const messages = {
   es: {
     newChat: "Nuevo chat",
     search: "Buscar conversaciones",

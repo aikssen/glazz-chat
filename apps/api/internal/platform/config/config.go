@@ -57,9 +57,11 @@ type Redis struct {
 
 type OAuth struct {
 	Enabled      bool
+	TestMode     bool
 	ClientID     string
 	ClientSecret string
 	CallbackURL  string
+	TestEmail    string
 }
 
 type Auth struct {
@@ -160,7 +162,15 @@ func Load() (Config, error) {
 	if (oauthClientID == "") != (oauthClientSecret == "") {
 		return Config{}, errors.New("configure Google OAuth: GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set together")
 	}
-	oauthEnabled := oauthClientID != ""
+	oauthTestMode, err := boolean("OAUTH_TEST_MODE")
+	if err != nil {
+		return Config{}, err
+	}
+	oauthTestEmail, err := value("OAUTH_TEST_EMAIL")
+	if err != nil {
+		return Config{}, err
+	}
+	oauthEnabled := oauthClientID != "" || oauthTestMode
 	callbackURL, err := nonEmptyValue("GOOGLE_CALLBACK_URL")
 	if err != nil {
 		return Config{}, err
@@ -341,9 +351,11 @@ func Load() (Config, error) {
 		},
 		OAuth: OAuth{
 			Enabled:      oauthEnabled,
+			TestMode:     oauthTestMode,
 			ClientID:     oauthClientID,
 			ClientSecret: oauthClientSecret,
 			CallbackURL:  callbackURL,
+			TestEmail:    strings.ToLower(strings.TrimSpace(oauthTestEmail)),
 		},
 		Auth: Auth{
 			Issuer:          jwtIssuer,
@@ -416,6 +428,17 @@ func (c Config) Validate() error {
 	for _, origin := range c.Runtime.AllowedOrigins {
 		if err := absoluteHTTPURL("CORS_ALLOWED_ORIGINS", origin); err != nil {
 			return err
+		}
+	}
+	if c.OAuth.TestMode {
+		if c.Runtime.Environment == "production" {
+			return errors.New("validate OAUTH_TEST_MODE: forbidden in production")
+		}
+		if c.OAuth.ClientID != "" || c.OAuth.ClientSecret != "" {
+			return errors.New("validate OAUTH_TEST_MODE: cannot be combined with Google credentials")
+		}
+		if c.OAuth.TestEmail == "" || !strings.Contains(c.OAuth.TestEmail, "@") {
+			return errors.New("validate OAUTH_TEST_EMAIL: valid email required in test mode")
 		}
 	}
 	switch c.Provider.Kind {
