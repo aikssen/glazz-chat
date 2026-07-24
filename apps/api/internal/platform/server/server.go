@@ -357,7 +357,7 @@ func (deps Dependencies) startReauthentication(response http.ResponseWriter, req
 	}
 	actor, _ := browser.CurrentActor(request.Context())
 	authorizationURL, err := deps.OAuth.Start(request.Context(), identityoauth.StartInput{
-		ReturnTo: "/settings/security", TermsAccepted: true, PrivacyAccepted: true,
+		ReturnTo: "/settings", TermsAccepted: true, PrivacyAccepted: true,
 		Locale: locale(request), ExpectedUserID: &actor.UserID,
 	})
 	if err != nil {

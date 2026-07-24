@@ -60,8 +60,8 @@ export function ConversationSidebar({
   const [mobile, setMobile] = useState(false);
   const active = conversations.filter((item) => item.status === "active");
   const archived = conversations.filter((item) => item.status === "archived");
-  const interactiveModal = open && mobile && !modalActive;
-  useDialogFocus(open && mobile, sidebarRef, onClose);
+  const interactiveModal = open && !modalActive;
+  useDialogFocus(interactiveModal, sidebarRef, onClose);
 
   useEffect(() => {
     const query = window.matchMedia("(max-width: 1023px)");

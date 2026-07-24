@@ -137,7 +137,11 @@ func run(logger *slog.Logger) error {
 		policy.GlobalConcurrentLimit = snapshot.GlobalConcurrentStreams
 		return policy, nil
 	})
-	gateways := chat.Gateways{models.FakeProviderCode: provider.NewFake(provider.FakeOptions{})}
+	fakeOptions := provider.FakeOptions{}
+	if cfg.Runtime.Environment == "test" {
+		fakeOptions.Latency = 100 * time.Millisecond
+	}
+	gateways := chat.Gateways{models.FakeProviderCode: provider.NewFake(fakeOptions)}
 	if cfg.Provider.Kind != "fake" {
 		gateway, err := provider.NewOpenAICompatible(
 			cfg.Provider.BaseURL, cfg.Provider.APIKey, nil, provider.DefaultOptions(),

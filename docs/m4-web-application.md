@@ -70,11 +70,12 @@ coverage, not that the whole feature is still being built.
 - Next.js production build, TypeScript, ESLint, and Prettier checks.
 - Twenty-six frontend unit tests, including streaming idempotency, dictionary parity,
   theme contrast, and UUID generation on insecure local-network origins.
-- Sixteen Playwright E2E checks across the responsive viewport matrix. They cover
+- Twenty-four applicable Playwright E2E checks across the responsive viewport
+  matrix. They cover
   the guest limit, OAuth consent/denial, exactly-once migration, restored deep links,
-  authenticated settings, all administration views, account deletion, axe WCAG
-  A/AA checks, keyboard focus, IME input, inert malicious Markdown, 200% reflow, and
-  the PWA offline state.
+  authenticated settings, cancellation/retry, ownership denial, all administration
+  views, recent-auth account deletion, axe WCAG A/AA checks, keyboard focus, IME
+  input, inert malicious Markdown, 200% reflow, and PWA offline/update states.
 - Isolated registered-user acceptance on the development server provisions separate
   PostgreSQL/Redis instances and ports. Seven mobile checks cover browser-locale
   fallback, cross-session locale persistence, conversation rename/archive/restore/
@@ -137,9 +138,8 @@ excluded, offline status is visible, and initial installation remains stable.
 
 ## Remaining before `v0.4.0`
 
-- Complete Phase 8 authenticated E2E coverage for ownership denial, generation
-  cancellation/retry, and recent-auth recovery. Registered rename/archive/restore/
-  delete, both session-revocation paths, browser-locale fallback, and authenticated
-  locale persistence are now covered.
+- Complete Phase 8 acceptance for guest output-token/expiry edges, conversation
+  pagination, browser reconnect/duplicate-command recovery, administration
+  validation conflicts, and non-administrator route denial.
 - Run full repository presubmit and CI, then create the annotated `v0.4.0` tag only
   after every M4 acceptance item is green.

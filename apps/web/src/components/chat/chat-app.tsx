@@ -724,6 +724,7 @@ function LoadingTranscript({ locale }: { locale: "es" | "en" }) {
   return (
     <div
       className="transcript-skeleton"
+      role="status"
       aria-label={locale === "es" ? "Cargando conversación" : "Loading conversation"}
     >
       <span />

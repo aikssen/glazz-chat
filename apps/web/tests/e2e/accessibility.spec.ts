@@ -25,7 +25,14 @@ test("login dialog traps focus, closes with Escape, and restores focus", async (
   await trigger.click();
 
   const dialog = page.locator(".login-dialog");
-  await expect(dialog.getByRole("checkbox").first()).toBeFocused();
+  await expect
+    .poll(() =>
+      dialog
+        .getByRole("checkbox")
+        .first()
+        .evaluate((element) => element === document.activeElement),
+    )
+    .toBe(true);
   await page.keyboard.press("Shift+Tab");
   await expect(dialog.getByRole("button", { name: "Cancelar" })).toBeFocused();
   await page.keyboard.press("Tab");
@@ -94,12 +101,14 @@ test("PWA exposes a visible offline state", async ({ context, page }, testInfo) 
   test.skip(testInfo.project.name !== "mobile-375" || process.env.E2E_PWA !== "true");
   await page.goto("/");
   await expect
-    .poll(() =>
-      page.evaluate(async () => {
-        if (!("serviceWorker" in navigator)) return false;
-        const registration = await navigator.serviceWorker.ready;
-        return Boolean(registration.active);
-      }),
+    .poll(
+      () =>
+        page.evaluate(async () => {
+          if (!("serviceWorker" in navigator)) return false;
+          const registration = await navigator.serviceWorker.ready;
+          return Boolean(registration.active);
+        }),
+      { timeout: 15_000 },
     )
     .toBe(true);
   const cachedRequests = await page.evaluate(async () => {

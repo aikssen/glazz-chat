@@ -78,8 +78,10 @@ jobs:
       OAUTH_TEST_MODE: "true"
       OAUTH_TEST_EMAIL: glazz-e2e-ci@example.test
       BOOTSTRAP_ADMIN_EMAILS: glazz-e2e-ci@example.test
+      AUTH_RECENT_TTL: 5s
       E2E_OAUTH: "true"
       E2E_PWA: "true"
+      E2E_RECENT_AUTH: "true"
     services:
       postgres:
         image: postgres:18.4-alpine3.24

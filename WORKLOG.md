@@ -16,6 +16,24 @@ Rules:
 
 ## 2026-07-24
 
+### Phase 8 integration acceptance started
+
+- Accepted INT-002, WEB-012, WEB-015, and WEB-016 from contract, integration, and
+  isolated production-build browser evidence.
+- Changed PWA E2E startup to exercise `next build` plus the standalone production
+  server when service-worker acceptance is enabled.
+- Corrected mobile sidebar modal timing, initial dialog focus after applying
+  `inert`, and the loading skeleton's ARIA semantics.
+- Added deterministic test-provider latency so browser tests can cancel a running
+  generation, exposed retry for cancelled responses, and verified that retry
+  creates exactly one completed replacement.
+- Corrected recent-auth return routing from the nonexistent `/settings/security`
+  path to `/settings`; CI now expires recent auth and proves reauthentication before
+  account deletion.
+- Verified 24 applicable Playwright cases across four viewports against isolated
+  PostgreSQL/Redis, API, and standalone web processes, plus the full repository
+  presubmit.
+
 ### Phase 7 frontend foundation completed
 
 - Closed WEB-002 through WEB-010 and accepted M4-A06.

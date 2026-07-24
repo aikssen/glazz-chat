@@ -191,6 +191,10 @@ test("Google approval covers the registered-user lifecycle", async ({
 
   const apiOrigin = new URL(process.env.E2E_API_URL ?? page.url());
   if (!process.env.E2E_API_URL) apiOrigin.port = "8080";
+  const deniedConversation = await page.request.get(
+    `${apiOrigin.origin}/api/v1/conversations/00000000-0000-4000-8000-000000000001/messages`,
+  );
+  expect(deniedConversation.status()).toBe(404);
   const migrated = await page.evaluate(async (origin) => {
     const response = await fetch(`${origin}/api/v1/conversations?limit=100`, {
       credentials: "include",
@@ -201,6 +205,17 @@ test("Google approval covers the registered-user lifecycle", async ({
   expect(callbackURL).toContain("code=glazz-e2e-approved");
   const replay = await page.request.get(callbackURL);
   expect(replay.status()).toBe(400);
+
+  await composer.fill("Cancela esta respuesta y vuelve a intentarla.");
+  await page.getByRole("button", { name: "Enviar mensaje" }).click();
+  await page.getByRole("button", { name: "Detener respuesta" }).click();
+  const cancelled = page.locator(".message--assistant.message--cancelled").last();
+  await expect(cancelled).toBeVisible();
+  const completedResponses = page.locator(".message--assistant.message--complete");
+  const completedBeforeRetry = await completedResponses.count();
+  await cancelled.getByRole("button", { name: "Reintentar" }).click();
+  await expect(completedResponses).toHaveCount(completedBeforeRetry + 1);
+  await expect(completedResponses.last()).toContainText("Deterministic development response.");
 
   await page.getByRole("button", { name: "Abrir conversaciones" }).click();
   let conversation = page.locator(".conversation-item").first();
@@ -297,8 +312,17 @@ test("Google approval covers the registered-user lifecycle", async ({
 
   await page.goto("/settings");
   await page.getByRole("button", { name: "Eliminar cuenta" }).click();
-  const deletion = page.getByRole("alertdialog");
+  let deletion = page.getByRole("alertdialog");
   await deletion.getByLabel("Confirmación").fill("DELETE");
+  if (process.env.E2E_RECENT_AUTH === "true") {
+    await page.waitForTimeout(5_500);
+    await deletion.getByRole("button", { name: "Eliminar cuenta" }).click();
+    await page.getByRole("link", { name: "Approve" }).click();
+    await expect(page).toHaveURL(/\/settings$/);
+    await page.getByRole("button", { name: "Eliminar cuenta" }).click();
+    deletion = page.getByRole("alertdialog");
+    await deletion.getByLabel("Confirmación").fill("DELETE");
+  }
   await deletion.getByRole("button", { name: "Eliminar cuenta" }).click();
   await expect(page).toHaveURL(/deleted=true/);
   await expect(page.getByRole("heading", { name: "¿Qué quieres explorar?" })).toBeVisible();

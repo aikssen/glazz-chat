@@ -23,7 +23,9 @@ export function useDialogFocus(
     const focusReturnTarget = returnFocus?.current ?? previous;
     const element = dialog.current;
     const focusable = () => Array.from(element.querySelectorAll<HTMLElement>(focusableSelector));
-    focusable()[0]?.focus();
+    const focusFrame = window.requestAnimationFrame(() => {
+      (focusable()[0] ?? element).focus();
+    });
 
     function handleKeyDown(event: KeyboardEvent) {
       if (element.inert || element.getAttribute("aria-hidden") === "true") return;
@@ -52,6 +54,7 @@ export function useDialogFocus(
 
     document.addEventListener("keydown", handleKeyDown);
     return () => {
+      window.cancelAnimationFrame(focusFrame);
       document.removeEventListener("keydown", handleKeyDown);
       focusReturnTarget?.focus();
     };

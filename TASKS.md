@@ -676,7 +676,7 @@ Phase 8.
   - Add server/client-safe transport, CSRF, request IDs, stable error mapping.
   - Acceptance: DTOs are generated; credentials never enter client logs.
 
-- [-] **INT-002: Implement WebSocket client**
+- [x] **INT-002: Implement WebSocket client**
   - Depends on: WS-006, WEB-006
   - Obtain tickets, connect, heartbeat, reconnect/backoff, resume, resync, dispatch.
   - Acceptance: protocol fixture and browser integration tests pass.
@@ -686,7 +686,7 @@ Phase 8.
   - Immediate chat, allowance, limit gate, preserved transcript.
   - Acceptance: four-message/2,000-token edge cases and daily expiry behavior pass E2E.
 
-- [-] **WEB-012: Implement Google login and guest migration UX**
+- [x] **WEB-012: Implement Google login and guest migration UX**
   - Depends on: AUTH-004, GUEST-003, WEB-011
   - Add Google entry, callback/error UI, migration continuity, legal consent.
   - Acceptance: successful login retains conversation exactly once; denial is
@@ -702,12 +702,12 @@ Phase 8.
   - Wire acknowledgement, streaming, stop, retry, usage, and draft behavior.
   - Acceptance: reconnect and duplicate command E2E preserve one transcript.
 
-- [-] **WEB-015: Implement settings**
+- [x] **WEB-015: Implement settings**
   - Depends on: AUTH-005, WEB-001, WEB-002
   - Profile read, locale/theme, device sessions, revocation, legal links.
   - Acceptance: current-session revocation logs out; other revocation updates list.
 
-- [-] **WEB-016: Implement account deletion**
+- [x] **WEB-016: Implement account deletion**
   - Depends on: PRIV-003, WEB-015
   - Recent auth, specific confirmation, job state, immediate logout.
   - Acceptance: destructive flow is keyboard accessible and passes E2E.

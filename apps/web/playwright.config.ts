@@ -2,6 +2,10 @@ import { defineConfig, devices } from "@playwright/test";
 
 const baseURL = process.env.E2E_BASE_URL ?? "http://localhost:3000";
 const webServerURL = new URL(baseURL);
+const webServerCommand =
+  process.env.E2E_PWA === "true"
+    ? `pnpm build && pnpm start --hostname ${webServerURL.hostname} --port ${webServerURL.port || "3000"}`
+    : `pnpm dev --hostname ${webServerURL.hostname} --port ${webServerURL.port || "3000"}`;
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -15,7 +19,7 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
-    command: `pnpm dev --hostname ${webServerURL.hostname} --port ${webServerURL.port || "3000"}`,
+    command: webServerCommand,
     url: baseURL,
     reuseExistingServer: !process.env.CI,
   },

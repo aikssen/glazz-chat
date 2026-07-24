@@ -92,13 +92,17 @@ export function ChatTranscript({
               {message.role === "assistant" ? "Glazz" : locale === "es" ? "Tú" : "You"}
             </span>
             <MessageContent content={message.content || (streaming ? " " : "")} />
-            {message.status === "failed" ? (
+            {message.status === "failed" || message.status === "cancelled" ? (
               <div className="message-error">
                 <AlertCircle />
                 <span>
-                  {locale === "es"
-                    ? "La respuesta se detuvo antes de terminar."
-                    : "The response stopped before it finished."}
+                  {message.status === "cancelled"
+                    ? locale === "es"
+                      ? "Cancelaste esta respuesta."
+                      : "You cancelled this response."
+                    : locale === "es"
+                      ? "La respuesta se detuvo antes de terminar."
+                      : "The response stopped before it finished."}
                 </span>
                 <Button variant="outline" size="sm" onClick={onRetry}>
                   <RotateCcw data-icon="inline-start" />
