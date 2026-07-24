@@ -7,7 +7,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: "html",
   use: {
-    baseURL: "http://127.0.0.1:3000",
+    baseURL: "http://localhost:3000",
     trace: "on-first-retry",
   },
   webServer: {
@@ -17,8 +17,20 @@ export default defineConfig({
   },
   projects: [
     {
-      name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      name: "mobile-375",
+      use: { ...devices["Desktop Chrome"], viewport: { width: 375, height: 812 } },
+    },
+    {
+      name: "tablet-768",
+      use: { ...devices["Desktop Chrome"], viewport: { width: 768, height: 1024 } },
+    },
+    {
+      name: "desktop-1024",
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1024, height: 768 } },
+    },
+    {
+      name: "wide-1440",
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
     },
   ],
 });

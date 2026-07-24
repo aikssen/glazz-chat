@@ -45,6 +45,28 @@ func (q *Queries) GetDefaultModel(ctx context.Context, actorType string) (Model,
 	return i, err
 }
 
+const getProviderByCode = `-- name: GetProviderByCode :one
+SELECT id, code, display_name, adapter, enabled, health_status, settings, version, created_at, updated_at FROM providers WHERE code = $1
+`
+
+func (q *Queries) GetProviderByCode(ctx context.Context, code string) (Provider, error) {
+	row := q.db.QueryRow(ctx, getProviderByCode, code)
+	var i Provider
+	err := row.Scan(
+		&i.ID,
+		&i.Code,
+		&i.DisplayName,
+		&i.Adapter,
+		&i.Enabled,
+		&i.HealthStatus,
+		&i.Settings,
+		&i.Version,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getProviderForModel = `-- name: GetProviderForModel :one
 SELECT
     provider_models.provider_id,
@@ -139,6 +161,39 @@ func (q *Queries) GetSelectableModel(ctx context.Context, arg GetSelectableModel
 	return i, err
 }
 
+const listProviderModelMappings = `-- name: ListProviderModelMappings :many
+SELECT provider_id, model_id, provider_model_id, available, metadata, synced_at FROM provider_models
+WHERE provider_id = $1
+ORDER BY provider_model_id, model_id
+`
+
+func (q *Queries) ListProviderModelMappings(ctx context.Context, providerID uuid.UUID) ([]ProviderModel, error) {
+	rows, err := q.db.Query(ctx, listProviderModelMappings, providerID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ProviderModel{}
+	for rows.Next() {
+		var i ProviderModel
+		if err := rows.Scan(
+			&i.ProviderID,
+			&i.ModelID,
+			&i.ProviderModelID,
+			&i.Available,
+			&i.Metadata,
+			&i.SyncedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPublicModels = `-- name: ListPublicModels :many
 SELECT id, slug, name, description, context_window, max_output_tokens, capabilities, enabled, available, supported, audience, default_for, sort_order, version, created_at, updated_at
 FROM models
@@ -203,6 +258,36 @@ type MarkProviderModelsUnavailableParams struct {
 func (q *Queries) MarkProviderModelsUnavailable(ctx context.Context, arg MarkProviderModelsUnavailableParams) error {
 	_, err := q.db.Exec(ctx, markProviderModelsUnavailable, arg.SyncedAt, arg.ProviderID, arg.PresentModelIds)
 	return err
+}
+
+const refreshModelAvailability = `-- name: RefreshModelAvailability :execrows
+UPDATE models
+SET available = EXISTS (
+        SELECT 1
+        FROM provider_models
+        JOIN providers ON providers.id = provider_models.provider_id
+        WHERE provider_models.model_id = models.id
+          AND provider_models.available
+          AND providers.enabled
+    ),
+    version = version + 1,
+    updated_at = $1
+WHERE available IS DISTINCT FROM EXISTS (
+    SELECT 1
+    FROM provider_models
+    JOIN providers ON providers.id = provider_models.provider_id
+    WHERE provider_models.model_id = models.id
+      AND provider_models.available
+      AND providers.enabled
+)
+`
+
+func (q *Queries) RefreshModelAvailability(ctx context.Context, nowAt pgtype.Timestamptz) (int64, error) {
+	result, err := q.db.Exec(ctx, refreshModelAvailability, nowAt)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const upsertProvider = `-- name: UpsertProvider :one

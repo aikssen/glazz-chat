@@ -47,6 +47,7 @@ type Policy struct {
 	UserDailyOutputLimit   int64
 	GlobalDailyMessageCap  int64
 	GlobalDailyOutputCap   int64
+	GlobalConcurrentLimit  int64
 	ActorRequestsPerMinute int64
 	IPRequestsPerMinute    int64
 	GenerationLeaseTTL     time.Duration
@@ -57,6 +58,7 @@ func DefaultPolicy() Policy {
 		GuestMessageLimit: 4, GuestOutputTokenLimit: 2000,
 		UserDailyMessageLimit: 50, UserDailyOutputLimit: 50000,
 		GlobalDailyMessageCap: 10000, GlobalDailyOutputCap: 10000000,
+		GlobalConcurrentLimit:  100,
 		ActorRequestsPerMinute: 10, IPRequestsPerMinute: 30,
 		GenerationLeaseTTL: 5 * time.Minute,
 	}
@@ -83,6 +85,7 @@ type Service struct {
 	ids      ids.Source
 	clock    clock.Clock
 	policy   Policy
+	policies func(context.Context) (Policy, error)
 	ipKey    []byte
 }
 
@@ -99,6 +102,11 @@ func New(
 	}
 }
 
+func (service *Service) WithPolicySource(source func(context.Context) (Policy, error)) *Service {
+	service.policies = source
+	return service
+}
+
 func (service *Service) Reserve(
 	ctx context.Context,
 	actor Actor,
@@ -109,7 +117,11 @@ func (service *Service) Reserve(
 		return Reservation{}, ErrInvalid
 	}
 	now := service.clock.Now().UTC()
-	if err := service.applyRateLimits(ctx, actor, now); err != nil {
+	policy, err := service.currentPolicy(ctx)
+	if err != nil {
+		return Reservation{}, err
+	}
+	if err := service.applyRateLimits(ctx, actor, now, policy); err != nil {
 		return Reservation{}, err
 	}
 	reservationID, err := service.ids.New()
@@ -121,7 +133,7 @@ func (service *Service) Reserve(
 		return Reservation{}, err
 	}
 	acquired, err := service.limiter.AcquireLease(
-		ctx, "generation", actor.ID.String(), owner, service.policy.GenerationLeaseTTL,
+		ctx, "generation", actor.ID.String(), owner, policy.GenerationLeaseTTL,
 	)
 	if err != nil {
 		return Reservation{}, fmt.Errorf("acquire generation lease: %w", err)
@@ -141,11 +153,23 @@ func (service *Service) Reserve(
 	}()
 
 	err = service.database.WithinTransaction(ctx, pgx.TxOptions{}, func(queries *store.Queries) error {
+		if err := queries.LockGlobalGenerationAdmission(ctx); err != nil {
+			return fmt.Errorf("lock global generation admission: %w", err)
+		}
+		active, err := queries.CountGlobalActiveReservations(ctx)
+		if err != nil {
+			return fmt.Errorf("count global active generations: %w", err)
+		}
+		if active >= policy.GlobalConcurrentLimit {
+			return ErrBusy
+		}
 		if actor.Type == Guest {
 			if _, err := queries.IncrementGuestAllowance(ctx, store.IncrementGuestAllowanceParams{
-				OutputTokens: maxOutputTokens,
-				NowAt:        timestamp(now),
-				GuestID:      actor.ID,
+				OutputTokens:     maxOutputTokens,
+				NowAt:            timestamp(now),
+				GuestID:          actor.ID,
+				MessageLimit:     int32(policy.GuestMessageLimit),
+				OutputTokenLimit: int32(policy.GuestOutputTokenLimit),
 			}); errors.Is(err, pgx.ErrNoRows) {
 				return ErrExceeded
 			} else if err != nil {
@@ -154,7 +178,7 @@ func (service *Service) Reserve(
 		} else {
 			if _, err := queries.AddDailyUsage(ctx, dailyUsageParams(
 				User, actor.ID, usageDate, maxOutputTokens,
-				service.policy.UserDailyMessageLimit, service.policy.UserDailyOutputLimit, now,
+				policy.UserDailyMessageLimit, policy.UserDailyOutputLimit, now,
 			)); errors.Is(err, pgx.ErrNoRows) {
 				return ErrExceeded
 			} else if err != nil {
@@ -163,7 +187,7 @@ func (service *Service) Reserve(
 		}
 		if _, err := queries.AddDailyUsage(ctx, dailyUsageParams(
 			"global", uuid.Nil, usageDate, maxOutputTokens,
-			service.policy.GlobalDailyMessageCap, service.policy.GlobalDailyOutputCap, now,
+			policy.GlobalDailyMessageCap, policy.GlobalDailyOutputCap, now,
 		)); errors.Is(err, pgx.ErrNoRows) {
 			return ErrExceeded
 		} else if err != nil {
@@ -185,6 +209,78 @@ func (service *Service) Reserve(
 		ID: reservationID, Actor: actor, Owner: owner, UsageDate: usageDate,
 		Reserved: maxOutputTokens, ResetAt: usageDate.Add(24 * time.Hour),
 	}, nil
+}
+
+func (service *Service) MaxOutputTokens(ctx context.Context, actor Actor, modelLimit int32) (int32, error) {
+	if modelLimit <= 0 || actor.ID == uuid.Nil || (actor.Type != Guest && actor.Type != User) {
+		return 0, ErrInvalid
+	}
+	policy, err := service.currentPolicy(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	queries := service.database.Queries()
+	actorUsed := int64(0)
+	actorLimit := policy.UserDailyOutputLimit
+	usageDate := midnightUTC(service.clock.Now().UTC())
+	if actor.Type == Guest {
+		guest, err := queries.GetGuestSession(ctx, actor.ID)
+		if err != nil {
+			return 0, fmt.Errorf("load guest output usage: %w", err)
+		}
+		actorUsed = int64(guest.OutputTokenCount)
+		actorLimit = policy.GuestOutputTokenLimit
+	} else {
+		actorUsed, err = outputUsage(ctx, queries, string(User), actor.ID, usageDate)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	globalUsed, err := outputUsage(ctx, queries, "global", uuid.Nil, usageDate)
+	if err != nil {
+		return 0, err
+	}
+	return availableOutputTokens(
+		modelLimit,
+		actorLimit-actorUsed,
+		policy.GlobalDailyOutputCap-globalUsed,
+	)
+}
+
+func outputUsage(
+	ctx context.Context,
+	queries *store.Queries,
+	actorType string,
+	actorID uuid.UUID,
+	usageDate time.Time,
+) (int64, error) {
+	record, err := queries.GetDailyUsage(ctx, store.GetDailyUsageParams{
+		ActorType: actorType,
+		ActorID:   actorID,
+		UsageDate: date(usageDate),
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("load daily output usage: %w", err)
+	}
+	return record.OutputTokensUsed, nil
+}
+
+func availableOutputTokens(modelLimit int32, remaining ...int64) (int32, error) {
+	available := int64(modelLimit)
+	for _, value := range remaining {
+		if value < available {
+			available = value
+		}
+	}
+	if available <= 0 {
+		return 0, ErrExceeded
+	}
+	return int32(available), nil
 }
 
 func (service *Service) Settle(
@@ -256,11 +352,22 @@ func (service *Service) Settle(
 	})
 }
 
-func (service *Service) applyRateLimits(ctx context.Context, actor Actor, now time.Time) error {
+func (service *Service) currentPolicy(ctx context.Context) (Policy, error) {
+	if service.policies == nil {
+		return service.policy, nil
+	}
+	policy, err := service.policies(ctx)
+	if err != nil {
+		return Policy{}, fmt.Errorf("load quota policy: %w", err)
+	}
+	return policy, nil
+}
+
+func (service *Service) applyRateLimits(ctx context.Context, actor Actor, now time.Time, policy Policy) error {
 	window := time.Minute
 	bucket := now.Truncate(window).Format(time.RFC3339) + ":" + actor.ID.String()
 	result, err := service.limiter.AddRateUsage(
-		ctx, "actor:"+bucket, 1, service.policy.ActorRequestsPerMinute, window,
+		ctx, "actor:"+bucket, 1, policy.ActorRequestsPerMinute, window,
 	)
 	if err != nil {
 		return fmt.Errorf("apply actor rate limit: %w", err)
@@ -271,7 +378,7 @@ func (service *Service) applyRateLimits(ctx context.Context, actor Actor, now ti
 	if actor.IP.IsValid() {
 		ipBucket := now.Truncate(window).Format(time.RFC3339) + ":" + HashIP(service.ipKey, actor.IP)
 		result, err = service.limiter.AddRateUsage(
-			ctx, "ip:"+ipBucket, 1, service.policy.IPRequestsPerMinute, window,
+			ctx, "ip:"+ipBucket, 1, policy.IPRequestsPerMinute, window,
 		)
 		if err != nil {
 			return fmt.Errorf("apply IP rate limit: %w", err)

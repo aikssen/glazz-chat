@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/aikssen/glazz-chat/apps/api/internal/admin"
 	"github.com/aikssen/glazz-chat/apps/api/internal/chat"
 	"github.com/aikssen/glazz-chat/apps/api/internal/conversations"
 	"github.com/aikssen/glazz-chat/apps/api/internal/guests"
@@ -26,9 +27,11 @@ import (
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/redisx"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/server"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/telemetry"
+	"github.com/aikssen/glazz-chat/apps/api/internal/privacy"
 	"github.com/aikssen/glazz-chat/apps/api/internal/provider"
 	"github.com/aikssen/glazz-chat/apps/api/internal/quota"
 	"github.com/aikssen/glazz-chat/apps/api/internal/realtime"
+	"github.com/aikssen/glazz-chat/apps/api/internal/settings"
 )
 
 func main() {
@@ -95,16 +98,37 @@ func run(logger *slog.Logger) error {
 		pool, idSource, timeSource, cfg.Auth.TermsVersion,
 		cfg.Auth.PrivacyVersion, cfg.Admin.BootstrapEmails,
 	)
+	runtimeSettings := settings.New(pool)
 	guestService := guests.New(
 		pool, idSource, timeSource, cfg.Cookies, 30*24*time.Hour,
-	)
+	).WithPolicySource(func(ctx context.Context) (guests.Policy, error) {
+		snapshot, err := runtimeSettings.Load(ctx)
+		return guests.Policy{
+			MessageLimit:     int32(snapshot.GuestMessageLimit),
+			OutputTokenLimit: int32(snapshot.GuestOutputTokenLimit),
+		}, err
+	})
 	modelService := models.New(pool)
+	adminService := admin.New(pool, idSource, timeSource)
+	privacyService := privacy.New(pool, idSource, timeSource)
 	conversationService := conversations.New(pool, modelService, idSource, timeSource)
 	tickets := realtime.NewTickets(redisClient, timeSource, 30*time.Second)
 	broker := realtime.NewBroker(redisClient, idSource, timeSource)
 	quotaService := quota.New(
 		pool, redisClient, idSource, timeSource, quota.DefaultPolicy(), cfg.Cookies.SigningKey,
-	)
+	).WithPolicySource(func(ctx context.Context) (quota.Policy, error) {
+		snapshot, err := runtimeSettings.Load(ctx)
+		if err != nil {
+			return quota.Policy{}, err
+		}
+		policy := quota.DefaultPolicy()
+		policy.GuestMessageLimit = snapshot.GuestMessageLimit
+		policy.GuestOutputTokenLimit = snapshot.GuestOutputTokenLimit
+		policy.UserDailyMessageLimit = snapshot.UserMessageLimit
+		policy.UserDailyOutputLimit = snapshot.UserOutputTokenLimit
+		policy.GlobalConcurrentLimit = snapshot.GlobalConcurrentStreams
+		return policy, nil
+	})
 	gateways := chat.Gateways{"fake": provider.NewFake(provider.FakeOptions{})}
 	if cfg.Provider.Kind != "fake" {
 		gateway, err := provider.NewOpenAICompatible(
@@ -118,7 +142,13 @@ func run(logger *slog.Logger) error {
 	chatService := chat.New(
 		rootCtx, pool, conversationService, modelService, quotaService, broker,
 		gateways, idSource, timeSource,
-	)
+	).WithSystemPrompt(func(ctx context.Context) (string, error) {
+		snapshot, err := runtimeSettings.Load(ctx)
+		return snapshot.SystemPrompt, err
+	}).WithAvailability(func(ctx context.Context) (bool, error) {
+		snapshot, err := runtimeSettings.Load(ctx)
+		return !cfg.Runtime.Maintenance && !snapshot.Maintenance, err
+	})
 	realtimeHandler := realtime.NewHandler(
 		tickets, broker, chatService, timeSource, cfg.Runtime.AllowedOrigins,
 	)
@@ -145,6 +175,9 @@ func run(logger *slog.Logger) error {
 		Models: modelService, Chats: conversationService,
 		Tickets: tickets, Realtime: realtimeHandler,
 		ChatEngine: chatService,
+		Admin:      adminService,
+		Privacy:    privacyService,
+		Settings:   runtimeSettings,
 		ResolveUser: func(request *http.Request) (browser.Actor, error) {
 			return browser.Resolve(request, keyRing, sessionService)
 		},

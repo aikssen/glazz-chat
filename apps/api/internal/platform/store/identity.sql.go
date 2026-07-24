@@ -80,7 +80,7 @@ func (q *Queries) CreateGoogleIdentity(ctx context.Context, arg CreateGoogleIden
 const createUser = `-- name: CreateUser :one
 INSERT INTO users (id, email, display_name, avatar_url, locale, role)
 VALUES ($1, $2, $3, $4, $5, $6)
-RETURNING id, email, display_name, avatar_url, locale, role, plan, status, token_version, created_at, updated_at
+RETURNING id, email, display_name, avatar_url, locale, role, plan, status, token_version, created_at, updated_at, version
 `
 
 type CreateUserParams struct {
@@ -114,12 +114,13 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 		&i.TokenVersion,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Version,
 	)
 	return i, err
 }
 
 const findUserByEmail = `-- name: FindUserByEmail :one
-SELECT id, email, display_name, avatar_url, locale, role, plan, status, token_version, created_at, updated_at FROM users WHERE lower(email) = lower($1)
+SELECT id, email, display_name, avatar_url, locale, role, plan, status, token_version, created_at, updated_at, version FROM users WHERE lower(email) = lower($1)
 `
 
 func (q *Queries) FindUserByEmail(ctx context.Context, lower string) (User, error) {
@@ -137,12 +138,13 @@ func (q *Queries) FindUserByEmail(ctx context.Context, lower string) (User, erro
 		&i.TokenVersion,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Version,
 	)
 	return i, err
 }
 
 const findUserByGoogleSubject = `-- name: FindUserByGoogleSubject :one
-SELECT users.id, users.email, users.display_name, users.avatar_url, users.locale, users.role, users.plan, users.status, users.token_version, users.created_at, users.updated_at
+SELECT users.id, users.email, users.display_name, users.avatar_url, users.locale, users.role, users.plan, users.status, users.token_version, users.created_at, users.updated_at, users.version
 FROM users
 JOIN user_identities ON user_identities.user_id = users.id
 WHERE user_identities.provider = 'google'
@@ -168,12 +170,13 @@ func (q *Queries) FindUserByGoogleSubject(ctx context.Context, providerSubject s
 		&i.User.TokenVersion,
 		&i.User.CreatedAt,
 		&i.User.UpdatedAt,
+		&i.User.Version,
 	)
 	return i, err
 }
 
 const findUserByID = `-- name: FindUserByID :one
-SELECT id, email, display_name, avatar_url, locale, role, plan, status, token_version, created_at, updated_at FROM users WHERE id = $1
+SELECT id, email, display_name, avatar_url, locale, role, plan, status, token_version, created_at, updated_at, version FROM users WHERE id = $1
 `
 
 func (q *Queries) FindUserByID(ctx context.Context, id uuid.UUID) (User, error) {
@@ -191,6 +194,7 @@ func (q *Queries) FindUserByID(ctx context.Context, id uuid.UUID) (User, error) 
 		&i.TokenVersion,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.Version,
 	)
 	return i, err
 }

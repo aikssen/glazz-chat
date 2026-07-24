@@ -34,12 +34,12 @@ Rules:
 | M5 | Integrated, tested, observable release candidate |
 | M6 | Approved provider and production deployment |
 
-Current progress: M3 is in progress. The provider-neutral types and deterministic
-fake are complete. Schema, OpenAI-compatible streaming, public catalog,
-conversation HTTP APIs, WebSocket transport, durable generation, cancellation,
-retry, context, summary, title, safety, and usage slices are implemented but remain
-in progress until every acceptance case below is automated. Do not create `v0.3.0`
-until Phase 4 and Phase 5 exit criteria and CI are green.
+Current progress: M4 is in progress while M3 acceptance hardening continues. The
+provider-neutral chat backend, administration/privacy backend, responsive bilingual
+web shell, guest streaming journey, settings, and administration screens are
+implemented. Missing acceptance coverage is tracked on each task and in
+`docs/m3-chat-backend.md` and `docs/m4-web-application.md`. Do not create `v0.3.0`
+or `v0.4.0` until their respective phase exits and CI are green.
 
 ## Phase 0: API and architecture contract
 
@@ -492,39 +492,39 @@ guest and registered rules, reconnect, cancellation, retry, and summaries.
 
 ## Phase 6: Administration and privacy backend
 
-- [ ] **ADMIN-001: Implement typed runtime settings**
+- [-] **ADMIN-001: Implement typed runtime settings**
   - Depends on: MODEL-001, AUTH-007
   - Add versioned reads/updates for models, quotas, prompts, safety, and maintenance.
   - Acceptance: optimistic conflict, validation, cache invalidation, and audit tests.
 
-- [ ] **ADMIN-002: Implement model administration**
+- [-] **ADMIN-002: Implement model administration**
   - Depends on: MODEL-006, ADMIN-001
   - Expose sync, enable/disable, defaults, ordering, and limits.
   - Acceptance: cannot enable unsupported/unavailable models or remove the only valid
     default without replacement.
 
-- [ ] **ADMIN-003: Implement user role administration**
+- [-] **ADMIN-003: Implement user role administration**
   - Depends on: AUTH-007, ADMIN-001
   - Search users and change roles with recent auth and audit.
   - Acceptance: prevent removal of last admin and self-lockout without handoff.
 
-- [ ] **ADMIN-004: Implement usage/error/audit read APIs**
+- [-] **ADMIN-004: Implement usage/error/audit read APIs**
   - Depends on: USAGE-001, PLAT-008, ADMIN-001
   - Return aggregates and redacted audit events.
   - Acceptance: no prompt/response bodies or secrets are queryable.
 
-- [ ] **PRIV-002: Implement account deletion request**
+- [x] **PRIV-002: Implement account deletion request**
   - Depends on: AUTH-005, CHAT-001, PLAT-009
   - Require recent auth, revoke sessions immediately, create durable deletion job.
   - Acceptance: repeated requests are idempotent and login remains blocked.
 
-- [ ] **PRIV-003: Implement account purge worker**
+- [x] **PRIV-003: Implement account purge worker**
   - Depends on: PRIV-002
   - Remove personal/conversation data within 24 hours; retain anonymous aggregates
     and expiring security logs only.
   - Acceptance: integration test proves referential cleanup and non-identifiability.
 
-- [ ] **PRIV-004: Implement daily guest cleanup**
+- [x] **PRIV-004: Implement daily guest cleanup**
   - Depends on: GUEST-003, PLAT-009
   - Delete non-migrated guest conversation/session data daily.
   - Acceptance: migrated/active locked data is preserved; repeated run is safe.
@@ -534,55 +534,55 @@ guest and registered rules, reconnect, cancellation, retry, and summaries.
 **Objective:** Build the complete product shell and accessible components before
 wiring full journeys.
 
-- [ ] **WEB-001: Implement locale architecture**
+- [-] **WEB-001: Implement locale architecture**
   - Depends on: FOUND-002
   - Select i18n ADR/library, typed keys, Spanish/English dictionaries, browser/profile
     preference, English fallback.
   - Acceptance: missing/parity check fails CI; locale persists for users.
 
-- [ ] **WEB-002: Implement theme architecture**
+- [-] **WEB-002: Implement theme architecture**
   - Depends on: FOUND-004
   - Add light/dark/system behavior without flash and persist preference.
   - Acceptance: token parity and contrast automated checks pass.
 
-- [ ] **WEB-003: Build responsive application shell**
+- [-] **WEB-003: Build responsive application shell**
   - Depends on: FOUND-004, WEB-001, WEB-002
   - Add Glazz header, shadcn Sidebar desktop, Sheet mobile, main/transcript landmark,
     safe areas, and stable composer region.
   - Acceptance: 375/768/1024/1440 screenshots have no overlap/scrollbar errors.
 
-- [ ] **WEB-004: Build conversation navigation components**
+- [-] **WEB-004: Build conversation navigation components**
   - Depends on: WEB-003
   - List, search, groups, rename, archive, delete, loading/empty/error states.
   - Acceptance: keyboard/touch/screen-reader component tests pass.
 
-- [ ] **WEB-005: Build transcript and message renderer**
+- [-] **WEB-005: Build transcript and message renderer**
   - Depends on: WEB-003
   - Add sanitized Markdown, tables, code highlighting/copy, long-content containment.
   - Acceptance: malicious HTML/XSS fixtures are inert; accessibility tests pass.
 
-- [ ] **WEB-006: Build streaming reducer and signal rail**
+- [x] **WEB-006: Build streaming reducer and signal rail**
   - Depends on: WEB-005, WS-004
   - Handle start/delta/terminal events, duplicates, offsets, and reduced motion.
   - Acceptance: out-of-order/duplicate fixtures render one correct response.
 
-- [ ] **WEB-007: Build chat composer**
+- [-] **WEB-007: Build chat composer**
   - Depends on: WEB-003
   - Add multiline behavior, draft preservation, send/stop stable control, disabled
     reasons, mobile viewport handling.
   - Acceptance: keyboard, touch, IME composition, and mobile keyboard tests pass.
 
-- [ ] **WEB-008: Build model selector and usage indicator**
+- [-] **WEB-008: Build model selector and usage indicator**
   - Depends on: WEB-003
   - Plain-language model options, guest restriction, quota/reset display.
   - Acceptance: unavailable model and approaching/exhausted quota states pass.
 
-- [ ] **WEB-009: Build connection and failure states**
+- [-] **WEB-009: Build connection and failure states**
   - Depends on: WEB-003, WEB-006
   - Add reconnect, resync, maintenance, inline failure, retry, and jump-to-latest.
   - Acceptance: screen-reader announcements are throttled and actionable.
 
-- [ ] **WEB-010: Create PWA shell**
+- [-] **WEB-010: Create PWA shell**
   - Depends on: WEB-003
   - Add manifest, approved temporary icon process, static asset caching, offline/update
     states.
@@ -590,53 +590,53 @@ wiring full journeys.
 
 ## Phase 8: Frontend journeys and API integration
 
-- [ ] **INT-001: Integrate generated HTTP client**
+- [x] **INT-001: Integrate generated HTTP client**
   - Depends on: FOUND-006, WEB-003
   - Add server/client-safe transport, CSRF, request IDs, stable error mapping.
   - Acceptance: DTOs are generated; credentials never enter client logs.
 
-- [ ] **INT-002: Implement WebSocket client**
+- [-] **INT-002: Implement WebSocket client**
   - Depends on: WS-006, WEB-006
   - Obtain tickets, connect, heartbeat, reconnect/backoff, resume, resync, dispatch.
   - Acceptance: protocol fixture and browser integration tests pass.
 
-- [ ] **WEB-011: Implement guest journey**
+- [-] **WEB-011: Implement guest journey**
   - Depends on: GUEST-002, CONV-002, CHAT-003, INT-001, INT-002, WEB-007
   - Immediate chat, allowance, limit gate, preserved transcript.
   - Acceptance: four-message/2,000-token edge cases and daily expiry behavior pass E2E.
 
-- [ ] **WEB-012: Implement Google login and guest migration UX**
+- [-] **WEB-012: Implement Google login and guest migration UX**
   - Depends on: AUTH-004, GUEST-003, WEB-011
   - Add Google entry, callback/error UI, migration continuity, legal consent.
   - Acceptance: successful login retains conversation exactly once; denial is
     recoverable.
 
-- [ ] **WEB-013: Implement registered conversation journey**
+- [-] **WEB-013: Implement registered conversation journey**
   - Depends on: CONV-002, WEB-004, INT-001
   - Create/list/search/rename/archive/delete/model change and pagination.
   - Acceptance: deep links, reload, empty/error/loading, and ownership failures work.
 
-- [ ] **WEB-014: Integrate generation/cancel/retry**
+- [-] **WEB-014: Integrate generation/cancel/retry**
   - Depends on: CHAT-005, INT-002, WEB-006, WEB-007, WEB-009
   - Wire acknowledgement, streaming, stop, retry, usage, and draft behavior.
   - Acceptance: reconnect and duplicate command E2E preserve one transcript.
 
-- [ ] **WEB-015: Implement settings**
+- [-] **WEB-015: Implement settings**
   - Depends on: AUTH-005, WEB-001, WEB-002
   - Profile read, locale/theme, device sessions, revocation, legal links.
   - Acceptance: current-session revocation logs out; other revocation updates list.
 
-- [ ] **WEB-016: Implement account deletion**
+- [-] **WEB-016: Implement account deletion**
   - Depends on: PRIV-003, WEB-015
   - Recent auth, specific confirmation, job state, immediate logout.
   - Acceptance: destructive flow is keyboard accessible and passes E2E.
 
-- [ ] **WEB-017: Implement admin model/settings UI**
+- [-] **WEB-017: Implement admin model/settings UI**
   - Depends on: ADMIN-002, WEB-003
   - Models, defaults, quotas, guest limits, system prompt, safety, maintenance.
   - Acceptance: validation/conflicts/audits are visible; no nested cards.
 
-- [ ] **WEB-018: Implement admin user/usage/audit UI**
+- [-] **WEB-018: Implement admin user/usage/audit UI**
   - Depends on: ADMIN-003, ADMIN-004, WEB-003
   - User roles, aggregate usage/errors, audit pagination.
   - Acceptance: non-admin routes/API are denied and conversation content absent.

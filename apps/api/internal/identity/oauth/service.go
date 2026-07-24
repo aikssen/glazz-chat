@@ -22,9 +22,10 @@ import (
 const stateNamespace = "oauth_state"
 
 var (
-	ErrInvalidState   = errors.New("OAuth state is invalid, expired, or already used")
-	ErrInvalidReturn  = errors.New("OAuth return path is not allowed")
-	ErrConsentMissing = errors.New("terms and privacy acceptance are required")
+	ErrInvalidState     = errors.New("OAuth state is invalid, expired, or already used")
+	ErrInvalidReturn    = errors.New("OAuth return path is not allowed")
+	ErrConsentMissing   = errors.New("terms and privacy acceptance are required")
+	ErrIdentityMismatch = errors.New("reauthentication identity does not match")
 )
 
 type StateStore interface {
@@ -45,6 +46,7 @@ type stateRecord struct {
 	PrivacyAccepted bool       `json:"privacyAccepted"`
 	GuestID         *uuid.UUID `json:"guestId,omitempty"`
 	Locale          string     `json:"locale"`
+	ExpectedUserID  *uuid.UUID `json:"expectedUserId,omitempty"`
 }
 
 type StartInput struct {
@@ -53,6 +55,7 @@ type StartInput struct {
 	PrivacyAccepted bool
 	GuestID         *uuid.UUID
 	Locale          string
+	ExpectedUserID  *uuid.UUID
 }
 
 type Completion struct {
@@ -113,6 +116,7 @@ func (service *Service) Start(ctx context.Context, input StartInput) (string, er
 		PrivacyAccepted: input.PrivacyAccepted,
 		GuestID:         input.GuestID,
 		Locale:          input.Locale,
+		ExpectedUserID:  input.ExpectedUserID,
 	})
 	if err != nil {
 		return "", fmt.Errorf("encode OAuth state: %w", err)
@@ -145,6 +149,12 @@ func (service *Service) Complete(
 	profile, err := service.provider.Exchange(ctx, code, record.Verifier, record.Nonce)
 	if err != nil {
 		return Completion{}, fmt.Errorf("exchange Google authorization: %w", err)
+	}
+	if record.ExpectedUserID != nil {
+		current, lookupErr := service.users.FindByGoogleSubject(ctx, profile.Subject)
+		if lookupErr != nil || current.ID != *record.ExpectedUserID {
+			return Completion{}, ErrIdentityMismatch
+		}
 	}
 	user, created, err := service.users.ProvisionGoogle(ctx, users.ProvisionInput{
 		Profile:         profile,

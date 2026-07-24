@@ -2,7 +2,7 @@
 
 ## Document status
 
-- Status: M3 provider-neutral streamed chat backend in progress
+- Status: M4 responsive web application and administration in progress
 - Product domain: `https://glazz.hlab.sh`
 - Primary audience: General public
 - Interface languages: Spanish and English

@@ -546,10 +546,8 @@ export interface components {
                 readonly minimumAge: 18;
             };
             readonly guestPolicy: {
-                /** @constant */
-                readonly messageLimit: 4;
-                /** @constant */
-                readonly outputTokenLimit: 2000;
+                readonly messageLimit: number;
+                readonly outputTokenLimit: number;
                 /** @constant */
                 readonly resetsAutomatically: false;
             };
@@ -567,11 +565,9 @@ export interface components {
         };
         readonly GuestAllowance: {
             readonly messagesUsed: number;
-            /** @constant */
-            readonly messageLimit: 4;
+            readonly messageLimit: number;
             readonly outputTokensUsed: number;
-            /** @constant */
-            readonly outputTokenLimit: 2000;
+            readonly outputTokenLimit: number;
             readonly exhausted: boolean;
             /** Format: date-time */
             readonly expiresAt: string;
@@ -685,7 +681,9 @@ export interface components {
             readonly enabled: boolean;
             readonly available: boolean;
             readonly supported: boolean;
-            readonly audience?: readonly ("guest" | "user")[];
+            readonly audience: readonly ("guest" | "user")[];
+            readonly defaultFor: readonly ("guest" | "user")[];
+            readonly order: number;
             readonly version: number;
         };
         readonly UpdateAdminModel: {

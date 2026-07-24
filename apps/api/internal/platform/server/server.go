@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"github.com/aikssen/glazz-chat/apps/api/internal/admin"
 	"github.com/aikssen/glazz-chat/apps/api/internal/chat"
 	"github.com/aikssen/glazz-chat/apps/api/internal/conversations"
 	"github.com/aikssen/glazz-chat/apps/api/internal/guests"
@@ -25,8 +26,10 @@ import (
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/ids"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/redisx"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/telemetry"
+	"github.com/aikssen/glazz-chat/apps/api/internal/privacy"
 	"github.com/aikssen/glazz-chat/apps/api/internal/quota"
 	"github.com/aikssen/glazz-chat/apps/api/internal/realtime"
+	"github.com/aikssen/glazz-chat/apps/api/internal/settings"
 )
 
 type Dependencies struct {
@@ -47,6 +50,9 @@ type Dependencies struct {
 	Tickets     *realtime.Tickets
 	Realtime    *realtime.Handler
 	ChatEngine  *chat.Service
+	Admin       *admin.Service
+	Privacy     *privacy.Service
+	Settings    *settings.Service
 }
 
 func Handler() http.Handler {
@@ -100,8 +106,24 @@ func New(deps Dependencies) http.Handler {
 			protected.Use(deps.Auth)
 			protected.Get("/me", deps.me)
 			protected.Get("/me/sessions", deps.listSessions)
+			protected.With(deps.Browser.CSRF).Post("/me/reauthenticate", deps.startReauthentication)
 			protected.With(deps.Browser.CSRF).Post("/auth/logout", deps.logout)
 			protected.With(deps.Browser.CSRF).Delete("/me/sessions/{sessionId}", deps.revokeSession)
+			protected.Get("/me/deletion", deps.getAccountDeletion)
+			protected.With(deps.Browser.CSRF, deps.requireRecent).Delete("/me", deps.requestAccountDeletion)
+
+			protected.Route("/admin", func(adminRouter chi.Router) {
+				adminRouter.Use(deps.requireAdmin)
+				adminRouter.Get("/models", deps.adminListModels)
+				adminRouter.With(deps.Browser.CSRF).Post("/models/sync", deps.adminSyncModels)
+				adminRouter.With(deps.Browser.CSRF, deps.requireRecent).Patch("/models/{modelId}", deps.adminUpdateModel)
+				adminRouter.Get("/settings", deps.adminListSettings)
+				adminRouter.With(deps.Browser.CSRF, deps.requireRecent).Patch("/settings/{key}", deps.adminUpdateSetting)
+				adminRouter.Get("/users", deps.adminListUsers)
+				adminRouter.With(deps.Browser.CSRF, deps.requireRecent).Patch("/users/{userId}/role", deps.adminUpdateUserRole)
+				adminRouter.Get("/usage", deps.adminUsage)
+				adminRouter.Get("/audit-log", deps.adminAudit)
+			})
 		})
 	})
 	return router
@@ -129,22 +151,44 @@ func (deps Dependencies) readiness(response http.ResponseWriter, request *http.R
 	httpx.WriteJSON(response, code, map[string]any{"status": state, "dependencies": status})
 }
 
-func (deps Dependencies) publicConfig(response http.ResponseWriter, _ *http.Request) {
+func (deps Dependencies) publicConfig(response http.ResponseWriter, request *http.Request) {
+	maintenance := deps.Config.Runtime.Maintenance
+	messageLimit := int64(4)
+	outputTokenLimit := int64(2000)
+	if deps.Settings != nil {
+		snapshot, err := deps.Settings.Load(request.Context())
+		if err != nil {
+			deps.internalError(response, request, err)
+			return
+		}
+		maintenance = maintenance || snapshot.Maintenance
+		messageLimit = snapshot.GuestMessageLimit
+		outputTokenLimit = snapshot.GuestOutputTokenLimit
+	}
 	httpx.WriteJSON(response, http.StatusOK, map[string]any{
 		"locales":     []string{"en", "es"},
-		"maintenance": deps.Config.Runtime.Maintenance,
+		"maintenance": maintenance,
 		"legal": map[string]any{
 			"termsVersion": deps.Config.Auth.TermsVersion, "privacyVersion": deps.Config.Auth.PrivacyVersion,
 			"minimumAge": 18,
 		},
 		"guestPolicy": map[string]any{
-			"messageLimit": 4, "outputTokenLimit": 2000, "resetsAutomatically": false,
+			"messageLimit": messageLimit, "outputTokenLimit": outputTokenLimit, "resetsAutomatically": false,
 		},
 	})
 }
 
 func (deps Dependencies) createOrResumeGuest(response http.ResponseWriter, request *http.Request) {
-	if deps.Config.Runtime.Maintenance {
+	maintenance := deps.Config.Runtime.Maintenance
+	if deps.Settings != nil {
+		snapshot, err := deps.Settings.Load(request.Context())
+		if err != nil {
+			deps.internalError(response, request, err)
+			return
+		}
+		maintenance = maintenance || snapshot.Maintenance
+	}
+	if maintenance {
 		httpx.WriteError(response, request, http.StatusServiceUnavailable, "maintenance", "Service is temporarily unavailable.")
 		return
 	}
@@ -213,6 +257,10 @@ func (deps Dependencies) completeGoogle(response http.ResponseWriter, request *h
 		httpx.WriteError(response, request, http.StatusConflict, "identity_conflict", "Account identity could not be linked.")
 		return
 	}
+	if errors.Is(err, identityoauth.ErrIdentityMismatch) {
+		httpx.WriteError(response, request, http.StatusForbidden, "identity_conflict", "Google account does not match the current user.")
+		return
+	}
 	if err != nil {
 		httpx.WriteError(response, request, http.StatusBadRequest, "invalid_oauth_callback", "Google login could not be completed.")
 		return
@@ -222,6 +270,23 @@ func (deps Dependencies) completeGoogle(response http.ResponseWriter, request *h
 		return
 	}
 	http.Redirect(response, request, deps.Config.Runtime.WebURL+completion.ReturnTo, http.StatusFound)
+}
+
+func (deps Dependencies) startReauthentication(response http.ResponseWriter, request *http.Request) {
+	if deps.OAuth == nil {
+		httpx.WriteError(response, request, http.StatusServiceUnavailable, "service_unavailable", "Google login is not configured.")
+		return
+	}
+	actor, _ := browser.CurrentActor(request.Context())
+	authorizationURL, err := deps.OAuth.Start(request.Context(), identityoauth.StartInput{
+		ReturnTo: "/settings/security", TermsAccepted: true, PrivacyAccepted: true,
+		Locale: locale(request), ExpectedUserID: &actor.UserID,
+	})
+	if err != nil {
+		httpx.WriteError(response, request, http.StatusBadRequest, "invalid_request", "Reauthentication could not be started.")
+		return
+	}
+	httpx.WriteJSON(response, http.StatusOK, map[string]string{"authorizationUrl": authorizationURL})
 }
 
 func (deps Dependencies) refresh(response http.ResponseWriter, request *http.Request) {

@@ -6,6 +6,17 @@ INSERT INTO outbox_events (id, event_type, payload, idempotency_key, available_a
 VALUES ($1, $2, $3, $4, $5)
 ON CONFLICT (idempotency_key) DO NOTHING;
 
+-- name: GetOutboxEventByIdempotencyKey :one
+SELECT * FROM outbox_events WHERE idempotency_key = sqlc.arg(idempotency_key);
+
+-- name: LockGlobalGenerationAdmission :exec
+SELECT pg_advisory_xact_lock(hashtextextended('global-generation-admission', 0));
+
+-- name: CountGlobalActiveReservations :one
+SELECT COUNT(*)::bigint
+FROM quota_reservations
+WHERE status = 'reserved';
+
 -- name: ClaimOutboxEvents :many
 WITH candidates AS (
     SELECT candidate.id
@@ -69,6 +80,13 @@ SET messages_used = daily_usage.messages_used + 1,
 WHERE daily_usage.messages_used + 1 <= sqlc.arg(message_limit)
   AND daily_usage.output_tokens_used + EXCLUDED.output_tokens_used <= sqlc.arg(output_token_limit)
 RETURNING *;
+
+-- name: GetDailyUsage :one
+SELECT *
+FROM daily_usage
+WHERE actor_type = sqlc.arg(actor_type)
+  AND actor_id = sqlc.arg(actor_id)
+  AND usage_date = sqlc.arg(usage_date);
 
 -- name: AdjustDailyOutputUsage :exec
 UPDATE daily_usage

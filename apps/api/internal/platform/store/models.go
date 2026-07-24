@@ -9,6 +9,18 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type AccountDeletionJob struct {
+	ID             uuid.UUID          `db:"id"`
+	UserID         *uuid.UUID         `db:"user_id"`
+	Status         string             `db:"status"`
+	RequestedAt    pgtype.Timestamptz `db:"requested_at"`
+	DueAt          pgtype.Timestamptz `db:"due_at"`
+	StartedAt      pgtype.Timestamptz `db:"started_at"`
+	CompletedAt    pgtype.Timestamptz `db:"completed_at"`
+	Attempts       int32              `db:"attempts"`
+	LastErrorClass *string            `db:"last_error_class"`
+}
+
 type AdminAuditLog struct {
 	ID          uuid.UUID          `db:"id"`
 	ActorUserID *uuid.UUID         `db:"actor_user_id"`
@@ -207,6 +219,15 @@ type QuotaReservation struct {
 	SettledAt            pgtype.Timestamptz `db:"settled_at"`
 }
 
+type RuntimeSetting struct {
+	Key             string             `db:"key"`
+	ValueKind       string             `db:"value_kind"`
+	Value           []byte             `db:"value"`
+	Version         int32              `db:"version"`
+	UpdatedByUserID *uuid.UUID         `db:"updated_by_user_id"`
+	UpdatedAt       pgtype.Timestamptz `db:"updated_at"`
+}
+
 type TermsAcceptance struct {
 	UserID         uuid.UUID          `db:"user_id"`
 	TermsVersion   string             `db:"terms_version"`
@@ -241,6 +262,7 @@ type User struct {
 	TokenVersion int32              `db:"token_version"`
 	CreatedAt    pgtype.Timestamptz `db:"created_at"`
 	UpdatedAt    pgtype.Timestamptz `db:"updated_at"`
+	Version      int32              `db:"version"`
 }
 
 type UserIdentity struct {

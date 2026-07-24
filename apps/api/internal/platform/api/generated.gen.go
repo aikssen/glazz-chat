@@ -47,6 +47,24 @@ func (e AdminModelCapabilitiesChatCompletions) Valid() bool {
 	}
 }
 
+// Defines values for AdminModelDefaultFor.
+const (
+	AdminModelDefaultForGuest AdminModelDefaultFor = "guest"
+	AdminModelDefaultForUser  AdminModelDefaultFor = "user"
+)
+
+// Valid indicates whether the value is a known member of the AdminModelDefaultFor enum.
+func (e AdminModelDefaultFor) Valid() bool {
+	switch e {
+	case AdminModelDefaultForGuest:
+		return true
+	case AdminModelDefaultForUser:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AdminUserStatus.
 const (
 	AdminUserStatusActive          AdminUserStatus = "active"
@@ -245,36 +263,6 @@ func (e GenerationStatus) Valid() bool {
 	}
 }
 
-// Defines values for GuestAllowanceMessageLimit.
-const (
-	GuestAllowanceMessageLimitN4 GuestAllowanceMessageLimit = 4
-)
-
-// Valid indicates whether the value is a known member of the GuestAllowanceMessageLimit enum.
-func (e GuestAllowanceMessageLimit) Valid() bool {
-	switch e {
-	case GuestAllowanceMessageLimitN4:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for GuestAllowanceOutputTokenLimit.
-const (
-	GuestAllowanceOutputTokenLimitN2000 GuestAllowanceOutputTokenLimit = 2000
-)
-
-// Valid indicates whether the value is a known member of the GuestAllowanceOutputTokenLimit enum.
-func (e GuestAllowanceOutputTokenLimit) Valid() bool {
-	switch e {
-	case GuestAllowanceOutputTokenLimitN2000:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for HealthStatus.
 const (
 	Ok HealthStatus = "ok"
@@ -365,36 +353,6 @@ const (
 func (e ModelCapabilitiesChatCompletions) Valid() bool {
 	switch e {
 	case ModelCapabilitiesChatCompletionsTrue:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PublicConfigGuestPolicyMessageLimit.
-const (
-	PublicConfigGuestPolicyMessageLimitN4 PublicConfigGuestPolicyMessageLimit = 4
-)
-
-// Valid indicates whether the value is a known member of the PublicConfigGuestPolicyMessageLimit enum.
-func (e PublicConfigGuestPolicyMessageLimit) Valid() bool {
-	switch e {
-	case PublicConfigGuestPolicyMessageLimitN4:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for PublicConfigGuestPolicyOutputTokenLimit.
-const (
-	PublicConfigGuestPolicyOutputTokenLimitN2000 PublicConfigGuestPolicyOutputTokenLimit = 2000
-)
-
-// Valid indicates whether the value is a known member of the PublicConfigGuestPolicyOutputTokenLimit enum.
-func (e PublicConfigGuestPolicyOutputTokenLimit) Valid() bool {
-	switch e {
-	case PublicConfigGuestPolicyOutputTokenLimitN2000:
 		return true
 	default:
 		return false
@@ -589,19 +547,21 @@ func (e RequestAccountDeletionJSONBodyConfirmation) Valid() bool {
 
 // AdminModel defines model for AdminModel.
 type AdminModel struct {
-	Audience     *[]AdminModelAudience `json:"audience,omitempty"`
-	Available    bool                  `json:"available"`
+	Audience     []AdminModelAudience `json:"audience"`
+	Available    bool                 `json:"available"`
 	Capabilities struct {
 		ChatCompletions AdminModelCapabilitiesChatCompletions `json:"chatCompletions"`
 		Code            bool                                  `json:"code"`
 		Markdown        bool                                  `json:"markdown"`
 	} `json:"capabilities"`
-	Description *string `json:"description,omitempty"`
-	Enabled     bool    `json:"enabled"`
-	Id          Id      `json:"id"`
-	Name        string  `json:"name"`
-	Supported   bool    `json:"supported"`
-	Version     int     `json:"version"`
+	DefaultFor  []AdminModelDefaultFor `json:"defaultFor"`
+	Description *string                `json:"description,omitempty"`
+	Enabled     bool                   `json:"enabled"`
+	Id          Id                     `json:"id"`
+	Name        string                 `json:"name"`
+	Order       int                    `json:"order"`
+	Supported   bool                   `json:"supported"`
+	Version     int                    `json:"version"`
 }
 
 // AdminModelAudience defines model for AdminModel.Audience.
@@ -609,6 +569,9 @@ type AdminModelAudience string
 
 // AdminModelCapabilitiesChatCompletions defines model for AdminModel.Capabilities.ChatCompletions.
 type AdminModelCapabilitiesChatCompletions bool
+
+// AdminModelDefaultFor defines model for AdminModel.DefaultFor.
+type AdminModelDefaultFor string
 
 // AdminUsage defines model for AdminUsage.
 type AdminUsage struct {
@@ -743,19 +706,13 @@ type GenerationStatus string
 
 // GuestAllowance defines model for GuestAllowance.
 type GuestAllowance struct {
-	Exhausted        bool                           `json:"exhausted"`
-	ExpiresAt        time.Time                      `json:"expiresAt"`
-	MessageLimit     GuestAllowanceMessageLimit     `json:"messageLimit"`
-	MessagesUsed     int                            `json:"messagesUsed"`
-	OutputTokenLimit GuestAllowanceOutputTokenLimit `json:"outputTokenLimit"`
-	OutputTokensUsed int                            `json:"outputTokensUsed"`
+	Exhausted        bool      `json:"exhausted"`
+	ExpiresAt        time.Time `json:"expiresAt"`
+	MessageLimit     int       `json:"messageLimit"`
+	MessagesUsed     int       `json:"messagesUsed"`
+	OutputTokenLimit int       `json:"outputTokenLimit"`
+	OutputTokensUsed int       `json:"outputTokensUsed"`
 }
-
-// GuestAllowanceMessageLimit defines model for GuestAllowance.MessageLimit.
-type GuestAllowanceMessageLimit int
-
-// GuestAllowanceOutputTokenLimit defines model for GuestAllowance.OutputTokenLimit.
-type GuestAllowanceOutputTokenLimit int
 
 // Health defines model for Health.
 type Health struct {
@@ -818,8 +775,8 @@ type ModelCapabilitiesChatCompletions bool
 // PublicConfig defines model for PublicConfig.
 type PublicConfig struct {
 	GuestPolicy struct {
-		MessageLimit        PublicConfigGuestPolicyMessageLimit        `json:"messageLimit"`
-		OutputTokenLimit    PublicConfigGuestPolicyOutputTokenLimit    `json:"outputTokenLimit"`
+		MessageLimit        int                                        `json:"messageLimit"`
+		OutputTokenLimit    int                                        `json:"outputTokenLimit"`
 		ResetsAutomatically PublicConfigGuestPolicyResetsAutomatically `json:"resetsAutomatically"`
 	} `json:"guestPolicy"`
 	Legal struct {
@@ -830,12 +787,6 @@ type PublicConfig struct {
 	Locales     []PublicConfigLocales `json:"locales"`
 	Maintenance bool                  `json:"maintenance"`
 }
-
-// PublicConfigGuestPolicyMessageLimit defines model for PublicConfig.GuestPolicy.MessageLimit.
-type PublicConfigGuestPolicyMessageLimit int
-
-// PublicConfigGuestPolicyOutputTokenLimit defines model for PublicConfig.GuestPolicy.OutputTokenLimit.
-type PublicConfigGuestPolicyOutputTokenLimit int
 
 // PublicConfigGuestPolicyResetsAutomatically defines model for PublicConfig.GuestPolicy.ResetsAutomatically.
 type PublicConfigGuestPolicyResetsAutomatically bool

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { JetBrains_Mono, Outfit, Work_Sans } from "next/font/google";
 import "./globals.css";
+import { PreferencesProvider } from "@/components/theme-provider";
+import { PWARegister } from "@/components/pwa-register";
 
 const outfit = Outfit({
   variable: "--font-outfit",
@@ -18,8 +20,10 @@ const jetBrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Glazz",
-  description: "A focused AI chat.",
+  title: { default: "Glazz", template: "%s · Glazz" },
+  description: "Chat de IA enfocado, rápido y bilingüe.",
+  applicationName: "Glazz",
+  manifest: "/manifest.webmanifest",
 };
 
 export default function RootLayout({
@@ -28,11 +32,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full" suppressHydrationWarning>
+    <html lang="es" className="h-full" suppressHydrationWarning>
       <body
         className={`${outfit.variable} ${workSans.variable} ${jetBrainsMono.variable} min-h-full antialiased`}
       >
-        {children}
+        <PreferencesProvider>
+          <PWARegister />
+          {children}
+        </PreferencesProvider>
       </body>
     </html>
   );

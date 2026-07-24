@@ -80,3 +80,32 @@ SET available = false,
     synced_at = sqlc.arg(synced_at)
 WHERE provider_id = sqlc.arg(provider_id)
   AND NOT (provider_model_id = ANY(sqlc.arg(present_model_ids)::text[]));
+
+-- name: GetProviderByCode :one
+SELECT * FROM providers WHERE code = sqlc.arg(code);
+
+-- name: ListProviderModelMappings :many
+SELECT * FROM provider_models
+WHERE provider_id = sqlc.arg(provider_id)
+ORDER BY provider_model_id, model_id;
+
+-- name: RefreshModelAvailability :execrows
+UPDATE models
+SET available = EXISTS (
+        SELECT 1
+        FROM provider_models
+        JOIN providers ON providers.id = provider_models.provider_id
+        WHERE provider_models.model_id = models.id
+          AND provider_models.available
+          AND providers.enabled
+    ),
+    version = version + 1,
+    updated_at = sqlc.arg(now_at)
+WHERE available IS DISTINCT FROM EXISTS (
+    SELECT 1
+    FROM provider_models
+    JOIN providers ON providers.id = provider_models.provider_id
+    WHERE provider_models.model_id = models.id
+      AND provider_models.available
+      AND providers.enabled
+);

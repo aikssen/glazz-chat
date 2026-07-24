@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -9,11 +11,14 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/aikssen/glazz-chat/apps/api/internal/models"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/clock"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/config"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/database"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/ids"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/outbox"
+	"github.com/aikssen/glazz-chat/apps/api/internal/privacy"
+	"github.com/aikssen/glazz-chat/apps/api/internal/provider"
 )
 
 func main() {
@@ -36,15 +41,44 @@ func run(logger *slog.Logger) error {
 		return err
 	}
 	defer pool.Close()
-	workerID, err := ids.NewUUIDv7().New()
+	idSource := ids.NewUUIDv7()
+	timeSource := clock.UTC{}
+	workerID, err := idSource.New()
 	if err != nil {
 		return err
 	}
+	gateways := map[string]provider.Gateway{"fake": provider.NewFake(provider.FakeOptions{})}
+	if cfg.Provider.Kind != "fake" {
+		gateway, err := provider.NewOpenAICompatible(
+			cfg.Provider.BaseURL, cfg.Provider.APIKey, nil, provider.DefaultOptions(),
+		)
+		if err != nil {
+			return err
+		}
+		gateways["fake"] = provider.NewResilient(gateway, provider.DefaultResilienceOptions())
+	}
+	synchronizer := models.NewSynchronizer(pool, idSource, timeSource)
+	privacyService := privacy.New(pool, idSource, timeSource)
 	runner, err := outbox.New(
 		pool,
-		clock.UTC{},
+		timeSource,
 		logger,
-		map[string]outbox.Handler{},
+		map[string]outbox.Handler{
+			"models.sync": outbox.HandlerFunc(func(ctx context.Context, event outbox.Event) error {
+				var payload struct {
+					ProviderCode string `json:"providerCode"`
+				}
+				if err := json.Unmarshal(event.Payload, &payload); err != nil {
+					return fmt.Errorf("decode model sync event: %w", err)
+				}
+				gateway := gateways[payload.ProviderCode]
+				if gateway == nil {
+					return errors.New("model sync gateway is not configured")
+				}
+				_, err := synchronizer.Sync(ctx, payload.ProviderCode, gateway, event.ID)
+				return err
+			}),
+		},
 		outbox.Options{
 			WorkerID: workerID.String(), BatchSize: 20, MaxAttempts: 8,
 			LockTTL: 5 * time.Minute, PollEvery: time.Second,
@@ -54,5 +88,27 @@ func run(logger *slog.Logger) error {
 		return err
 	}
 	logger.Info("worker ready", "worker_id", workerID.String())
-	return runner.Run(ctx)
+	runnerError := make(chan error, 1)
+	go func() { runnerError <- runner.Run(ctx) }()
+	maintenance := time.NewTicker(time.Hour)
+	defer maintenance.Stop()
+	runMaintenance := func() {
+		if _, err := privacyService.PurgeDue(ctx, 0, 20); err != nil {
+			logger.ErrorContext(ctx, "account purge cycle failed", "error_type", fmt.Sprintf("%T", err))
+		}
+		if _, err := privacyService.CleanupGuests(ctx); err != nil {
+			logger.ErrorContext(ctx, "guest cleanup cycle failed", "error_type", fmt.Sprintf("%T", err))
+		}
+	}
+	runMaintenance()
+	for {
+		select {
+		case <-ctx.Done():
+			return <-runnerError
+		case err := <-runnerError:
+			return err
+		case <-maintenance.C:
+			runMaintenance()
+		}
+	}
 }

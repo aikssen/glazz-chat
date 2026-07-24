@@ -22,6 +22,15 @@ func (deps Dependencies) usage(response http.ResponseWriter, request *http.Reque
 	resetAt := from.Add(24 * time.Hour)
 	messageLimit := int64(50)
 	outputLimit := int64(50000)
+	if deps.Settings != nil {
+		snapshot, err := deps.Settings.Load(request.Context())
+		if err != nil {
+			deps.internalError(response, request, err)
+			return
+		}
+		messageLimit = snapshot.UserMessageLimit
+		outputLimit = snapshot.UserOutputTokenLimit
+	}
 	if actor.Type == conversations.ActorGuest {
 		allowance, err := deps.Guests.Current(request.Context(), request)
 		if err != nil {

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestOpenAICompatibleStreamsAndNormalizesUsage(t *testing.T) {
@@ -40,6 +41,59 @@ func TestOpenAICompatibleStreamsAndNormalizesUsage(t *testing.T) {
 	if err != nil || terminal.Usage == nil || terminal.Usage.InputTokens != 3 ||
 		terminal.FinishReason != FinishStop {
 		t.Fatalf("terminal = %#v, err = %v", terminal, err)
+	}
+}
+
+func TestOpenAICompatibleTimesOutBeforeFirstChunk(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		response.Header().Set("Content-Type", "text/event-stream")
+		response.WriteHeader(http.StatusOK)
+		response.(http.Flusher).Flush()
+		<-time.After(250 * time.Millisecond)
+	}))
+	defer server.Close()
+	gateway, err := NewOpenAICompatible(server.URL, "secret", server.Client(), Options{
+		RequestTimeout: time.Second, FirstChunkTimeout: 25 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stream, err := gateway.Stream(context.Background(), Request{
+		Model: "model", MaxOutputTokens: 20,
+		Messages: []Message{{Role: RoleUser, Content: "hello"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stream.Close()
+	_, err = stream.Next(context.Background())
+	if normalized := Normalize(err); normalized.Code != CodeTimeout || !normalized.Retryable {
+		t.Fatalf("err = %#v, want retryable timeout", err)
+	}
+}
+
+func TestOpenAICompatibleNormalizesDisconnectAfterPartialOutput(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		response.Header().Set("Content-Type", "text/event-stream")
+		_, _ = io.WriteString(response, "data: {\"choices\":[{\"delta\":{\"content\":\"partial\"},\"finish_reason\":null}]}\n\n")
+	}))
+	defer server.Close()
+	gateway, _ := NewOpenAICompatible(server.URL, "secret", server.Client(), Options{})
+	stream, err := gateway.Stream(context.Background(), Request{
+		Model: "model", MaxOutputTokens: 20,
+		Messages: []Message{{Role: RoleUser, Content: "hello"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stream.Close()
+	chunk, err := stream.Next(context.Background())
+	if err != nil || chunk.Text != "partial" {
+		t.Fatalf("chunk = %#v, err = %v", chunk, err)
+	}
+	_, err = stream.Next(context.Background())
+	if normalized := Normalize(err); normalized.Code != CodeUnavailable || !normalized.Retryable {
+		t.Fatalf("err = %#v, want retryable disconnect", err)
 	}
 }
 

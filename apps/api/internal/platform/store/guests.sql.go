@@ -59,6 +59,27 @@ func (q *Queries) CreateGuestSession(ctx context.Context, arg CreateGuestSession
 	return i, err
 }
 
+const getGuestSession = `-- name: GetGuestSession :one
+SELECT id, identity_hash, prompt_count, output_token_count, first_seen_at, last_seen_at, expires_at, migrated_user_id, migrated_at FROM guest_sessions WHERE id = $1
+`
+
+func (q *Queries) GetGuestSession(ctx context.Context, id uuid.UUID) (GuestSession, error) {
+	row := q.db.QueryRow(ctx, getGuestSession, id)
+	var i GuestSession
+	err := row.Scan(
+		&i.ID,
+		&i.IdentityHash,
+		&i.PromptCount,
+		&i.OutputTokenCount,
+		&i.FirstSeenAt,
+		&i.LastSeenAt,
+		&i.ExpiresAt,
+		&i.MigratedUserID,
+		&i.MigratedAt,
+	)
+	return i, err
+}
+
 const getGuestSessionByIdentityHash = `-- name: GetGuestSessionByIdentityHash :one
 SELECT id, identity_hash, prompt_count, output_token_count, first_seen_at, last_seen_at, expires_at, migrated_user_id, migrated_at FROM guest_sessions WHERE identity_hash = $1
 `
@@ -88,19 +109,27 @@ SET prompt_count = prompt_count + 1,
 WHERE id = $3
   AND migrated_user_id IS NULL
   AND expires_at > $2
-  AND prompt_count < 4
-  AND output_token_count + $1 <= 2000
+  AND prompt_count < $4
+  AND output_token_count + $1 <= $5
 RETURNING id, identity_hash, prompt_count, output_token_count, first_seen_at, last_seen_at, expires_at, migrated_user_id, migrated_at
 `
 
 type IncrementGuestAllowanceParams struct {
-	OutputTokens int32              `db:"output_tokens"`
-	NowAt        pgtype.Timestamptz `db:"now_at"`
-	GuestID      uuid.UUID          `db:"guest_id"`
+	OutputTokens     int32              `db:"output_tokens"`
+	NowAt            pgtype.Timestamptz `db:"now_at"`
+	GuestID          uuid.UUID          `db:"guest_id"`
+	MessageLimit     int32              `db:"message_limit"`
+	OutputTokenLimit int32              `db:"output_token_limit"`
 }
 
 func (q *Queries) IncrementGuestAllowance(ctx context.Context, arg IncrementGuestAllowanceParams) (GuestSession, error) {
-	row := q.db.QueryRow(ctx, incrementGuestAllowance, arg.OutputTokens, arg.NowAt, arg.GuestID)
+	row := q.db.QueryRow(ctx, incrementGuestAllowance,
+		arg.OutputTokens,
+		arg.NowAt,
+		arg.GuestID,
+		arg.MessageLimit,
+		arg.OutputTokenLimit,
+	)
 	var i GuestSession
 	err := row.Scan(
 		&i.ID,

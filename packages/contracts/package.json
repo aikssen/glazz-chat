@@ -1,0 +1,11 @@
+{
+  "name": "@glazz/contracts",
+  "version": "0.4.0",
+  "private": true,
+  "types": "./generated/typescript/api.d.ts",
+  "exports": {
+    ".": {
+      "types": "./generated/typescript/api.d.ts"
+    }
+  }
+}

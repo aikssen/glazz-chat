@@ -20,9 +20,10 @@ import (
 )
 
 var (
-	ErrIdentityConflict = errors.New("verified email belongs to a different identity")
-	ErrConsentRequired  = errors.New("current terms and privacy consent are required")
-	ErrGuestConflict    = errors.New("guest session was migrated to a different user")
+	ErrIdentityConflict   = errors.New("verified email belongs to a different identity")
+	ErrConsentRequired    = errors.New("current terms and privacy consent are required")
+	ErrGuestConflict      = errors.New("guest session was migrated to a different user")
+	ErrAccountUnavailable = errors.New("user account is not active")
 )
 
 type GoogleProfile struct {
@@ -69,6 +70,17 @@ func New(
 	}
 }
 
+func (service *Service) FindByGoogleSubject(ctx context.Context, subject string) (store.User, error) {
+	if strings.TrimSpace(subject) == "" {
+		return store.User{}, ErrIdentityConflict
+	}
+	record, err := service.database.Queries().FindUserByGoogleSubject(ctx, subject)
+	if err != nil {
+		return store.User{}, err
+	}
+	return record.User, nil
+}
+
 func (service *Service) ProvisionGoogle(
 	ctx context.Context,
 	input ProvisionInput,
@@ -97,6 +109,9 @@ func (service *Service) provisionGoogle(
 	}, func(queries *store.Queries) error {
 		existing, err := queries.FindUserByGoogleSubject(ctx, input.Profile.Subject)
 		if err == nil {
+			if existing.User.Status != "active" {
+				return ErrAccountUnavailable
+			}
 			result = existing.User
 			return service.migrateGuest(ctx, queries, input.GuestID, result.ID)
 		}
@@ -209,6 +224,9 @@ func (service *Service) provisionGoogle(
 	)
 	if lookupErr != nil {
 		return store.User{}, false, ErrIdentityConflict
+	}
+	if existing.User.Status != "active" {
+		return store.User{}, false, ErrAccountUnavailable
 	}
 	migrationErr := service.database.WithinTransaction(
 		ctx,

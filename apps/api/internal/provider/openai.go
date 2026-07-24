@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 const maxSSEEventBytes = 1 << 20
@@ -137,7 +138,7 @@ func (gateway *OpenAICompatible) Stream(ctx context.Context, request Request) (S
 	scanner.Buffer(make([]byte, 4096), maxSSEEventBytes)
 	return &openAIStream{
 		body: response.Body, scanner: scanner, cancel: cancel,
-		requestID: response.Header.Get("X-Request-ID"),
+		requestID: response.Header.Get("X-Request-ID"), firstChunkTimeout: gateway.options.FirstChunkTimeout,
 	}, nil
 }
 
@@ -146,24 +147,29 @@ func (gateway *OpenAICompatible) authorize(request *http.Request) {
 }
 
 type openAIStream struct {
-	body      io.ReadCloser
-	scanner   *bufio.Scanner
-	cancel    context.CancelFunc
-	requestID string
-	closed    bool
+	body               io.ReadCloser
+	scanner            *bufio.Scanner
+	cancel             context.CancelFunc
+	requestID          string
+	firstChunkTimeout  time.Duration
+	receivedFirstChunk bool
+	closed             bool
 }
 
 func (stream *openAIStream) Next(ctx context.Context) (Chunk, error) {
 	if stream.closed {
 		return Chunk{}, io.EOF
 	}
-	for stream.scanner.Scan() {
-		select {
-		case <-ctx.Done():
-			return Chunk{}, ctx.Err()
-		default:
+	var firstChunkDeadline time.Time
+	if !stream.receivedFirstChunk {
+		firstChunkDeadline = time.Now().Add(stream.firstChunkTimeout)
+	}
+	for {
+		line, err := stream.scanLine(ctx, firstChunkDeadline)
+		if err != nil {
+			return Chunk{}, err
 		}
-		line := strings.TrimSpace(stream.scanner.Text())
+		line = strings.TrimSpace(line)
 		if line == "" || strings.HasPrefix(line, ":") {
 			continue
 		}
@@ -212,14 +218,66 @@ func (stream *openAIStream) Next(ctx context.Context) (Chunk, error) {
 			chunk.Usage = &usage
 		}
 		if chunk.Text != "" || chunk.Usage != nil || chunk.FinishReason != "" {
+			stream.receivedFirstChunk = true
 			return chunk, nil
 		}
 	}
-	if err := stream.scanner.Err(); err != nil {
-		return Chunk{}, Normalize(err)
+}
+
+type scanResult struct {
+	line string
+	err  error
+}
+
+func (stream *openAIStream) scanLine(ctx context.Context, deadline time.Time) (string, error) {
+	result := make(chan scanResult, 1)
+	go func() {
+		if stream.scanner.Scan() {
+			result <- scanResult{line: stream.scanner.Text()}
+			return
+		}
+		err := stream.scanner.Err()
+		if err == nil {
+			err = io.ErrUnexpectedEOF
+		}
+		result <- scanResult{err: err}
+	}()
+
+	var timeout <-chan time.Time
+	var timer *time.Timer
+	if !deadline.IsZero() {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			stream.abort()
+			<-result
+			return "", &Error{Code: CodeTimeout, Retryable: true, Cause: context.DeadlineExceeded}
+		}
+		timer = time.NewTimer(remaining)
+		timeout = timer.C
+		defer timer.Stop()
 	}
+	select {
+	case scanned := <-result:
+		if scanned.err != nil {
+			stream.closed = true
+			return "", Normalize(scanned.err)
+		}
+		return scanned.line, nil
+	case <-ctx.Done():
+		stream.abort()
+		<-result
+		return "", ctx.Err()
+	case <-timeout:
+		stream.abort()
+		<-result
+		return "", &Error{Code: CodeTimeout, Retryable: true, Cause: context.DeadlineExceeded}
+	}
+}
+
+func (stream *openAIStream) abort() {
 	stream.closed = true
-	return Chunk{}, io.ErrUnexpectedEOF
+	stream.cancel()
+	_ = stream.body.Close()
 }
 
 func (stream *openAIStream) Close() error {

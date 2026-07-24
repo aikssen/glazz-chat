@@ -178,6 +178,19 @@ func (q *Queries) CompleteOutboxEvent(ctx context.Context, arg CompleteOutboxEve
 	return result.RowsAffected(), nil
 }
 
+const countGlobalActiveReservations = `-- name: CountGlobalActiveReservations :one
+SELECT COUNT(*)::bigint
+FROM quota_reservations
+WHERE status = 'reserved'
+`
+
+func (q *Queries) CountGlobalActiveReservations(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countGlobalActiveReservations)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const createQuotaReservation = `-- name: CreateQuotaReservation :exec
 INSERT INTO quota_reservations (
     id, actor_type, actor_id, usage_date, reserved_output_tokens, status
@@ -255,6 +268,58 @@ func (q *Queries) EnqueueOutboxEvent(ctx context.Context, arg EnqueueOutboxEvent
 	return err
 }
 
+const getDailyUsage = `-- name: GetDailyUsage :one
+SELECT actor_type, actor_id, usage_date, messages_used, output_tokens_used, updated_at
+FROM daily_usage
+WHERE actor_type = $1
+  AND actor_id = $2
+  AND usage_date = $3
+`
+
+type GetDailyUsageParams struct {
+	ActorType string      `db:"actor_type"`
+	ActorID   uuid.UUID   `db:"actor_id"`
+	UsageDate pgtype.Date `db:"usage_date"`
+}
+
+func (q *Queries) GetDailyUsage(ctx context.Context, arg GetDailyUsageParams) (DailyUsage, error) {
+	row := q.db.QueryRow(ctx, getDailyUsage, arg.ActorType, arg.ActorID, arg.UsageDate)
+	var i DailyUsage
+	err := row.Scan(
+		&i.ActorType,
+		&i.ActorID,
+		&i.UsageDate,
+		&i.MessagesUsed,
+		&i.OutputTokensUsed,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getOutboxEventByIdempotencyKey = `-- name: GetOutboxEventByIdempotencyKey :one
+SELECT id, event_type, payload, idempotency_key, attempts, available_at, locked_at, locked_by, processed_at, dead_lettered_at, last_error_class, created_at FROM outbox_events WHERE idempotency_key = $1
+`
+
+func (q *Queries) GetOutboxEventByIdempotencyKey(ctx context.Context, idempotencyKey string) (OutboxEvent, error) {
+	row := q.db.QueryRow(ctx, getOutboxEventByIdempotencyKey, idempotencyKey)
+	var i OutboxEvent
+	err := row.Scan(
+		&i.ID,
+		&i.EventType,
+		&i.Payload,
+		&i.IdempotencyKey,
+		&i.Attempts,
+		&i.AvailableAt,
+		&i.LockedAt,
+		&i.LockedBy,
+		&i.ProcessedAt,
+		&i.DeadLetteredAt,
+		&i.LastErrorClass,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const hasOutboxReceipt = `-- name: HasOutboxReceipt :one
 SELECT EXISTS (
     SELECT 1 FROM outbox_receipts WHERE event_id = $1 AND handler_name = $2
@@ -271,6 +336,15 @@ func (q *Queries) HasOutboxReceipt(ctx context.Context, arg HasOutboxReceiptPara
 	var exists bool
 	err := row.Scan(&exists)
 	return exists, err
+}
+
+const lockGlobalGenerationAdmission = `-- name: LockGlobalGenerationAdmission :exec
+SELECT pg_advisory_xact_lock(hashtextextended('global-generation-admission', 0))
+`
+
+func (q *Queries) LockGlobalGenerationAdmission(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, lockGlobalGenerationAdmission)
+	return err
 }
 
 const lockQuotaReservation = `-- name: LockQuotaReservation :one

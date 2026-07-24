@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"errors"
+	"io"
 	"sync"
 	"time"
 )
@@ -84,7 +85,11 @@ func (gateway *Resilient) Stream(ctx context.Context, request Request) (Stream, 
 		return nil, err
 	}
 	gateway.observe(nil)
-	return &resilientStream{Stream: stream, release: func() { <-gateway.slots }}, nil
+	return &resilientStream{
+		Stream:  stream,
+		release: func() { <-gateway.slots },
+		observe: gateway.observe,
+	}, nil
 }
 
 func (gateway *Resilient) isOpen() bool {
@@ -122,11 +127,17 @@ type resilientStream struct {
 	Stream
 	once    sync.Once
 	release func()
+	observe func(error)
 }
 
 func (stream *resilientStream) Next(ctx context.Context) (Chunk, error) {
 	chunk, err := stream.Stream.Next(ctx)
 	if err != nil {
+		if errors.Is(err, io.EOF) {
+			stream.observe(nil)
+		} else {
+			stream.observe(err)
+		}
 		stream.once.Do(stream.release)
 	}
 	return chunk, err

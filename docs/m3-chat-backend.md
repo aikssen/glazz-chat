@@ -34,15 +34,17 @@ external key.
 - Integration tests against PostgreSQL and Redis for M2 plus durable/idempotent M3
   chat.
 - Real WebSocket handshake, ready event, one-time ticket replay denial, and expiry.
+- OpenAI-compatible timeout, malformed stream, rate-limit, partial disconnect,
+  pre-stream retry, and circuit recovery tests.
+- Idempotent provider-model synchronization that never auto-enables new models.
+- Opt-in smoke test against the configured development provider.
+- Remaining-output quota regression coverage for sequential guest prompts.
 - Packaged API/worker startup on the remote Compose stack.
 - Guest smoke flow: readiness, session plus CSRF cookie, model catalog,
   conversation creation, WebSocket ticket, and usage response.
 
 ## Remaining before `v0.3.0`
 
-- Complete provider catalog synchronization, typed settings/audit behavior, and
-  the opt-in OpenCode Go smoke test.
-- Add the missing adapter timeout/disconnect and resilience recovery cases.
 - Expand ownership, cursor, state-transition, cancellation timing/reconnect,
   retry-concurrency, context ordering, summary concurrency, title, and usage
   reconciliation tests.

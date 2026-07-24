@@ -773,8 +773,8 @@ components:
           type: object
           required: [messageLimit, outputTokenLimit, resetsAutomatically]
           properties:
-            messageLimit: {type: integer, const: 4}
-            outputTokenLimit: {type: integer, const: 2000}
+            messageLimit: {type: integer, minimum: 1, maximum: 20}
+            outputTokenLimit: {type: integer, minimum: 128, maximum: 10000}
             resetsAutomatically: {type: boolean, const: false}
     Model:
       type: object
@@ -794,10 +794,10 @@ components:
       type: object
       required: [messagesUsed, messageLimit, outputTokensUsed, outputTokenLimit, exhausted, expiresAt]
       properties:
-        messagesUsed: {type: integer, minimum: 0, maximum: 4}
-        messageLimit: {type: integer, const: 4}
+        messagesUsed: {type: integer, minimum: 0, maximum: 20}
+        messageLimit: {type: integer, minimum: 1, maximum: 20}
         outputTokensUsed: {type: integer, minimum: 0}
-        outputTokenLimit: {type: integer, const: 2000}
+        outputTokenLimit: {type: integer, minimum: 128, maximum: 10000}
         exhausted: {type: boolean}
         expiresAt: {type: string, format: date-time}
     Role: {type: string, enum: [user, admin]}
@@ -913,12 +913,14 @@ components:
       allOf:
         - {$ref: "#/components/schemas/Model"}
         - type: object
-          required: [enabled, available, supported, version]
+          required: [enabled, available, supported, audience, defaultFor, order, version]
           properties:
             enabled: {type: boolean}
             available: {type: boolean}
             supported: {type: boolean}
             audience: {type: array, items: {type: string, enum: [guest, user]}}
+            defaultFor: {type: array, items: {type: string, enum: [guest, user]}}
+            order: {type: integer, minimum: 0}
             version: {type: integer, minimum: 1}
     UpdateAdminModel:
       type: object

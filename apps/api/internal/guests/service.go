@@ -37,6 +37,12 @@ type Service struct {
 	clock    clock.Clock
 	cookies  config.Cookies
 	lifetime time.Duration
+	policy   func(context.Context) (Policy, error)
+}
+
+type Policy struct {
+	MessageLimit     int32
+	OutputTokenLimit int32
 }
 
 type Allowance struct {
@@ -46,6 +52,11 @@ type Allowance struct {
 	OutputTokenLimit int32     `json:"outputTokenLimit"`
 	Exhausted        bool      `json:"exhausted"`
 	ExpiresAt        time.Time `json:"expiresAt"`
+}
+
+func (service *Service) WithPolicySource(source func(context.Context) (Policy, error)) *Service {
+	service.policy = source
+	return service
 }
 
 func New(
@@ -72,7 +83,8 @@ func (service *Service) CreateOrResume(
 		if err := service.issueCSRF(response); err != nil {
 			return Allowance{}, false, err
 		}
-		return allowance(record), false, nil
+		result, err := service.allowance(ctx, record)
+		return result, false, err
 	}
 
 	rawToken, err := ids.SecureToken(32)
@@ -104,7 +116,8 @@ func (service *Service) CreateOrResume(
 	if err := service.issueCSRF(response); err != nil {
 		return Allowance{}, false, err
 	}
-	return allowance(record), true, nil
+	result, err := service.allowance(ctx, record)
+	return result, true, err
 }
 
 func (service *Service) CSRF(next http.Handler) http.Handler {
@@ -131,7 +144,7 @@ func (service *Service) Current(ctx context.Context, request *http.Request) (All
 	if err != nil {
 		return Allowance{}, err
 	}
-	return allowance(record), nil
+	return service.allowance(ctx, record)
 }
 
 func (service *Service) ID(ctx context.Context, request *http.Request) (*uuid.UUID, error) {
@@ -204,15 +217,24 @@ func (service *Service) issueCSRF(response http.ResponseWriter) error {
 	return nil
 }
 
-func allowance(record store.GuestSession) Allowance {
+func (service *Service) allowance(ctx context.Context, record store.GuestSession) (Allowance, error) {
+	policy := Policy{MessageLimit: 4, OutputTokenLimit: 2000}
+	if service.policy != nil {
+		loaded, err := service.policy(ctx)
+		if err != nil {
+			return Allowance{}, fmt.Errorf("load guest policy: %w", err)
+		}
+		policy = loaded
+	}
 	return Allowance{
 		MessagesUsed:     record.PromptCount,
-		MessageLimit:     4,
+		MessageLimit:     policy.MessageLimit,
 		OutputTokensUsed: record.OutputTokenCount,
-		OutputTokenLimit: 2000,
-		Exhausted:        record.PromptCount >= 4 || record.OutputTokenCount >= 2000,
-		ExpiresAt:        record.ExpiresAt.Time.UTC(),
-	}
+		OutputTokenLimit: policy.OutputTokenLimit,
+		Exhausted: record.PromptCount >= policy.MessageLimit ||
+			record.OutputTokenCount >= policy.OutputTokenLimit,
+		ExpiresAt: record.ExpiresAt.Time.UTC(),
+	}, nil
 }
 
 func timestamp(value time.Time) pgtype.Timestamptz {
