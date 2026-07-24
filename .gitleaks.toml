@@ -10,3 +10,10 @@ condition = "AND"
 regexTarget = "secret"
 regexes = ['''^idem_[a-z0-9_]+$''']
 paths = ['''packages/contracts/fixtures/ws/.*\.json$''']
+
+[[rules.allowlists]]
+description = "Deterministic integration-test idempotency keys are public identifiers."
+condition = "AND"
+regexTarget = "secret"
+regexes = ['''^idem-integration-[0-9]+$''']
+paths = ['''apps/api/internal/integration/.*_test\.go$''']
