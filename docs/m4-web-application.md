@@ -75,6 +75,12 @@ not exposed on insecure LAN origins. The client now derives the API host from th
 browser location and uses a Web Crypto UUID v4 fallback. Browser regressions cover
 both a streamed guest response and the guest login gate through the LAN URL.
 
+The first remote preview also retained the server's ignored `.env` with
+`LLM_PROVIDER_KIND=fake`, so its usage counters represented deterministic test
+usage rather than OpenCode consumption. Remote setup now documents the separate
+secret sync and container recreation. An opt-in live-provider browser test rejects
+the deterministic response and validates the complete streamed path.
+
 ## Remaining before `v0.4.0`
 
 - Finish the M3 acceptance cases listed in `docs/m3-chat-backend.md` and publish
