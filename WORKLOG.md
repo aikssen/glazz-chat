@@ -16,6 +16,31 @@ Rules:
 
 ## 2026-07-24
 
+### Phase 8 completed
+
+- Closed WEB-011 and accepted M4-A07. All Phase 8 tasks are complete.
+- Replaced the hardcoded 30-day guest lifetime with validated
+  `GUEST_SESSION_TTL` configuration and added deterministic fake-provider usage
+  configuration for boundary testing.
+- Proved in isolated browser runs that a 1,999-token response leaves one token,
+  the next response consumes exactly that remainder, and the login gate activates
+  at 2,000 tokens. Proved that an expired session returns with an empty
+  conversation and a fresh four-message/2,000-token allowance.
+- Passed the 25-case standard responsive browser suite, two guest-edge browser
+  cases, full presubmit, race-enabled Go tests, and the complete PostgreSQL/Redis
+  integration suite against isolated services.
+
+### Phase 8 registered and administration journeys accepted
+
+- Closed WEB-013, WEB-014, WEB-017, and WEB-018 after adding cursor pagination,
+  reconnect/offline recovery, authoritative reload after administration conflicts,
+  and explicit non-administrator denial coverage.
+- Verified OAuth migration, deep-link reload, ownership denial, cancel/retry,
+  exactly-once completion after reconnect, administration conflict messaging, and
+  absence of conversation content on denied administration routes.
+- Passed 25 applicable Playwright cases across four viewports against isolated
+  PostgreSQL/Redis, API, and standalone production web processes.
+
 ### Phase 8 integration acceptance started
 
 - Accepted INT-002, WEB-012, WEB-015, and WEB-016 from contract, integration, and

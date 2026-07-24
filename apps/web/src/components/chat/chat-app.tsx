@@ -36,6 +36,8 @@ type ServerEvent = {
   payload: Record<string, unknown>;
 };
 
+const conversationPageSize = 20;
+
 export function ChatApp() {
   const { locale, setLocale, theme, setTheme } = usePreferences();
   const t = dictionary(locale);
@@ -45,6 +47,8 @@ export function ChatApp() {
   const [models, setModels] = useState<Model[]>([]);
   const [defaultModel, setDefaultModel] = useState("");
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversationCursor, setConversationCursor] = useState<string | null>(null);
+  const [loadingMoreConversations, setLoadingMoreConversations] = useState(false);
   const [conversationID, setConversationID] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [sidebar, setSidebar] = useState(false);
@@ -105,18 +109,42 @@ export function ChatApp() {
 
   const refreshLists = useCallback(async () => {
     const [conversationPage, currentUsage] = await Promise.all([
-      api<{ items: Conversation[] }>(
-        `/api/v1/conversations?limit=100${search ? `&query=${encodeURIComponent(search)}` : ""}`,
+      api<{ items: Conversation[]; nextCursor?: string | null }>(
+        `/api/v1/conversations?limit=${conversationPageSize}${
+          search ? `&query=${encodeURIComponent(search)}` : ""
+        }`,
       ),
       api<Usage>("/api/v1/usage"),
     ]);
     setConversations(conversationPage.items);
+    setConversationCursor(conversationPage.nextCursor ?? null);
     setUsage(currentUsage);
     if (!user) {
       const current = await api<GuestAllowance>("/api/v1/guest-sessions/current");
       setAllowance(current);
     }
   }, [search, user]);
+
+  async function loadMoreConversations() {
+    if (!conversationCursor || loadingMoreConversations) return;
+    setLoadingMoreConversations(true);
+    try {
+      const page = await api<{ items: Conversation[]; nextCursor?: string | null }>(
+        `/api/v1/conversations?limit=${conversationPageSize}&after=${encodeURIComponent(
+          conversationCursor,
+        )}${search ? `&query=${encodeURIComponent(search)}` : ""}`,
+      );
+      setConversations((current) => {
+        const known = new Set(current.map((conversation) => conversation.id));
+        return [...current, ...page.items.filter((conversation) => !known.has(conversation.id))];
+      });
+      setConversationCursor(page.nextCursor ?? null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Conversations could not be loaded");
+    } finally {
+      setLoadingMoreConversations(false);
+    }
+  }
 
   const handleEvent = useCallback(
     (event: ServerEvent) => {
@@ -320,13 +348,16 @@ export function ChatApp() {
         setUser(currentUser);
         const [catalog, conversationPage, currentUsage] = await Promise.all([
           api<{ items: Model[]; defaultModelId: string }>("/api/v1/models"),
-          api<{ items: Conversation[] }>("/api/v1/conversations?limit=100"),
+          api<{ items: Conversation[]; nextCursor?: string | null }>(
+            `/api/v1/conversations?limit=${conversationPageSize}`,
+          ),
           api<Usage>("/api/v1/usage"),
         ]);
         if (!active) return;
         setModels(catalog.items);
         setDefaultModel(catalog.defaultModelId);
         setConversations(conversationPage.items);
+        setConversationCursor(conversationPage.nextCursor ?? null);
         setUsage(currentUsage);
         const requestedConversation = new URLSearchParams(window.location.search).get(
           "conversation",
@@ -361,6 +392,31 @@ export function ChatApp() {
       if (reconnectTimer.current) window.clearTimeout(reconnectTimer.current);
     };
   }, [connect, ready, reconnectAttempt]);
+
+  useEffect(() => {
+    function handleOffline() {
+      setConnection("offline");
+      if (socket.current) {
+        socket.current.onclose = null;
+        socket.current.close();
+        socket.current = null;
+      }
+    }
+    function handleOnline() {
+      if (reconnectTimer.current) {
+        window.clearTimeout(reconnectTimer.current);
+        reconnectTimer.current = null;
+      }
+      setConnection("connecting");
+      setReconnectAttempt((value) => value + 1);
+    }
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener("online", handleOnline);
+    return () => {
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", handleOnline);
+    };
+  }, []);
 
   useEffect(() => {
     if (!ready) return;
@@ -533,6 +589,9 @@ export function ChatApp() {
         onRename={(conversation) => void renameConversation(conversation)}
         onArchive={(conversation) => void archiveConversation(conversation)}
         onDelete={(conversation) => void deleteConversation(conversation)}
+        hasMore={Boolean(conversationCursor)}
+        loadingMore={loadingMoreConversations}
+        onLoadMore={() => void loadMoreConversations()}
         onLogin={openLoginDialog}
       />
       <section className="chat-main">

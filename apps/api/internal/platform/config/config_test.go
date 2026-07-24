@@ -23,6 +23,9 @@ func TestLoadExplicitEnvironment(t *testing.T) {
 	if cfg.Auth.AccessTokenTTL != 15*time.Minute {
 		t.Fatalf("AccessTokenTTL = %s", cfg.Auth.AccessTokenTTL)
 	}
+	if cfg.Guests.SessionTTL != 30*24*time.Hour || cfg.Provider.FakeOutputTokens != 6 {
+		t.Fatalf("unexpected guest/provider test config: %+v, %+v", cfg.Guests, cfg.Provider)
+	}
 }
 
 func TestLoadRequiresDeclaredEnvironment(t *testing.T) {
@@ -65,6 +68,8 @@ func TestLoadRejectsInvalidValuesWithoutLeakingSecrets(t *testing.T) {
 		{name: "provider", key: "LLM_PROVIDER_BASE_URL", value: "secret-provider-value"},
 		{name: "trusted proxy", key: "TRUSTED_PROXY_CIDRS", value: "secret-proxy-value"},
 		{name: "maintenance", key: "MAINTENANCE_MODE", value: "secret-maintenance-value"},
+		{name: "guest session TTL", key: "GUEST_SESSION_TTL", value: "secret-guest-ttl"},
+		{name: "fake output tokens", key: "LLM_FAKE_OUTPUT_TOKENS", value: "secret-fake-usage"},
 	}
 
 	for _, test := range tests {
@@ -155,6 +160,7 @@ func setValidEnvironment(t *testing.T) {
 		"JWT_ACCESS_TTL":              "15m",
 		"AUTH_REFRESH_TTL":            "720h",
 		"AUTH_RECENT_TTL":             "15m",
+		"GUEST_SESSION_TTL":           "720h",
 		"COOKIE_SIGNING_KEY":          base64.RawURLEncoding.EncodeToString([]byte("01234567890123456789012345678901")),
 		"COOKIE_DOMAIN":               "",
 		"COOKIE_SECURE":               "false",
@@ -169,6 +175,7 @@ func setValidEnvironment(t *testing.T) {
 		"LLM_PROVIDER_BASE_URL":       "",
 		"LLM_PROVIDER_API_KEY":        "",
 		"LLM_DEFAULT_MODEL":           "deepseek-v4-flash",
+		"LLM_FAKE_OUTPUT_TOKENS":      "6",
 	}
 	for key, value := range values {
 		t.Setenv(key, value)
@@ -188,10 +195,11 @@ func clearEnvironment(t *testing.T) {
 		"OAUTH_TEST_EMAIL", "JWT_ISSUER", "JWT_AUDIENCE",
 		"JWT_ACTIVE_KID", "JWT_PRIVATE_KEY_PATH", "JWT_ACCESS_TTL", "AUTH_REFRESH_TTL",
 		"AUTH_RECENT_TTL", "COOKIE_SIGNING_KEY", "COOKIE_DOMAIN", "COOKIE_SECURE",
+		"GUEST_SESSION_TTL",
 		"COOKIE_SAME_SITE", "TERMS_VERSION", "PRIVACY_VERSION", "BOOTSTRAP_ADMIN_EMAILS",
 		"OTEL_SERVICE_NAME", "OTEL_EXPORTER_OTLP_ENDPOINT", "METRICS_PATH",
 		"LLM_PROVIDER_KIND", "LLM_PROVIDER_BASE_URL", "LLM_PROVIDER_API_KEY",
-		"LLM_DEFAULT_MODEL", "API_URL", "API_KEY",
+		"LLM_DEFAULT_MODEL", "LLM_FAKE_OUTPUT_TOKENS", "API_URL", "API_KEY",
 	}
 	for _, key := range keys {
 		t.Setenv(key, "")

@@ -41,18 +41,18 @@ Rules:
 | M1 | Phase 1 | Reproducible monorepo foundation | Complete | Complete | No standalone tag; predates M2 rule |
 | M2 | Phases 2-3 | Local platform, identity, guests, and quotas | Complete | Complete | `v0.2.0` |
 | M3 | Phases 4-5 | Provider-neutral streamed chat backend | Complete | Complete | `v0.3.0` |
-| M4 | Phases 6-8 | Responsive web application and admin surface | Testable preview | Open | `v0.4.0` reserved |
+| M4 | Phases 6-8 | Responsive web application and admin surface | Complete | Complete locally | `v0.4.0` pending CI/tag |
 | M5 | Phase 9 | Integrated, tested, observable release candidate | Not started | Open | `v0.5.0` reserved |
 | M6 | Phase 10 | Approved provider and production deployment | Not started | Open | `v0.6.0` reserved |
 | Post-MVP | Phase 11 | Explicitly non-release-critical backlog | Not started | Not applicable | Future planning |
 
-Current progress: M3 is published as `v0.3.0`. Phases 6 and 7 are complete; M4
-remains open because it also owns Phase 8. Granular acceptance evidence is tracked in
-`docs/m3-chat-backend.md` and `docs/m4-web-application.md`. A `[-]` task means its
-implementation exists but at least one acceptance criterion is still pending; it
-does not mean the feature is unavailable. M5 has not formally started. Preflight
-evidence in `docs/m5-release-candidate.md` is reusable but does not complete Phase
-9.
+Current progress: M3 is published as `v0.3.0`. Phases 6-8 and M4 local acceptance
+are complete; the M4 release remains open until CI is green and `v0.4.0` is tagged.
+Granular acceptance evidence is tracked in `docs/m3-chat-backend.md` and
+`docs/m4-web-application.md`. A `[-]` task means its implementation exists but at
+least one acceptance criterion is still pending; it does not mean the feature is
+unavailable. M5 has not formally started. Preflight evidence in
+`docs/m5-release-candidate.md` is reusable but does not complete Phase 9.
 
 ## Phase 0: API and architecture contract
 
@@ -681,7 +681,7 @@ Phase 8.
   - Obtain tickets, connect, heartbeat, reconnect/backoff, resume, resync, dispatch.
   - Acceptance: protocol fixture and browser integration tests pass.
 
-- [-] **WEB-011: Implement guest journey**
+- [x] **WEB-011: Implement guest journey**
   - Depends on: GUEST-002, CONV-002, CHAT-003, INT-001, INT-002, WEB-007
   - Immediate chat, allowance, limit gate, preserved transcript.
   - Acceptance: four-message/2,000-token edge cases and daily expiry behavior pass E2E.
@@ -692,12 +692,12 @@ Phase 8.
   - Acceptance: successful login retains conversation exactly once; denial is
     recoverable.
 
-- [-] **WEB-013: Implement registered conversation journey**
+- [x] **WEB-013: Implement registered conversation journey**
   - Depends on: CONV-002, WEB-004, INT-001
   - Create/list/search/rename/archive/delete/model change and pagination.
   - Acceptance: deep links, reload, empty/error/loading, and ownership failures work.
 
-- [-] **WEB-014: Integrate generation/cancel/retry**
+- [x] **WEB-014: Integrate generation/cancel/retry**
   - Depends on: CHAT-005, INT-002, WEB-006, WEB-007, WEB-009
   - Wire acknowledgement, streaming, stop, retry, usage, and draft behavior.
   - Acceptance: reconnect and duplicate command E2E preserve one transcript.
@@ -712,17 +712,19 @@ Phase 8.
   - Recent auth, specific confirmation, job state, immediate logout.
   - Acceptance: destructive flow is keyboard accessible and passes E2E.
 
-- [-] **WEB-017: Implement admin model/settings UI**
+- [x] **WEB-017: Implement admin model/settings UI**
   - Depends on: ADMIN-002, WEB-003
   - Models, defaults, quotas, guest limits, system prompt, safety, maintenance.
   - Acceptance: validation/conflicts/audits are visible; no nested cards.
 
-- [-] **WEB-018: Implement admin user/usage/audit UI**
+- [x] **WEB-018: Implement admin user/usage/audit UI**
   - Depends on: ADMIN-003, ADMIN-004, WEB-003
   - User roles, aggregate usage/errors, audit pagination.
   - Acceptance: non-admin routes/API are denied and conversation content absent.
 
-**Phase 8 exit:** M4 all MVP screens and states are integrated in Spanish/English.
+**Phase 8 exit:** Complete on 2026-07-24. All M4 MVP screens and states are
+integrated in Spanish/English, including exact guest token exhaustion and expired
+session renewal. The M4 release gate remains pending CI and the `v0.4.0` tag.
 
 ## Phase 9: Verification, hardening, and performance
 

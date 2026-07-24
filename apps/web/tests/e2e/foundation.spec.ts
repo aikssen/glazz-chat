@@ -120,6 +120,27 @@ test("unsupported browser locale falls back to English", async ({ browser }, tes
   await context.close();
 });
 
+test("administration renders access denial without conversation content", async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-375");
+  await page.route("**/api/v1/admin/models", (route) =>
+    route.fulfill({
+      status: 403,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: {
+          code: "forbidden",
+          message: "Administrator access is required.",
+        },
+      }),
+    }),
+  );
+  await page.goto("/admin");
+  await expect(page.getByText("No tienes acceso a administración.")).toBeVisible();
+  await expect(page.locator(".message-content")).toHaveCount(0);
+});
+
 test("guest sends a message and receives a streamed response", async ({ page }) => {
   await page.goto("/");
   const composer = page.getByLabel("Pregunta a Glazz");
@@ -155,8 +176,74 @@ test("guest limit becomes a focused login gate", async ({ page }, testInfo) => {
   await expect(composer).not.toBeVisible();
 });
 
+test("guest output budget consumes the exact remaining token", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-375" || process.env.E2E_GUEST_EDGES !== "true");
+  await page.goto("/");
+  const apiOrigin = new URL(process.env.E2E_API_URL ?? page.url());
+  if (!process.env.E2E_API_URL) apiOrigin.port = "8080";
+  const composer = page.getByLabel("Pregunta a Glazz");
+
+  await composer.fill("Consume casi todo el presupuesto.");
+  await page.getByRole("button", { name: "Enviar mensaje" }).click();
+  await expect(page.getByText("Deterministic development response.")).toHaveCount(1);
+  await expect
+    .poll(() => readGuestAllowance(page, apiOrigin.origin))
+    .toMatchObject({
+      messagesUsed: 1,
+      outputTokensUsed: 1999,
+      outputTokenLimit: 2000,
+      exhausted: false,
+    });
+
+  await composer.fill("Consume solamente el token restante.");
+  await page.getByRole("button", { name: "Enviar mensaje" }).click();
+  await expect(page.getByText("Deterministic development response.")).toHaveCount(2);
+  await expect
+    .poll(() => readGuestAllowance(page, apiOrigin.origin))
+    .toMatchObject({
+      messagesUsed: 2,
+      outputTokensUsed: 2000,
+      outputTokenLimit: 2000,
+      exhausted: true,
+    });
+  await expect(page.getByText("Continúa tu conversación")).toBeVisible();
+  await expect(composer).not.toBeVisible();
+});
+
+test("expired guest starts with a fresh empty allowance", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-375" || process.env.E2E_GUEST_EDGES !== "true");
+  const ttl = Number(process.env.E2E_GUEST_TTL_MS ?? "15000");
+  await page.goto("/");
+  const apiOrigin = new URL(process.env.E2E_API_URL ?? page.url());
+  if (!process.env.E2E_API_URL) apiOrigin.port = "8080";
+  const prompt = "Esta conversación debe expirar.";
+  const composer = page.getByLabel("Pregunta a Glazz");
+  await composer.fill(prompt);
+  await page.getByRole("button", { name: "Enviar mensaje" }).click();
+  await expect(page.getByText("Deterministic development response.")).toBeVisible();
+  const original = await readGuestAllowance(page, apiOrigin.origin);
+
+  await page.waitForTimeout(ttl + 1_000);
+  await page.reload();
+
+  await expect(page.getByLabel("Pregunta a Glazz")).toBeEnabled({ timeout: 10_000 });
+  await expect(page.getByRole("paragraph").filter({ hasText: prompt })).toHaveCount(0);
+  await expect
+    .poll(() => readGuestAllowance(page, apiOrigin.origin))
+    .toMatchObject({
+      messagesUsed: 0,
+      outputTokensUsed: 0,
+      messageLimit: 4,
+      outputTokenLimit: 2000,
+      exhausted: false,
+    });
+  const renewed = await readGuestAllowance(page, apiOrigin.origin);
+  expect(Date.parse(renewed.expiresAt)).toBeGreaterThan(Date.parse(original.expiresAt));
+});
+
 test("Google approval covers the registered-user lifecycle", async ({
   browser,
+  context,
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile-375" || process.env.E2E_OAUTH !== "true");
@@ -217,7 +304,48 @@ test("Google approval covers the registered-user lifecycle", async ({
   await expect(completedResponses).toHaveCount(completedBeforeRetry + 1);
   await expect(completedResponses.last()).toContainText("Deterministic development response.");
 
+  const reconnectPrompt = "Conserva una sola respuesta después de reconectar.";
+  const completedBeforeReconnect = await completedResponses.count();
+  await composer.fill(reconnectPrompt);
+  await page.getByRole("button", { name: "Enviar mensaje" }).click();
+  await expect(page.getByRole("button", { name: "Detener respuesta" })).toBeVisible();
+  await context.setOffline(true);
+  await expect(page.locator(".connection")).toHaveAttribute("title", "Reconectando");
+  await page.waitForTimeout(500);
+  await context.setOffline(false);
+  await expect(page.locator(".connection")).toHaveAttribute("title", "Conectado", {
+    timeout: 10_000,
+  });
+  await expect(completedResponses).toHaveCount(completedBeforeReconnect + 1);
+  await expect(page.getByRole("paragraph").filter({ hasText: reconnectPrompt })).toHaveCount(1);
+
+  await page.evaluate(async (origin) => {
+    const csrf = document.cookie
+      .split("; ")
+      .find((value) => value.startsWith("glazz_csrf="))
+      ?.split("=")
+      .slice(1)
+      .join("=");
+    if (!csrf) throw new Error("Authenticated CSRF cookie is missing");
+    for (let index = 0; index < 20; index += 1) {
+      const response = await fetch(`${origin}/api/v1/conversations`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": `pagination-${Date.now()}-${index}`,
+          "X-CSRF-Token": decodeURIComponent(csrf),
+        },
+        body: "{}",
+      });
+      if (!response.ok) throw new Error(`Conversation ${index} failed: ${response.status}`);
+    }
+  }, apiOrigin.origin);
+  await page.reload();
   await page.getByRole("button", { name: "Abrir conversaciones" }).click();
+  await expect(page.locator(".conversation-item")).toHaveCount(20);
+  await page.getByRole("button", { name: "Cargar más" }).click();
+  await expect(page.locator(".conversation-item")).toHaveCount(21);
   let conversation = page.locator(".conversation-item").first();
   await conversation.locator("summary").click();
   page.once("dialog", (dialog) => dialog.accept("Conversación E2E"));
@@ -291,8 +419,28 @@ test("Google approval covers the registered-user lifecycle", async ({
   await page.goto("/admin");
   await expect(page.getByRole("heading", { name: "Administración" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Catálogo de modelos" })).toBeVisible();
+  await page.getByRole("tab", { name: "Opciones" }).click();
+  await expect(page.getByRole("heading", { name: "Opciones en ejecución" })).toBeVisible();
+  await page.route("**/api/v1/admin/settings/quota.guest.messages", (route) => {
+    if (route.request().method() !== "PATCH") return route.fallback();
+    return route.fulfill({
+      status: 412,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: {
+          code: "conflict",
+          message: "El ajuste cambió en otra sesión.",
+        },
+      }),
+    });
+  });
+  const guestLimit = page.locator(".setting-editor").filter({ hasText: "quota.guest.messages" });
+  await guestLimit.locator("input").fill("5");
+  await guestLimit.getByRole("button", { name: "Guardar quota.guest.messages" }).click();
+  await expect(page.getByText("El ajuste cambió en otra sesión.")).toBeVisible();
+  await page.unroute("**/api/v1/admin/settings/quota.guest.messages");
+
   for (const [tab, heading] of [
-    ["Opciones", "Opciones en ejecución"],
     ["Usuarios", "Usuarios"],
     ["Uso", "Uso agregado"],
     ["Auditoría", "Auditoría"],
@@ -357,4 +505,21 @@ async function openLoginDialog(page: import("@playwright/test").Page) {
   await consent.nth(1).check();
   await dialog.getByRole("button", { name: "Continuar con Google" }).click();
   await expect(page.getByRole("heading", { name: "Test authorization" })).toBeVisible();
+}
+
+async function readGuestAllowance(page: import("@playwright/test").Page, apiOrigin: string) {
+  return page.evaluate(async (origin) => {
+    const response = await fetch(`${origin}/api/v1/guest-sessions/current`, {
+      credentials: "include",
+    });
+    if (!response.ok) throw new Error(`Guest allowance failed: ${response.status}`);
+    return response.json() as Promise<{
+      messagesUsed: number;
+      messageLimit: number;
+      outputTokensUsed: number;
+      outputTokenLimit: number;
+      exhausted: boolean;
+      expiresAt: string;
+    }>;
+  }, apiOrigin);
 }

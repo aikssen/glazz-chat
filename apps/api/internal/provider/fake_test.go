@@ -50,3 +50,26 @@ func TestFakePartialFailureIsNotRetryable(t *testing.T) {
 		t.Fatalf("partial failure = %v, want non-retryable", err)
 	}
 }
+
+func TestFakeCapsReportedUsageAtRequestedOutput(t *testing.T) {
+	fake := NewFake(FakeOptions{Usage: Usage{InputTokens: 8, OutputTokens: 1999}})
+	stream, err := fake.Stream(context.Background(), Request{
+		Model: "model", MaxOutputTokens: 1,
+		Messages: []Message{{Role: RoleUser, Content: "remaining token"}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for {
+		chunk, err := stream.Next(context.Background())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if chunk.Usage != nil {
+			if chunk.Usage.OutputTokens != 1 {
+				t.Fatalf("reported output tokens = %d, want 1", chunk.Usage.OutputTokens)
+			}
+			return
+		}
+	}
+}

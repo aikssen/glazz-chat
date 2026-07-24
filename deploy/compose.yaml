@@ -43,6 +43,8 @@ services:
       DATABASE_URL: postgres://glazz:glazz@postgres:5432/glazz?sslmode=disable
       REDIS_URL: redis://redis:6379/0
       DATABASE_MIGRATE_ON_STARTUP: "false"
+      GUEST_SESSION_TTL: ${GUEST_SESSION_TTL:-720h}
+      LLM_FAKE_OUTPUT_TOKENS: ${LLM_FAKE_OUTPUT_TOKENS:-6}
       OTEL_SERVICE_NAME: glazz-api
     command: ["/bin/sh", "-c", "/app/migrate up && exec /app/api"]
     ports:

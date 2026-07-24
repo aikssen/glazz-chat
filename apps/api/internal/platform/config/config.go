@@ -21,6 +21,7 @@ type Config struct {
 	Redis     Redis
 	OAuth     OAuth
 	Auth      Auth
+	Guests    Guests
 	Cookies   Cookies
 	Provider  Provider
 	Admin     Admin
@@ -76,6 +77,10 @@ type Auth struct {
 	PrivacyVersion  string
 }
 
+type Guests struct {
+	SessionTTL time.Duration
+}
+
 type Cookies struct {
 	SigningKey []byte
 	Domain     string
@@ -84,10 +89,11 @@ type Cookies struct {
 }
 
 type Provider struct {
-	Kind         string
-	BaseURL      string
-	APIKey       string
-	DefaultModel string
+	Kind             string
+	BaseURL          string
+	APIKey           string
+	DefaultModel     string
+	FakeOutputTokens int32
 }
 
 type Admin struct {
@@ -269,6 +275,14 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
+	guestSessionTTL, err := duration("GUEST_SESSION_TTL")
+	if err != nil {
+		return Config{}, err
+	}
+	fakeOutputTokens, err := integer("LLM_FAKE_OUTPUT_TOKENS", 1, 8192)
+	if err != nil {
+		return Config{}, err
+	}
 
 	redisPrefix, err := nonEmptyValue("REDIS_PREFIX")
 	if err != nil {
@@ -368,6 +382,7 @@ func Load() (Config, error) {
 			TermsVersion:    termsVersion,
 			PrivacyVersion:  privacyVersion,
 		},
+		Guests: Guests{SessionTTL: guestSessionTTL},
 		Cookies: Cookies{
 			SigningKey: cookieKey,
 			Domain:     cookieDomain,
@@ -375,10 +390,11 @@ func Load() (Config, error) {
 			SameSite:   cookieSameSite,
 		},
 		Provider: Provider{
-			Kind:         providerKind,
-			BaseURL:      providerBaseURL,
-			APIKey:       firstValue("LLM_PROVIDER_API_KEY", "API_KEY"),
-			DefaultModel: defaultModel,
+			Kind:             providerKind,
+			BaseURL:          providerBaseURL,
+			APIKey:           firstValue("LLM_PROVIDER_API_KEY", "API_KEY"),
+			DefaultModel:     defaultModel,
+			FakeOutputTokens: int32(fakeOutputTokens),
 		},
 		Admin: Admin{BootstrapEmails: normalizedSet(bootstrapEmails)},
 		Telemetry: Telemetry{
@@ -421,6 +437,9 @@ func (c Config) Validate() error {
 	}
 	if c.Auth.RecentAuthTTL <= 0 {
 		return errors.New("validate AUTH_RECENT_TTL: must be positive")
+	}
+	if c.Guests.SessionTTL <= 0 || c.Guests.SessionTTL > 30*24*time.Hour {
+		return errors.New("validate GUEST_SESSION_TTL: must be between 1ns and 720h")
 	}
 	if err := absoluteHTTPURL("JWT_ISSUER", c.Auth.Issuer); err != nil {
 		return err

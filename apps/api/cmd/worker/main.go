@@ -52,7 +52,11 @@ func run(logger *slog.Logger) error {
 		return err
 	}
 	gateways := map[string]provider.Gateway{
-		models.FakeProviderCode: provider.NewFake(provider.FakeOptions{}),
+		models.FakeProviderCode: provider.NewFake(provider.FakeOptions{
+			Usage: provider.Usage{
+				InputTokens: 8, OutputTokens: int(cfg.Provider.FakeOutputTokens),
+			},
+		}),
 	}
 	if cfg.Provider.Kind != "fake" {
 		gateway, err := provider.NewOpenAICompatible(

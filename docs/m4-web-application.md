@@ -8,13 +8,12 @@
 
 ## Status
 
-M4 is in progress and is not tagged. The release tag remains reserved as
-`v0.4.0` until Phase 6 through Phase 8 acceptance criteria and CI are green.
-Phases 6 and 7 are complete. Phase 8 retains open acceptance items.
+M4 implementation and local acceptance are complete. The milestone is not tagged;
+`v0.4.0` remains pending until CI runs green on the consolidated commit.
+Phases 6, 7, and 8 are complete.
 
-The application is available as a testable preview while those acceptance cases
-remain open. In `TASKS.md`, `[-]` means implemented with incomplete acceptance
-coverage, not that the whole feature is still being built.
+The application remains available as a testable preview until the release gate is
+published.
 
 ## Acceptance ledger
 
@@ -26,7 +25,7 @@ coverage, not that the whole feature is still being built.
 | M4-A04 | 6 | Usage exposes aggregate tokens, failures, latency, and error codes; audit reads redact sensitive values | Accepted | SQL aggregation, redaction, and pagination tests |
 | M4-A05 | 6 | Account deletion, purge, and guest cleanup preserve required anonymous aggregates | Accepted | Existing Phase 6 lifecycle integration tests |
 | M4-A06 | 7 | Frontend foundation and design-system acceptance | Accepted | Unit tests, WCAG checks, responsive visual matrix, live-provider smoke, and PWA policy/offline tests |
-| M4-A07 | 8 | Integrated user and administration journeys | Open | Phase 8 E2E acceptance remains |
+| M4-A07 | 8 | Integrated user and administration journeys | Accepted | Standard responsive E2E plus isolated 2,000-token and expiry edge profiles |
 
 ## Test now
 
@@ -70,12 +69,17 @@ coverage, not that the whole feature is still being built.
 - Next.js production build, TypeScript, ESLint, and Prettier checks.
 - Twenty-six frontend unit tests, including streaming idempotency, dictionary parity,
   theme contrast, and UUID generation on insecure local-network origins.
-- Twenty-four applicable Playwright E2E checks across the responsive viewport
-  matrix. They cover
+- Twenty-seven applicable Playwright E2E checks across the responsive viewport
+  matrix and guest-edge profile. They cover
   the guest limit, OAuth consent/denial, exactly-once migration, restored deep links,
-  authenticated settings, cancellation/retry, ownership denial, all administration
-  views, recent-auth account deletion, axe WCAG A/AA checks, keyboard focus, IME
-  input, inert malicious Markdown, 200% reflow, and PWA offline/update states.
+  cursor pagination, authenticated settings, cancellation/retry, reconnect with one
+  completed response, ownership denial, all administration views, conflict recovery,
+  non-administrator denial without conversation content, recent-auth account
+  deletion, axe WCAG A/AA checks, keyboard focus, IME input, inert malicious
+  Markdown, 200% reflow, and PWA offline/update states.
+- Guest-edge runs prove a 1,999-token response followed by an exactly one-token
+  remainder, the login gate at 2,000 tokens, and renewal to a clean full allowance
+  after session expiry.
 - Isolated registered-user acceptance on the development server provisions separate
   PostgreSQL/Redis instances and ports. Seven mobile checks cover browser-locale
   fallback, cross-session locale persistence, conversation rename/archive/restore/
@@ -93,6 +97,13 @@ second quota reservation requested the full 2,000-token budget instead of the
 remaining balance. The quota service now caps each reservation by model, actor, and
 global remaining output budgets. SQL constraints remain the final concurrency
 barrier. Unit and browser regression checks cover the correction.
+
+Guest expiry and the exact output boundary could not be exercised reliably while
+the API fixed the session lifetime at 30 days and the deterministic provider always
+reported six tokens. `GUEST_SESSION_TTL` now configures the lifetime explicitly,
+and `LLM_FAKE_OUTPUT_TOKENS` controls only fake-provider accounting. The fake
+provider caps reported usage to the request's reserved maximum, matching the
+provider contract and allowing the final one-token reservation to settle safely.
 
 Direct LAN access initially left the composer offline because the browser bundle
 targeted `localhost`, and message submission then failed because `randomUUID()` is
@@ -138,8 +149,5 @@ excluded, offline status is visible, and initial installation remains stable.
 
 ## Remaining before `v0.4.0`
 
-- Complete Phase 8 acceptance for guest output-token/expiry edges, conversation
-  pagination, browser reconnect/duplicate-command recovery, administration
-  validation conflicts, and non-administrator route denial.
-- Run full repository presubmit and CI, then create the annotated `v0.4.0` tag only
-  after every M4 acceptance item is green.
+- Consolidate the validated work in a local commit, run CI, and create the
+  annotated `v0.4.0` tag only after CI is green.

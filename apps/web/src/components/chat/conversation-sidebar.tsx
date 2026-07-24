@@ -37,6 +37,9 @@ export function ConversationSidebar({
   onRename,
   onArchive,
   onDelete,
+  hasMore,
+  loadingMore,
+  onLoadMore,
   onLogin,
 }: {
   open: boolean;
@@ -52,6 +55,9 @@ export function ConversationSidebar({
   onRename: (conversation: Conversation) => void;
   onArchive: (conversation: Conversation) => void;
   onDelete: (conversation: Conversation) => void;
+  hasMore: boolean;
+  loadingMore: boolean;
+  onLoadMore: () => void;
   onLogin: () => void;
 }) {
   const { locale } = usePreferences();
@@ -61,7 +67,7 @@ export function ConversationSidebar({
   const active = conversations.filter((item) => item.status === "active");
   const archived = conversations.filter((item) => item.status === "archived");
   const interactiveModal = open && !modalActive;
-  useDialogFocus(interactiveModal, sidebarRef, onClose);
+  useDialogFocus(open, sidebarRef, onClose);
 
   useEffect(() => {
     const query = window.matchMedia("(max-width: 1023px)");
@@ -160,6 +166,23 @@ export function ConversationSidebar({
               onArchive={onArchive}
               onDelete={onDelete}
             />
+          ) : null}
+          {hasMore ? (
+            <Button
+              className="sidebar-load-more"
+              variant="outline"
+              size="sm"
+              disabled={loadingMore}
+              onClick={onLoadMore}
+            >
+              {loadingMore
+                ? locale === "es"
+                  ? "Cargando..."
+                  : "Loading..."
+                : locale === "es"
+                  ? "Cargar más"
+                  : "Load more"}
+            </Button>
           ) : null}
         </nav>
         <div className="sidebar-footer">

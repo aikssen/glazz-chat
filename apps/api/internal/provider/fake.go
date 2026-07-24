@@ -53,7 +53,10 @@ func (fake *Fake) Stream(ctx context.Context, request Request) (Stream, error) {
 	fake.mu.Lock()
 	fake.calls++
 	fake.mu.Unlock()
-	return &fakeStream{ctx: ctx, options: fake.options, model: request.Model}, nil
+	return &fakeStream{
+		ctx: ctx, options: fake.options, model: request.Model,
+		maxOutputTokens: request.MaxOutputTokens,
+	}, nil
 }
 
 func (fake *Fake) Calls() int {
@@ -63,11 +66,12 @@ func (fake *Fake) Calls() int {
 }
 
 type fakeStream struct {
-	ctx     context.Context
-	options FakeOptions
-	model   string
-	index   int
-	closed  bool
+	ctx             context.Context
+	options         FakeOptions
+	model           string
+	maxOutputTokens int
+	index           int
+	closed          bool
 }
 
 func (stream *fakeStream) Next(ctx context.Context) (Chunk, error) {
@@ -88,6 +92,9 @@ func (stream *fakeStream) Next(ctx context.Context) (Chunk, error) {
 	}
 	stream.closed = true
 	usage := stream.options.Usage
+	if usage.OutputTokens > stream.maxOutputTokens {
+		usage.OutputTokens = stream.maxOutputTokens
+	}
 	return Chunk{
 		Usage: &usage, FinishReason: FinishStop, ProviderModel: stream.model,
 		RequestID: "fake-request",

@@ -1,6 +1,6 @@
 "use client";
 
-import { type RefObject, useEffect } from "react";
+import { type RefObject, useLayoutEffect } from "react";
 
 const focusableSelector = [
   "a[href]",
@@ -17,15 +17,13 @@ export function useDialogFocus(
   onClose: () => void,
   returnFocus?: RefObject<HTMLElement | null>,
 ) {
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open || !dialog.current) return;
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const focusReturnTarget = returnFocus?.current ?? previous;
     const element = dialog.current;
     const focusable = () => Array.from(element.querySelectorAll<HTMLElement>(focusableSelector));
-    const focusFrame = window.requestAnimationFrame(() => {
-      (focusable()[0] ?? element).focus();
-    });
+    (focusable()[0] ?? element).focus();
 
     function handleKeyDown(event: KeyboardEvent) {
       if (element.inert || element.getAttribute("aria-hidden") === "true") return;
@@ -54,7 +52,6 @@ export function useDialogFocus(
 
     document.addEventListener("keydown", handleKeyDown);
     return () => {
-      window.cancelAnimationFrame(focusFrame);
       document.removeEventListener("keydown", handleKeyDown);
       focusReturnTarget?.focus();
     };

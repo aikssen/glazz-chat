@@ -93,8 +93,9 @@ export function AdminApp() {
       });
       setModels((current) => current.map((item) => (item.id === updated.id ? updated : item)));
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "No fue posible guardar el modelo.");
+      const message = cause instanceof Error ? cause.message : "No fue posible guardar el modelo.";
       await load();
+      setError(message);
     } finally {
       setBusy(false);
     }
@@ -113,8 +114,9 @@ export function AdminApp() {
       );
       setSettings((current) => current.map((item) => (item.key === updated.key ? updated : item)));
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "No fue posible guardar el ajuste.");
+      const message = cause instanceof Error ? cause.message : "No fue posible guardar el ajuste.";
       await load();
+      setError(message);
     } finally {
       setBusy(false);
     }
@@ -130,8 +132,9 @@ export function AdminApp() {
       });
       setUsers((current) => current.map((item) => (item.id === updated.id ? updated : item)));
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "No fue posible cambiar el rol.");
+      const message = cause instanceof Error ? cause.message : "No fue posible cambiar el rol.";
       await load();
+      setError(message);
     } finally {
       setBusy(false);
     }

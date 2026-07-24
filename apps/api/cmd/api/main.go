@@ -107,7 +107,7 @@ func run(logger *slog.Logger) error {
 	)
 	runtimeSettings := settings.New(pool, redisClient)
 	guestService := guests.New(
-		pool, idSource, timeSource, cfg.Cookies, 30*24*time.Hour,
+		pool, idSource, timeSource, cfg.Cookies, cfg.Guests.SessionTTL,
 	).WithPolicySource(func(ctx context.Context) (guests.Policy, error) {
 		snapshot, err := runtimeSettings.Load(ctx)
 		return guests.Policy{
@@ -137,7 +137,9 @@ func run(logger *slog.Logger) error {
 		policy.GlobalConcurrentLimit = snapshot.GlobalConcurrentStreams
 		return policy, nil
 	})
-	fakeOptions := provider.FakeOptions{}
+	fakeOptions := provider.FakeOptions{
+		Usage: provider.Usage{InputTokens: 8, OutputTokens: int(cfg.Provider.FakeOutputTokens)},
+	}
 	if cfg.Runtime.Environment == "test" {
 		fakeOptions.Latency = 100 * time.Millisecond
 	}
