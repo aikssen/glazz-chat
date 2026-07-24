@@ -11,6 +11,12 @@ SELECT * FROM users WHERE lower(email) = lower($1);
 -- name: FindUserByID :one
 SELECT * FROM users WHERE id = $1;
 
+-- name: UpdateUserLocale :one
+UPDATE users
+SET locale = $2, updated_at = now(), version = version + 1
+WHERE id = $1
+RETURNING *;
+
 -- name: CreateUser :one
 INSERT INTO users (id, email, display_name, avatar_url, locale, role)
 VALUES ($1, $2, $3, $4, $5, $6)

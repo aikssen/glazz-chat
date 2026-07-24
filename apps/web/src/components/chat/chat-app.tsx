@@ -34,7 +34,7 @@ type ServerEvent = {
 };
 
 export function ChatApp() {
-  const { locale, theme, setTheme } = usePreferences();
+  const { locale, setLocale, theme, setTheme } = usePreferences();
   const t = dictionary(locale);
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [allowance, setAllowance] = useState<GuestAllowance | null>(null);
@@ -261,6 +261,7 @@ export function ChatApp() {
           if (!active) return;
           setAllowance(guest);
         }
+        if (currentUser) setLocale(currentUser.locale);
         setUser(currentUser);
         const [catalog, conversationPage, currentUsage] = await Promise.all([
           api<{ items: Model[]; defaultModelId: string }>("/api/v1/models"),
@@ -291,7 +292,7 @@ export function ChatApp() {
       socket.current?.close();
       if (reconnectTimer.current) window.clearTimeout(reconnectTimer.current);
     };
-  }, [loadConversation]);
+  }, [loadConversation, setLocale]);
 
   useEffect(() => {
     if (!ready) return;

@@ -12,7 +12,9 @@
 This document defines what Glazz is, why it exists, and what the MVP must deliver.
 Technical implementation details belong in [ARCHITECTURE.md](./ARCHITECTURE.md),
 visual and interaction rules in [DESIGN.md](./DESIGN.md), contributor rules in
-[AGENTS.md](./AGENTS.md), and execution order in [TASKS.md](./TASKS.md).
+[AGENTS.md](./AGENTS.md), execution order and canonical status in
+[TASKS.md](./TASKS.md), and chronological engineering evidence in
+[WORKLOG.md](./WORKLOG.md).
 
 ## Product statement
 
@@ -93,7 +95,8 @@ Initial registered-user limits:
 - 50 user messages per day
 - 50,000 output tokens per day
 - One concurrent generation per user
-- Additional global cost and concurrency limits controlled by administrators
+- Additional global output-token and concurrency limits controlled by administrators
+- Exact currency spend limits after the production provider and pricing are approved
 
 ### Administrator
 

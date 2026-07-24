@@ -67,6 +67,12 @@ func TestSynchronizerIsIdempotentAndNeverAutoEnables(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() {
+		_, _ = pool.Raw().Exec(
+			context.Background(),
+			`DELETE FROM admin_audit_log
+			 WHERE action = 'model.provider_availability_changed' AND target_id = $1`,
+			modelID.String(),
+		)
 		_, _ = pool.Raw().Exec(context.Background(), `DELETE FROM providers WHERE id = $1`, providerID)
 		_, _ = pool.Raw().Exec(context.Background(), `DELETE FROM models WHERE id = $1`, modelID)
 	})
@@ -84,11 +90,13 @@ func TestSynchronizerIsIdempotentAndNeverAutoEnables(t *testing.T) {
 		t.Fatalf("first result = %#v", result)
 	}
 	assertModelState(t, pool, ctx, modelID, false, true)
+	assertSyncAuditCount(t, pool, ctx, modelID, 1)
 
 	result, err = synchronizer.Sync(ctx, providerCode, availableCatalog, "req-model-sync-repeat")
 	if err != nil || result.Changed != 0 {
 		t.Fatalf("repeat result = %#v, err = %v", result, err)
 	}
+	assertSyncAuditCount(t, pool, ctx, modelID, 1)
 
 	missingCatalog := provider.NewFake(provider.FakeOptions{Models: []provider.Model{
 		{ID: "different-upstream", ChatCompletions: true},
@@ -98,11 +106,13 @@ func TestSynchronizerIsIdempotentAndNeverAutoEnables(t *testing.T) {
 		t.Fatalf("missing result = %#v, err = %v", result, err)
 	}
 	assertModelState(t, pool, ctx, modelID, false, false)
+	assertSyncAuditCount(t, pool, ctx, modelID, 2)
 
 	result, err = synchronizer.Sync(ctx, providerCode, missingCatalog, "req-model-sync-missing-repeat")
 	if err != nil || result.Changed != 0 {
 		t.Fatalf("missing repeat result = %#v, err = %v", result, err)
 	}
+	assertSyncAuditCount(t, pool, ctx, modelID, 2)
 }
 
 func assertModelState(
@@ -125,5 +135,28 @@ func assertModelState(
 			"model state = enabled %t, available %t; want enabled %t, available %t",
 			gotEnabled, gotAvailable, enabled, available,
 		)
+	}
+}
+
+func assertSyncAuditCount(
+	t *testing.T,
+	pool *database.Pool,
+	ctx context.Context,
+	modelID uuid.UUID,
+	want int,
+) {
+	t.Helper()
+	var count int
+	if err := pool.Raw().QueryRow(ctx, `
+		SELECT COUNT(*)
+		FROM admin_audit_log
+		WHERE action = 'model.provider_availability_changed'
+		  AND target_type = 'model'
+		  AND target_id = $1
+	`, modelID.String()).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != want {
+		t.Fatalf("sync audit count = %d, want %d", count, want)
 	}
 }

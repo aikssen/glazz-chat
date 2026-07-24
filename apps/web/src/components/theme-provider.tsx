@@ -15,29 +15,37 @@ const PreferencesContext = createContext<Preferences | null>(null);
 export function PreferencesProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>("system");
   const [locale, setLocale] = useState<Locale>("es");
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
       const savedTheme = localStorage.getItem("glazz-theme") as Theme | null;
       const savedLocale = localStorage.getItem("glazz-locale") as Locale | null;
       if (savedTheme) setTheme(savedTheme);
-      if (savedLocale === "en" || savedLocale === "es") setLocale(savedLocale);
+      if (savedLocale === "en" || savedLocale === "es") {
+        setLocale(savedLocale);
+      } else {
+        setLocale(navigator.language.toLowerCase().startsWith("es") ? "es" : "en");
+      }
+      setHydrated(true);
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
+    if (!hydrated) return;
     localStorage.setItem("glazz-theme", theme);
     const dark =
       theme === "dark" ||
       (theme === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
     document.documentElement.classList.toggle("dark", dark);
-  }, [theme]);
+  }, [hydrated, theme]);
 
   useEffect(() => {
+    if (!hydrated) return;
     localStorage.setItem("glazz-locale", locale);
     document.documentElement.lang = locale;
-  }, [locale]);
+  }, [hydrated, locale]);
 
   const value = useMemo(() => ({ theme, setTheme, locale, setLocale }), [theme, locale]);
   return <PreferencesContext.Provider value={value}>{children}</PreferencesContext.Provider>;

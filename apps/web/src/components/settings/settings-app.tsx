@@ -36,6 +36,7 @@ export function SettingsApp() {
           api<CurrentUser>("/api/v1/me"),
           api<{ items: Session[] }>("/api/v1/me/sessions"),
         ]);
+        if (current.locale !== locale) setLocale(current.locale);
         setUser(current);
         setSessions(sessionPage.items);
       } catch (cause) {
@@ -51,7 +52,22 @@ export function SettingsApp() {
       }
     }
     void load();
-  }, [locale]);
+  }, [locale, setLocale]);
+
+  async function updateLocale(value: Locale) {
+    try {
+      if (user) {
+        const current = await api<CurrentUser>("/api/v1/me", {
+          method: "PATCH",
+          body: JSON.stringify({ locale: value }),
+        });
+        setUser(current);
+      }
+      setLocale(value);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Preference update failed");
+    }
+  }
 
   async function revoke(session: Session) {
     await api<void>(`/api/v1/me/sessions/${session.id}`, { method: "DELETE" });
@@ -146,7 +162,11 @@ export function SettingsApp() {
         <h2>{copy.language}</h2>
         <div className="segmented-control" aria-label={copy.language}>
           {(["es", "en"] as Locale[]).map((value) => (
-            <button key={value} aria-pressed={locale === value} onClick={() => setLocale(value)}>
+            <button
+              key={value}
+              aria-pressed={locale === value}
+              onClick={() => void updateLocale(value)}
+            >
               {value === "es" ? "Español" : "English"}
             </button>
           ))}

@@ -45,6 +45,9 @@ func NewOpenAICompatible(
 	if options.FirstChunkTimeout <= 0 {
 		options.FirstChunkTimeout = defaults.FirstChunkTimeout
 	}
+	if options.IdleChunkTimeout <= 0 {
+		options.IdleChunkTimeout = defaults.IdleChunkTimeout
+	}
 	return &OpenAICompatible{
 		baseURL: strings.TrimRight(baseURL, "/"), apiKey: apiKey,
 		client: client, options: options,
@@ -83,6 +86,11 @@ func (gateway *OpenAICompatible) Catalog(ctx context.Context) ([]Model, error) {
 		}
 	}
 	return models, nil
+}
+
+func (gateway *OpenAICompatible) Health(ctx context.Context) error {
+	_, err := gateway.Catalog(ctx)
+	return err
 }
 
 func (gateway *OpenAICompatible) Stream(ctx context.Context, request Request) (Stream, error) {
@@ -138,7 +146,9 @@ func (gateway *OpenAICompatible) Stream(ctx context.Context, request Request) (S
 	scanner.Buffer(make([]byte, 4096), maxSSEEventBytes)
 	return &openAIStream{
 		body: response.Body, scanner: scanner, cancel: cancel,
-		requestID: response.Header.Get("X-Request-ID"), firstChunkTimeout: gateway.options.FirstChunkTimeout,
+		requestID:         response.Header.Get("X-Request-ID"),
+		firstChunkTimeout: gateway.options.FirstChunkTimeout,
+		idleChunkTimeout:  gateway.options.IdleChunkTimeout,
 	}, nil
 }
 
@@ -152,6 +162,7 @@ type openAIStream struct {
 	cancel             context.CancelFunc
 	requestID          string
 	firstChunkTimeout  time.Duration
+	idleChunkTimeout   time.Duration
 	receivedFirstChunk bool
 	closed             bool
 }
@@ -163,6 +174,8 @@ func (stream *openAIStream) Next(ctx context.Context) (Chunk, error) {
 	var firstChunkDeadline time.Time
 	if !stream.receivedFirstChunk {
 		firstChunkDeadline = time.Now().Add(stream.firstChunkTimeout)
+	} else {
+		firstChunkDeadline = time.Now().Add(stream.idleChunkTimeout)
 	}
 	for {
 		line, err := stream.scanLine(ctx, firstChunkDeadline)

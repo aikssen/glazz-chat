@@ -56,9 +56,15 @@ func TestResilientCircuitRecoversAfterOpenDuration(t *testing.T) {
 	if _, err := resilient.Stream(context.Background(), validRequest()); !errors.Is(err, ErrCircuitOpen) {
 		t.Fatalf("err = %v, want open circuit", err)
 	}
+	if err := resilient.Health(context.Background()); !errors.Is(err, ErrCircuitOpen) {
+		t.Fatalf("health err = %v, want open circuit", err)
+	}
 	now = now.Add(time.Minute)
 	gateway.streamErrors = nil
 	gateway.stream = &scriptedStream{}
+	if err := resilient.Health(context.Background()); err != nil {
+		t.Fatalf("health after recovery = %v", err)
+	}
 	stream, err := resilient.Stream(context.Background(), validRequest())
 	if err != nil {
 		t.Fatal(err)
@@ -66,14 +72,56 @@ func TestResilientCircuitRecoversAfterOpenDuration(t *testing.T) {
 	_ = stream.Close()
 }
 
+func TestResilientBoundsConcurrentStreams(t *testing.T) {
+	gateway := &scriptedGateway{stream: &scriptedStream{}}
+	resilient := NewResilient(gateway, ResilienceOptions{
+		MaxConcurrent: 1, FailureLimit: 2, OpenDuration: time.Minute,
+	})
+	first, err := resilient.Stream(context.Background(), validRequest())
+	if err != nil {
+		t.Fatal(err)
+	}
+	type result struct {
+		stream Stream
+		err    error
+	}
+	waiting := make(chan result, 1)
+	go func() {
+		stream, err := resilient.Stream(context.Background(), validRequest())
+		waiting <- result{stream: stream, err: err}
+	}()
+	select {
+	case <-waiting:
+		t.Fatal("second stream bypassed the concurrency guard")
+	case <-time.After(25 * time.Millisecond):
+	}
+	if err := first.Close(); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case result := <-waiting:
+		if result.err != nil {
+			t.Fatal(result.err)
+		}
+		_ = result.stream.Close()
+	case <-time.After(time.Second):
+		t.Fatal("second stream did not start after capacity was released")
+	}
+}
+
 type scriptedGateway struct {
 	streamErrors []error
 	stream       Stream
 	calls        int
+	healthErr    error
 }
 
 func (gateway *scriptedGateway) Catalog(context.Context) ([]Model, error) {
 	return nil, nil
+}
+
+func (gateway *scriptedGateway) Health(context.Context) error {
+	return gateway.healthErr
 }
 
 func (gateway *scriptedGateway) Stream(context.Context, Request) (Stream, error) {

@@ -115,6 +115,7 @@ type Querier interface {
 	UpdateGuestConversation(ctx context.Context, arg UpdateGuestConversationParams) (Conversation, error)
 	UpdateRuntimeSetting(ctx context.Context, arg UpdateRuntimeSettingParams) (RuntimeSetting, error)
 	UpdateUserConversation(ctx context.Context, arg UpdateUserConversationParams) (Conversation, error)
+	UpdateUserLocale(ctx context.Context, arg UpdateUserLocaleParams) (User, error)
 	UpdateUserRole(ctx context.Context, arg UpdateUserRoleParams) (User, error)
 	UpsertProvider(ctx context.Context, arg UpsertProviderParams) (Provider, error)
 	UpsertProviderModel(ctx context.Context, arg UpsertProviderModelParams) error

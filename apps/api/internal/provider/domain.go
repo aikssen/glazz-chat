@@ -65,6 +65,7 @@ type Stream interface {
 type Gateway interface {
 	Catalog(context.Context) ([]Model, error)
 	Stream(context.Context, Request) (Stream, error)
+	Health(context.Context) error
 }
 
 type ErrorCode string
@@ -122,8 +123,12 @@ func Normalize(err error) *Error {
 type Options struct {
 	RequestTimeout    time.Duration
 	FirstChunkTimeout time.Duration
+	IdleChunkTimeout  time.Duration
 }
 
 func DefaultOptions() Options {
-	return Options{RequestTimeout: 90 * time.Second, FirstChunkTimeout: 15 * time.Second}
+	return Options{
+		RequestTimeout: 90 * time.Second, FirstChunkTimeout: 15 * time.Second,
+		IdleChunkTimeout: 30 * time.Second,
+	}
 }

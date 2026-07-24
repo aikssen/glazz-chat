@@ -545,6 +545,24 @@ func (e RequestAccountDeletionJSONBodyConfirmation) Valid() bool {
 	}
 }
 
+// Defines values for UpdateCurrentUserJSONBodyLocale.
+const (
+	UpdateCurrentUserJSONBodyLocaleEn UpdateCurrentUserJSONBodyLocale = "en"
+	UpdateCurrentUserJSONBodyLocaleEs UpdateCurrentUserJSONBodyLocale = "es"
+)
+
+// Valid indicates whether the value is a known member of the UpdateCurrentUserJSONBodyLocale enum.
+func (e UpdateCurrentUserJSONBodyLocale) Valid() bool {
+	switch e {
+	case UpdateCurrentUserJSONBodyLocaleEn:
+		return true
+	case UpdateCurrentUserJSONBodyLocaleEs:
+		return true
+	default:
+		return false
+	}
+}
+
 // AdminModel defines model for AdminModel.
 type AdminModel struct {
 	Audience     []AdminModelAudience `json:"audience"`
@@ -1012,6 +1030,14 @@ type RequestAccountDeletionParams struct {
 // RequestAccountDeletionJSONBodyConfirmation defines parameters for RequestAccountDeletion.
 type RequestAccountDeletionJSONBodyConfirmation string
 
+// UpdateCurrentUserJSONBody defines parameters for UpdateCurrentUser.
+type UpdateCurrentUserJSONBody struct {
+	Locale UpdateCurrentUserJSONBodyLocale `json:"locale"`
+}
+
+// UpdateCurrentUserJSONBodyLocale defines parameters for UpdateCurrentUser.
+type UpdateCurrentUserJSONBodyLocale string
+
 // RevokeAuthSessionParams defines parameters for RevokeAuthSession.
 type RevokeAuthSessionParams struct {
 	IdempotencyKey IdempotencyKey `json:"Idempotency-Key"`
@@ -1034,6 +1060,9 @@ type UpdateConversationJSONRequestBody = UpdateConversation
 
 // RequestAccountDeletionJSONRequestBody defines body for RequestAccountDeletion for application/json ContentType.
 type RequestAccountDeletionJSONRequestBody RequestAccountDeletionJSONBody
+
+// UpdateCurrentUserJSONRequestBody defines body for UpdateCurrentUser for application/json ContentType.
+type UpdateCurrentUserJSONRequestBody UpdateCurrentUserJSONBody
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -1121,6 +1150,9 @@ type ServerInterface interface {
 	// GetCurrentUser Get the current user
 	// (GET /me)
 	GetCurrentUser(w http.ResponseWriter, r *http.Request)
+	// UpdateCurrentUser Update current-user preferences
+	// (PATCH /me)
+	UpdateCurrentUser(w http.ResponseWriter, r *http.Request)
 	// GetAccountDeletion Get account deletion state
 	// (GET /me/deletion)
 	GetAccountDeletion(w http.ResponseWriter, r *http.Request)
@@ -1310,6 +1342,12 @@ func (_ Unimplemented) RequestAccountDeletion(w http.ResponseWriter, r *http.Req
 // GetCurrentUser Get the current user
 // (GET /me)
 func (_ Unimplemented) GetCurrentUser(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// UpdateCurrentUser Update current-user preferences
+// (PATCH /me)
+func (_ Unimplemented) UpdateCurrentUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -2320,6 +2358,20 @@ func (siw *ServerInterfaceWrapper) GetCurrentUser(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// UpdateCurrentUser operation middleware
+func (siw *ServerInterfaceWrapper) UpdateCurrentUser(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateCurrentUser(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetAccountDeletion operation middleware
 func (siw *ServerInterfaceWrapper) GetAccountDeletion(w http.ResponseWriter, r *http.Request) {
 
@@ -2595,6 +2647,9 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/me", wrapper.GetCurrentUser)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/me", wrapper.UpdateCurrentUser)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/me/sessions", wrapper.ListAuthSessions)

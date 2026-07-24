@@ -479,6 +479,7 @@ func validSettingValue(key string, raw json.RawMessage) bool {
 		"quota.guest.output_tokens":           {kind: "integer", min: 128, max: 10000},
 		"quota.user.messages":                 {kind: "integer", min: 1, max: 1000},
 		"quota.user.output_tokens":            {kind: "integer", min: 128, max: 1000000},
+		"quota.global.output_tokens":          {kind: "integer", min: 128, max: 1000000000000},
 		"quota.global.concurrent_generations": {kind: "integer", min: 1, max: 10000},
 		"chat.system_prompt":                  {kind: "string", min: 1, max: 10000},
 		"safety.input_categories":             {kind: "string_array", max: 50},
@@ -493,13 +494,17 @@ func validSettingValue(key string, raw json.RawMessage) bool {
 		var value bool
 		return json.Unmarshal(raw, &value) == nil && string(raw) != "null"
 	case "integer":
-		var value json.Number
+		var value any
 		decoder := json.NewDecoder(bytes.NewReader(raw))
 		decoder.UseNumber()
 		if decoder.Decode(&value) != nil {
 			return false
 		}
-		parsed, err := strconv.ParseInt(string(value), 10, 64)
+		number, ok := value.(json.Number)
+		if !ok {
+			return false
+		}
+		parsed, err := strconv.ParseInt(string(number), 10, 64)
 		return err == nil && parsed >= definition.min && parsed <= definition.max
 	case "string":
 		var value string

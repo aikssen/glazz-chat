@@ -1,5 +1,11 @@
 # M1 Foundation Record
 
+## Ownership
+
+- **Milestone:** M1
+- **Owned phase:** Phase 1
+- **Release:** No standalone tag; this milestone predates the M2 tagging rule.
+
 Date: 2026-07-23
 
 ## Outcome

@@ -82,6 +82,18 @@ component and receives an annotated Git tag: M2 is `v0.2.0`, M3 is `v0.3.0`, and
 so on. Do not create or move a milestone tag until its acceptance checks and CI
 pass. The repository owner may explicitly replace this rule for a future release.
 
+## Delivery tracking
+
+- `TASKS.md` is the canonical scope and task-status index.
+- Every phase belongs to exactly one M0-M6 milestone, except Phase 11, which is
+  explicitly post-MVP.
+- A milestone progress document records granular acceptance evidence and release
+  blockers for its owned phases.
+- `WORKLOG.md` is append-only chronological evidence. Never use it to add or change
+  canonical task status.
+- Do not mark a task `[x]` from implementation availability alone; its acceptance
+  criteria and linked milestone gates must pass.
+
 ## Product invariants
 
 These rules are not implementation suggestions:

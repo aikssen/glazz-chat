@@ -62,6 +62,15 @@ func (gateway *Resilient) Catalog(ctx context.Context) ([]Model, error) {
 	return models, err
 }
 
+func (gateway *Resilient) Health(ctx context.Context) error {
+	if gateway.isOpen() {
+		return ErrCircuitOpen
+	}
+	err := gateway.next.Health(ctx)
+	gateway.observe(err)
+	return err
+}
+
 func (gateway *Resilient) Stream(ctx context.Context, request Request) (Stream, error) {
 	if gateway.isOpen() {
 		return nil, ErrCircuitOpen

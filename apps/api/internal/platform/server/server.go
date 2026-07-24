@@ -27,6 +27,7 @@ import (
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/httpx"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/ids"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/redisx"
+	"github.com/aikssen/glazz-chat/apps/api/internal/platform/store"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/telemetry"
 	"github.com/aikssen/glazz-chat/apps/api/internal/privacy"
 	"github.com/aikssen/glazz-chat/apps/api/internal/quota"
@@ -110,6 +111,7 @@ func New(deps Dependencies) http.Handler {
 		router.Group(func(protected chi.Router) {
 			protected.Use(deps.Auth)
 			protected.Get("/me", deps.me)
+			protected.With(deps.Browser.CSRF).Patch("/me", deps.updateMe)
 			protected.Get("/me/sessions", deps.listSessions)
 			protected.With(deps.Browser.CSRF).Post("/me/reauthenticate", deps.startReauthentication)
 			protected.With(deps.Browser.CSRF).Post("/auth/logout", deps.logout)
@@ -400,6 +402,29 @@ func (deps Dependencies) me(response http.ResponseWriter, request *http.Request)
 		httpx.WriteError(response, request, http.StatusUnauthorized, "unauthenticated", "User is not active.")
 		return
 	}
+	deps.writeCurrentUser(response, user)
+}
+
+func (deps Dependencies) updateMe(response http.ResponseWriter, request *http.Request) {
+	actor, _ := browser.CurrentActor(request.Context())
+	var payload struct {
+		Locale string `json:"locale"`
+	}
+	if decodeJSON(request, &payload) != nil || (payload.Locale != "en" && payload.Locale != "es") {
+		httpx.WriteError(response, request, http.StatusBadRequest, "invalid_request", "Locale must be en or es.")
+		return
+	}
+	user, err := deps.Database.Queries().UpdateUserLocale(request.Context(), store.UpdateUserLocaleParams{
+		ID: actor.UserID, Locale: payload.Locale,
+	})
+	if err != nil {
+		deps.internalError(response, request, err)
+		return
+	}
+	deps.writeCurrentUser(response, user)
+}
+
+func (deps Dependencies) writeCurrentUser(response http.ResponseWriter, user store.User) {
 	permissions := []string{"chat:use", "sessions:manage"}
 	if user.Role == "admin" {
 		permissions = append(permissions, "admin:access")

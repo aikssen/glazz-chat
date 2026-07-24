@@ -44,6 +44,18 @@ test("recovers from cookies signed by a previous deployment", async ({
   await expect(page.getByLabel("Pregunta a Glazz")).toBeEnabled({ timeout: 10_000 });
 });
 
+test("unsupported browser locale falls back to English", async ({ browser }, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-375");
+  const context = await browser.newContext({
+    baseURL: String(testInfo.project.use.baseURL),
+    locale: "fr-FR",
+  });
+  const page = await context.newPage();
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "What do you want to explore?" })).toBeVisible();
+  await context.close();
+});
+
 test("guest sends a message and receives a streamed response", async ({ page }) => {
   await page.goto("/");
   const composer = page.getByLabel("Pregunta a Glazz");
@@ -113,8 +125,8 @@ test("Google approval covers the registered-user lifecycle", async ({
     }),
   ).toBeVisible();
 
-  const apiOrigin = new URL(page.url());
-  apiOrigin.port = "8080";
+  const apiOrigin = new URL(process.env.E2E_API_URL ?? page.url());
+  if (!process.env.E2E_API_URL) apiOrigin.port = "8080";
   const migrated = await page.evaluate(async (origin) => {
     const response = await fetch(`${origin}/api/v1/conversations?limit=100`, {
       credentials: "include",
@@ -142,6 +154,7 @@ test("Google approval covers the registered-user lifecycle", async ({
 
   const secondContext = await browser.newContext({
     baseURL: String(testInfo.project.use.baseURL),
+    locale: "es-CO",
   });
   const secondPage = await secondContext.newPage();
   await secondPage.goto("/");
@@ -167,7 +180,34 @@ test("Google approval covers the registered-user lifecycle", async ({
 
   await page.getByRole("button", { name: "English" }).click();
   await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
+
+  const thirdContext = await browser.newContext({
+    baseURL: String(testInfo.project.use.baseURL),
+    locale: "es-CO",
+  });
+  const thirdPage = await thirdContext.newPage();
+  await thirdPage.goto("/");
+  await openLoginDialog(thirdPage);
+  await thirdPage.getByRole("link", { name: "Approve" }).click();
+  await expect(thirdPage.getByRole("button", { name: "Open conversations" })).toBeVisible();
+  await thirdPage.goto("/settings");
+  await expect(thirdPage.getByRole("heading", { name: "Settings" })).toBeVisible();
+
   await page.getByRole("button", { name: "Español" }).click();
+  await thirdPage.reload();
+  await expect(thirdPage.getByRole("heading", { name: "Ajustes" })).toBeVisible();
+  const thirdSessionRows = thirdPage.locator(".session-row");
+  await expect(thirdSessionRows).toHaveCount(2);
+  const thirdSessionLabels = await thirdSessionRows.allTextContents();
+  const currentThirdSession = thirdSessionLabels.findIndex((label) => label.includes("Actual"));
+  expect(currentThirdSession).toBeGreaterThanOrEqual(0);
+  await thirdSessionRows
+    .nth(currentThirdSession)
+    .getByRole("button", { name: "Revocar sesión" })
+    .click();
+  await expect(thirdPage).toHaveURL("/");
+  await expect(thirdPage.getByLabel("Pregunta a Glazz")).toBeEnabled();
+  await thirdContext.close();
 
   await page.goto("/admin");
   await expect(page.getByRole("heading", { name: "Administración" })).toBeVisible();

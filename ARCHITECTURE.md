@@ -196,7 +196,8 @@ Required resilience:
 - Exponential backoff with jitter only before streaming starts
 - No automatic replay after a partial response
 - Circuit breaker per provider
-- Global concurrency and spend controls
+- Global concurrency and provider-neutral output-token budget controls
+- Exact currency spend limits after production provider pricing is approved
 - Cancellation propagated from WebSocket to upstream request
 - Metrics tagged by internal model/provider IDs, never prompt content
 
@@ -547,7 +548,8 @@ A generation records the summary version it used for reproducibility.
 - Input/output policy interfaces independent of provider.
 - Configurable safety categories and report-response workflow.
 - System prompt is guidance, not an authorization or safety boundary.
-- Global provider spend and concurrency circuit breakers.
+- Global provider output-token budgets and concurrency circuit breakers.
+- Exact currency spend enforcement uses approved provider pricing in Phase 10.
 
 ### 11.4 Secrets
 

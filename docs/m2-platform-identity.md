@@ -1,5 +1,11 @@
 # M2 Platform and Identity Record
 
+## Ownership
+
+- **Milestone:** M2
+- **Owned phases:** Phase 2 and Phase 3
+- **Release:** `v0.2.0`
+
 Date: 2026-07-23
 
 ## Outcome

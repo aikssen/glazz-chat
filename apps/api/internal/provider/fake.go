@@ -42,6 +42,10 @@ func (fake *Fake) Catalog(context.Context) ([]Model, error) {
 	return append([]Model(nil), fake.options.Models...), nil
 }
 
+func (fake *Fake) Health(ctx context.Context) error {
+	return ctx.Err()
+}
+
 func (fake *Fake) Stream(ctx context.Context, request Request) (Stream, error) {
 	if err := validateRequest(request); err != nil {
 		return nil, err

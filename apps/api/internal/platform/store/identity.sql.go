@@ -464,3 +464,35 @@ func (q *Queries) TouchAuthSession(ctx context.Context, arg TouchAuthSessionPara
 	_, err := q.db.Exec(ctx, touchAuthSession, arg.ID, arg.LastSeenAt)
 	return err
 }
+
+const updateUserLocale = `-- name: UpdateUserLocale :one
+UPDATE users
+SET locale = $2, updated_at = now(), version = version + 1
+WHERE id = $1
+RETURNING id, email, display_name, avatar_url, locale, role, plan, status, token_version, created_at, updated_at, version
+`
+
+type UpdateUserLocaleParams struct {
+	ID     uuid.UUID `db:"id"`
+	Locale string    `db:"locale"`
+}
+
+func (q *Queries) UpdateUserLocale(ctx context.Context, arg UpdateUserLocaleParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateUserLocale, arg.ID, arg.Locale)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.DisplayName,
+		&i.AvatarUrl,
+		&i.Locale,
+		&i.Role,
+		&i.Plan,
+		&i.Status,
+		&i.TokenVersion,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Version,
+	)
+	return i, err
+}

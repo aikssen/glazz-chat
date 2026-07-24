@@ -235,6 +235,29 @@ paths:
             application/json:
               schema: {$ref: "#/components/schemas/CurrentUser"}
         "401": {$ref: "#/components/responses/Unauthorized"}
+    patch:
+      tags: [Authentication]
+      summary: Update current-user preferences
+      operationId: updateCurrentUser
+      security: [{accessCookie: [], csrfHeader: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [locale]
+              properties:
+                locale: {type: string, enum: [en, es]}
+      responses:
+        "200":
+          description: Updated current user.
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/CurrentUser"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "401": {$ref: "#/components/responses/Unauthorized"}
     delete:
       tags: [Authentication]
       summary: Request account deletion

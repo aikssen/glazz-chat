@@ -1,5 +1,11 @@
 # M0 Contract Baseline Review
 
+## Ownership
+
+- **Milestone:** M0
+- **Owned phase:** Phase 0
+- **Release:** `v0.1.0`
+
 - Baseline: `v0.1.0`
 - Date: 2026-07-23
 - Status: Accepted for implementation

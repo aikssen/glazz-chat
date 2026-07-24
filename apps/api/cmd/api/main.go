@@ -126,6 +126,7 @@ func run(logger *slog.Logger) error {
 		policy.GuestOutputTokenLimit = snapshot.GuestOutputTokenLimit
 		policy.UserDailyMessageLimit = snapshot.UserMessageLimit
 		policy.UserDailyOutputLimit = snapshot.UserOutputTokenLimit
+		policy.GlobalDailyOutputCap = snapshot.GlobalOutputTokenLimit
 		policy.GlobalConcurrentLimit = snapshot.GlobalConcurrentStreams
 		return policy, nil
 	})

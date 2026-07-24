@@ -1,5 +1,11 @@
 # M4 Web Application Progress
 
+## Ownership
+
+- **Milestone:** M4
+- **Owned phases:** Phase 6, Phase 7, and Phase 8
+- **Reserved release:** `v0.4.0`
+
 ## Status
 
 M4 is in progress and is not tagged. The release tag remains reserved as
@@ -37,6 +43,8 @@ coverage, not that the whole feature is still being built.
   model selection, and OAuth return deep link behavior.
 - Settings for profile, preferences, sessions, logout, reauthentication, and account
   deletion.
+- Authenticated locale persistence through `PATCH /me`, profile hydration on every
+  browser session, and an English fallback for unsupported browser locales.
 - Safe Markdown/GFM rendering, code copy, PWA manifest, and navigation-only offline
   fallback without API or transcript caching.
 - Development-only deterministic OAuth approval and denial screens, with production
@@ -55,6 +63,10 @@ coverage, not that the whole feature is still being built.
   authenticated settings, all administration views, account deletion, axe WCAG
   A/AA checks, keyboard focus, IME input, inert malicious Markdown, 200% reflow, and
   the PWA offline state.
+- Isolated registered-user acceptance on the development server provisions separate
+  PostgreSQL/Redis instances and ports. Seven mobile checks cover browser-locale
+  fallback, cross-session locale persistence, conversation rename/archive/restore/
+  delete, and revocation of both another session and the current session.
 - `go test -race ./...`.
 - PostgreSQL/Redis integration suites for model sync, administration, deletion,
   retained anonymous aggregates, and guest cleanup.
@@ -92,10 +104,10 @@ deployment-key rotation.
 
 - Finish the M3 acceptance cases listed in `docs/m3-chat-backend.md` and publish
   `v0.3.0` first.
-- Complete authenticated E2E coverage for rename/archive/restore/delete, ownership
-  denial, session revocation, generation cancellation/retry, and recent-auth
-  recovery.
-- Verify browser-locale fallback and authenticated preference persistence.
+- Complete authenticated E2E coverage for ownership denial, generation
+  cancellation/retry, and recent-auth recovery. Registered rename/archive/restore/
+  delete, both session-revocation paths, browser-locale fallback, and authenticated
+  locale persistence are now covered.
 - Add explicit screen-reader announcement throttling and exercise the PWA waiting
   update state.
 - Run full repository presubmit and CI, then create the annotated `v0.4.0` tag only

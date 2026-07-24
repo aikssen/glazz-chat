@@ -72,6 +72,52 @@ func TestOpenAICompatibleTimesOutBeforeFirstChunk(t *testing.T) {
 	}
 }
 
+func TestOpenAICompatibleTimesOutBetweenChunks(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+		response.Header().Set("Content-Type", "text/event-stream")
+		_, _ = io.WriteString(response, "data: {\"choices\":[{\"delta\":{\"content\":\"first\"}}]}\n\n")
+		response.(http.Flusher).Flush()
+		<-time.After(250 * time.Millisecond)
+	}))
+	defer server.Close()
+	gateway, err := NewOpenAICompatible(server.URL, "secret", server.Client(), Options{
+		RequestTimeout: time.Second, FirstChunkTimeout: 100 * time.Millisecond,
+		IdleChunkTimeout: 25 * time.Millisecond,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stream, err := gateway.Stream(context.Background(), validRequest())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stream.Close()
+	if chunk, err := stream.Next(context.Background()); err != nil || chunk.Text != "first" {
+		t.Fatalf("first chunk = %#v, err = %v", chunk, err)
+	}
+	if _, err := stream.Next(context.Background()); Normalize(err).Code != CodeTimeout {
+		t.Fatalf("idle err = %#v, want timeout", err)
+	}
+}
+
+func TestOpenAICompatibleHealthUsesAuthenticatedCatalog(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if request.URL.Path != "/models" || request.Header.Get("Authorization") != "Bearer secret" {
+			t.Errorf("health request = %s, authorization %q", request.URL.Path, request.Header.Get("Authorization"))
+		}
+		response.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(response, `{"data":[{"id":"deepseek-v4-flash"}]}`)
+	}))
+	defer server.Close()
+	gateway, err := NewOpenAICompatible(server.URL, "secret", server.Client(), Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := gateway.Health(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestOpenAICompatibleNormalizesDisconnectAfterPartialOutput(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
 		response.Header().Set("Content-Type", "text/event-stream")

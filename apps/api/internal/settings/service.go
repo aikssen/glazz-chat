@@ -14,6 +14,7 @@ type Snapshot struct {
 	GuestOutputTokenLimit   int64
 	UserMessageLimit        int64
 	UserOutputTokenLimit    int64
+	GlobalOutputTokenLimit  int64
 	GlobalConcurrentStreams int64
 	SystemPrompt            string
 	InputSafetyCategories   []string
@@ -51,6 +52,9 @@ func (service *Service) Load(ctx context.Context) (Snapshot, error) {
 		return Snapshot{}, err
 	}
 	if err := decode(values, "quota.user.output_tokens", &snapshot.UserOutputTokenLimit); err != nil {
+		return Snapshot{}, err
+	}
+	if err := decode(values, "quota.global.output_tokens", &snapshot.GlobalOutputTokenLimit); err != nil {
 		return Snapshot{}, err
 	}
 	if err := decode(values, "quota.global.concurrent_generations", &snapshot.GlobalConcurrentStreams); err != nil {

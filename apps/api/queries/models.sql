@@ -1,28 +1,63 @@
 -- name: ListPublicModels :many
 SELECT *
 FROM models
-WHERE enabled
-  AND available
-  AND supported
-  AND sqlc.arg(actor_type)::text = ANY(audience)
-ORDER BY sort_order, name, id;
+WHERE models.enabled
+  AND models.available
+  AND models.supported
+  AND sqlc.arg(actor_type)::text = ANY(models.audience)
+  AND (
+    sqlc.arg(actor_type)::text <> 'guest'
+    OR sqlc.arg(actor_type)::text = ANY(models.default_for)
+  )
+  AND EXISTS (
+    SELECT 1
+    FROM provider_models
+    JOIN providers ON providers.id = provider_models.provider_id
+    WHERE provider_models.model_id = models.id
+      AND provider_models.available
+      AND providers.enabled
+      AND providers.health_status <> 'unavailable'
+  )
+ORDER BY models.sort_order, models.name, models.id;
 
 -- name: GetSelectableModel :one
 SELECT *
 FROM models
-WHERE id = sqlc.arg(model_id)
-  AND enabled
-  AND available
-  AND supported
-  AND sqlc.arg(actor_type)::text = ANY(audience);
+WHERE models.id = sqlc.arg(model_id)
+  AND models.enabled
+  AND models.available
+  AND models.supported
+  AND sqlc.arg(actor_type)::text = ANY(models.audience)
+  AND (
+    sqlc.arg(actor_type)::text <> 'guest'
+    OR sqlc.arg(actor_type)::text = ANY(models.default_for)
+  )
+  AND EXISTS (
+    SELECT 1
+    FROM provider_models
+    JOIN providers ON providers.id = provider_models.provider_id
+    WHERE provider_models.model_id = models.id
+      AND provider_models.available
+      AND providers.enabled
+      AND providers.health_status <> 'unavailable'
+  );
 
 -- name: GetDefaultModel :one
 SELECT *
 FROM models
-WHERE enabled
-  AND available
-  AND supported
-  AND sqlc.arg(actor_type)::text = ANY(default_for);
+WHERE models.enabled
+  AND models.available
+  AND models.supported
+  AND sqlc.arg(actor_type)::text = ANY(models.default_for)
+  AND EXISTS (
+    SELECT 1
+    FROM provider_models
+    JOIN providers ON providers.id = provider_models.provider_id
+    WHERE provider_models.model_id = models.id
+      AND provider_models.available
+      AND providers.enabled
+      AND providers.health_status <> 'unavailable'
+  );
 
 -- name: GetProviderForModel :one
 SELECT
@@ -42,6 +77,7 @@ JOIN providers ON providers.id = provider_models.provider_id
 WHERE provider_models.model_id = sqlc.arg(model_id)
   AND provider_models.available
   AND providers.enabled
+  AND providers.health_status <> 'unavailable'
 ORDER BY providers.code
 LIMIT 1;
 

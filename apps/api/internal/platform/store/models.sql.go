@@ -15,10 +15,19 @@ import (
 const getDefaultModel = `-- name: GetDefaultModel :one
 SELECT id, slug, name, description, context_window, max_output_tokens, capabilities, enabled, available, supported, audience, default_for, sort_order, version, created_at, updated_at
 FROM models
-WHERE enabled
-  AND available
-  AND supported
-  AND $1::text = ANY(default_for)
+WHERE models.enabled
+  AND models.available
+  AND models.supported
+  AND $1::text = ANY(models.default_for)
+  AND EXISTS (
+    SELECT 1
+    FROM provider_models
+    JOIN providers ON providers.id = provider_models.provider_id
+    WHERE provider_models.model_id = models.id
+      AND provider_models.available
+      AND providers.enabled
+      AND providers.health_status <> 'unavailable'
+  )
 `
 
 func (q *Queries) GetDefaultModel(ctx context.Context, actorType string) (Model, error) {
@@ -85,6 +94,7 @@ JOIN providers ON providers.id = provider_models.provider_id
 WHERE provider_models.model_id = $1
   AND provider_models.available
   AND providers.enabled
+  AND providers.health_status <> 'unavailable'
 ORDER BY providers.code
 LIMIT 1
 `
@@ -125,11 +135,24 @@ func (q *Queries) GetProviderForModel(ctx context.Context, modelID uuid.UUID) (G
 const getSelectableModel = `-- name: GetSelectableModel :one
 SELECT id, slug, name, description, context_window, max_output_tokens, capabilities, enabled, available, supported, audience, default_for, sort_order, version, created_at, updated_at
 FROM models
-WHERE id = $1
-  AND enabled
-  AND available
-  AND supported
-  AND $2::text = ANY(audience)
+WHERE models.id = $1
+  AND models.enabled
+  AND models.available
+  AND models.supported
+  AND $2::text = ANY(models.audience)
+  AND (
+    $2::text <> 'guest'
+    OR $2::text = ANY(models.default_for)
+  )
+  AND EXISTS (
+    SELECT 1
+    FROM provider_models
+    JOIN providers ON providers.id = provider_models.provider_id
+    WHERE provider_models.model_id = models.id
+      AND provider_models.available
+      AND providers.enabled
+      AND providers.health_status <> 'unavailable'
+  )
 `
 
 type GetSelectableModelParams struct {
@@ -197,11 +220,24 @@ func (q *Queries) ListProviderModelMappings(ctx context.Context, providerID uuid
 const listPublicModels = `-- name: ListPublicModels :many
 SELECT id, slug, name, description, context_window, max_output_tokens, capabilities, enabled, available, supported, audience, default_for, sort_order, version, created_at, updated_at
 FROM models
-WHERE enabled
-  AND available
-  AND supported
-  AND $1::text = ANY(audience)
-ORDER BY sort_order, name, id
+WHERE models.enabled
+  AND models.available
+  AND models.supported
+  AND $1::text = ANY(models.audience)
+  AND (
+    $1::text <> 'guest'
+    OR $1::text = ANY(models.default_for)
+  )
+  AND EXISTS (
+    SELECT 1
+    FROM provider_models
+    JOIN providers ON providers.id = provider_models.provider_id
+    WHERE provider_models.model_id = models.id
+      AND provider_models.available
+      AND providers.enabled
+      AND providers.health_status <> 'unavailable'
+  )
+ORDER BY models.sort_order, models.name, models.id
 `
 
 func (q *Queries) ListPublicModels(ctx context.Context, actorType string) ([]Model, error) {

@@ -22,27 +22,40 @@ Rules:
 4. Close phase exit criteria before starting work that depends on that phase.
 5. Exact dependency versions are selected and pinned during foundation tasks.
 
+## Planning model
+
+- A **milestone** is a releasable product outcome. It owns one or more phases and,
+  from M2 onward, closes with an annotated minor-version tag.
+- A **phase** is an ordered delivery segment inside exactly one milestone. Completing
+  a phase does not close its milestone when that milestone owns additional phases.
+- A **task** is complete only when its implementation and acceptance criteria pass.
+- Milestone progress and release evidence live in the linked milestone progress
+  document. `TASKS.md` remains the canonical scope and task-status index.
+- `WORKLOG.md` is chronological evidence only and must never redefine task status.
+
 ## Milestones
 
-| Milestone | Outcome |
-| --- | --- |
-| M0 | Reviewed HTTP/WebSocket contracts and threat model |
-| M1 | Reproducible monorepo and local infrastructure |
-| M2 | Secure identity, guest lifecycle, and quota foundations |
-| M3 | Provider-neutral streamed chat backend |
-| M4 | Complete responsive web application and admin surface |
-| M5 | Integrated, tested, observable release candidate |
-| M6 | Approved provider and production deployment |
+| Milestone | Owned phases | Outcome | Implementation | Acceptance | Release |
+| --- | --- | --- | --- | --- | --- |
+| M0 | Phase 0 | Reviewed contracts and threat model | Complete | Complete | `v0.1.0` |
+| M1 | Phase 1 | Reproducible monorepo foundation | Complete | Complete | No standalone tag; predates M2 rule |
+| M2 | Phases 2-3 | Local platform, identity, guests, and quotas | Complete | Complete | `v0.2.0` |
+| M3 | Phases 4-5 | Provider-neutral streamed chat backend | Core implemented | Open | `v0.3.0` reserved |
+| M4 | Phases 6-8 | Responsive web application and admin surface | Testable preview | Open | `v0.4.0` reserved |
+| M5 | Phase 9 | Integrated, tested, observable release candidate | Not started | Open | `v0.5.0` reserved |
+| M6 | Phase 10 | Approved provider and production deployment | Not started | Open | `v0.6.0` reserved |
+| Post-MVP | Phase 11 | Explicitly non-release-critical backlog | Not started | Not applicable | Future planning |
 
-Current progress: M4 is implemented as a testable preview, but its milestone gate
-remains open while the acceptance cases listed in `docs/m4-web-application.md` are
-completed. A `[-]` task below means its implementation exists but at least one
-acceptance criterion is still pending; it does not necessarily mean the feature is
-unavailable. M5 has not formally started. Some M5 preflight checks have already
-produced reusable evidence, recorded in `docs/m5-release-candidate.md`. Do not
-create `v0.3.0` or `v0.4.0` until their respective phase exits and CI are green.
+Current progress: M3 and M4 have usable implementations but open milestone gates.
+Their granular acceptance evidence is tracked in
+`docs/m3-chat-backend.md` and `docs/m4-web-application.md`. A `[-]` task means its
+implementation exists but at least one acceptance criterion is still pending; it
+does not mean the feature is unavailable. M5 has not formally started. Preflight
+evidence in `docs/m5-release-candidate.md` is reusable but does not complete Phase 9.
 
 ## Phase 0: API and architecture contract
+
+**Milestone owner:** M0
 
 **Objective:** Turn the product decisions into reviewable, executable contracts
 before implementing API or UI behavior.
@@ -171,6 +184,8 @@ implementation start.
 
 ## Phase 1: Monorepo and developer foundation
 
+**Milestone owner:** M1
+
 **Objective:** Create a reproducible workspace with pinned tools and fast feedback.
 
 - [x] **FOUND-001: Create monorepo directories and root tooling**
@@ -229,6 +244,8 @@ implementation start.
 
 ## Phase 2: Local infrastructure and platform services
 
+**Milestone owner:** M2
+
 **Objective:** Provide realistic local dependencies and shared operational plumbing.
 
 - [x] **PLAT-001: Create Docker Compose development stack**
@@ -283,6 +300,8 @@ implementation start.
     completion.
 
 ## Phase 3: Identity, guests, and privacy foundations
+
+**Milestone owner:** M2
 
 **Objective:** Securely identify every actor before chat is implemented.
 
@@ -355,11 +374,16 @@ implementation start.
 
 ## Phase 4: Model catalog and provider gateway
 
+**Milestone owner:** M3
+
+**Milestone acceptance ledger:** `docs/m3-chat-backend.md`
+
 **Objective:** Stream through a provider-neutral interface using a deterministic fake
 and OpenCode Go only for development.
 
-- [-] **MODEL-001: Create provider/model/configuration schema**
+- [x] **MODEL-001: Create provider/model/configuration schema**
   - Depends on: PLAT-002
+  - Milestone gate: M3-A01
   - Add providers, models, provider mapping, exposure, typed settings, and audit.
   - Acceptance: constraints prevent exposing unsupported/unavailable models.
 
@@ -374,117 +398,148 @@ and OpenCode Go only for development.
     catalog.
   - Acceptance: tests and local E2E can run with no external API key.
 
-- [-] **MODEL-004: Implement OpenAI-compatible adapter**
+- [x] **MODEL-004: Implement OpenAI-compatible adapter**
   - Depends on: MODEL-002, PLAT-005
+  - Milestone gate: M3-A02
   - Add streamed Chat Completions, timeouts, normalized errors/usage, cancellation,
     and safe logging.
   - Acceptance: synthetic contract suite covers normal, malformed, rate-limited,
     timeout, disconnect, and partial stream.
 
-- [-] **MODEL-005: Configure OpenCode Go development provider**
+- [x] **MODEL-005: Configure OpenCode Go development provider**
   - Depends on: MODEL-004, FOUND-008
+  - Milestone gate: M3-A03
   - Use configured `/zen/go/v1`, map `deepseek-v4-flash`, and keep provider details
     out of domain/public APIs.
   - Acceptance: opt-in smoke test streams a response without exposing the key.
 
-- [ ] **MODEL-006: Implement model synchronization**
+- [x] **MODEL-006: Implement model synchronization**
   - Depends on: MODEL-001, MODEL-004, PLAT-009
+  - Milestone gate: M3-A04
   - Fetch provider metadata, upsert mappings, mark missing models unavailable, and
     never auto-enable.
   - Acceptance: repeated sync is idempotent and catalog changes are audited.
 
-- [-] **MODEL-007: Implement public model catalog**
+- [x] **MODEL-007: Implement public model catalog**
   - Depends on: MODEL-006, AUTH-005, GUEST-002
+  - Milestone gate: M3-A01
   - Filter enabled/supported models by actor; guests get default only.
   - Acceptance: disabled and protocol-unsupported models cannot be selected.
 
-- [-] **MODEL-008: Implement provider resilience**
+- [x] **MODEL-008: Implement provider resilience**
   - Depends on: MODEL-004, PLAT-008
-  - Add circuit breaker, pre-stream retry, global concurrency/spend guard, and health.
+  - Milestone gate: M3-A05
+  - Add circuit breaker, pre-stream retry, global concurrency, provider-neutral
+    output-budget guard, and health. Exact monetary limits depend on the approved
+    production provider and pricing configured in Phase 10.
   - Acceptance: failure injection proves no replay after partial output and correct
     recovery.
 
+**Phase 4 exit:** Complete. M3-A01 through M3-A05 are accepted. The model catalog,
+development adapter, synchronization, provider health, resilience, concurrency,
+and global output-budget controls passed unit, race, SQL integration, migration,
+and opt-in live-provider validation on 2026-07-24. M3 remains open until Phase 5
+and its acceptance gates are complete.
+
 ## Phase 5: Conversations and realtime chat backend
+
+**Milestone owner:** M3
+
+**Milestone acceptance ledger:** `docs/m3-chat-backend.md`
 
 **Objective:** Deliver the durable chat lifecycle and versioned WebSocket behavior.
 
 - [-] **CHAT-001: Create conversation/chat schema**
   - Depends on: PLAT-002, AUTH-001, GUEST-001, MODEL-001
+  - Milestone gate: M3-A10
   - Add conversations, messages, generations, summaries, usage ledger, outbox, and
     ownership/state constraints.
   - Acceptance: exactly-one-owner and one-active-generation constraints are tested.
 
 - [-] **CONV-001: Implement conversation repository/service**
   - Depends on: CHAT-001
+  - Milestone gate: M3-A06
   - Add create/get/list/search/rename/archive/delete/model-change ownership rules.
   - Acceptance: guest restriction, user IDOR, archived filters, cursor stability, and
     idle-only model change tests pass.
 
 - [-] **CONV-002: Implement conversation HTTP API**
   - Depends on: CONV-001
+  - Milestone gate: M3-A07
   - Expose contract endpoints and message pagination.
   - Acceptance: handler/contract tests cover auth, validation, errors, caching, and
     idempotency.
 
 - [-] **WS-005: Implement one-time WebSocket tickets**
   - Depends on: AUTH-005, GUEST-002, PLAT-004
+  - Milestone gate: M3-A08
   - Issue hashed 30-second single-use tickets for users/guests.
   - Acceptance: replay, expiry, actor mismatch, and Redis failure are denied.
 
 - [-] **WS-006: Implement WebSocket connection lifecycle**
   - Depends on: ADR-001, WS-005, PLAT-007
+  - Milestone gate: M3-A09
   - Validate origin/ticket, heartbeat, bounded queues, graceful close, resume buffer,
     and cross-instance pub/sub.
   - Acceptance: lifecycle fixtures and reconnect/load tests pass.
 
 - [-] **CHAT-002: Implement generation state machine**
   - Depends on: CHAT-001, MODEL-003, QUOTA-001
+  - Milestone gates: M3-A10, M3-A17
   - Reserve quota, persist messages/generation, stream/checkpoint, reconcile usage,
     and finalize terminal state.
   - Acceptance: every allowed/forbidden transition has deterministic tests.
 
 - [-] **CHAT-003: Implement `chat.generate`**
   - Depends on: CHAT-002, WS-006, MODEL-004
+  - Milestone gate: M3-A10
   - Validate content/safety, commit before acknowledgement, stream ordered deltas.
   - Acceptance: duplicate idempotency key produces one provider call and one message
     pair.
 
 - [-] **CHAT-004: Implement cancellation**
   - Depends on: CHAT-003
+  - Milestone gate: M3-A11
   - Propagate cancellation, persist partial state, release leases, reconcile quota.
   - Acceptance: cancellation works before first token, mid-stream, after completion,
     and across reconnect.
 
 - [-] **CHAT-005: Implement retry of latest failed/cancelled generation**
   - Depends on: CHAT-004, CONV-002
+  - Milestone gate: M3-A12
   - Enforce latest-only, no visible branch, new idempotent generation.
   - Acceptance: completed/non-latest retries are rejected and concurrency is safe.
 
 - [-] **CHAT-006: Implement context builder**
   - Depends on: CHAT-002, MODEL-007
+  - Milestone gate: M3-A13
   - Build system prompt + versioned summary + recent messages within model limits.
   - Acceptance: role ordering, excluded partial responses, injection boundaries, and
     token budgets are tested.
 
 - [-] **CHAT-007: Implement conversation summarization**
   - Depends on: CHAT-006, PLAT-009
+  - Milestone gate: M3-A14
   - Trigger at 70%, lock per conversation, use configurable cheap model, version
     contiguous coverage.
   - Acceptance: concurrent triggers create one valid summary and retain originals.
 
 - [-] **CHAT-008: Implement title generation**
   - Depends on: CHAT-003
+  - Milestone gate: M3-A15
   - Generate a safe short title asynchronously after initial exchange.
   - Acceptance: failures do not affect chat; user-renamed titles are never replaced.
 
 - [-] **CHAT-009: Implement safety policy pipeline**
   - Depends on: CHAT-003, SEC-001
+  - Milestone gate: M3-A16
   - Add size/format checks, configurable input/output categories, abuse signals, and
     report hooks independent of provider.
   - Acceptance: blocked content uses stable codes and content does not enter logs.
 
 - [-] **USAGE-001: Implement usage API and aggregates**
   - Depends on: CHAT-003, QUOTA-001
+  - Milestone gate: M3-A17
   - Expose current usage/reset and aggregate non-identifying metrics.
   - Acceptance: reserved/actual/refunded values reconcile under failure.
 
@@ -492,6 +547,10 @@ and OpenCode Go only for development.
 guest and registered rules, reconnect, cancellation, retry, and summaries.
 
 ## Phase 6: Administration and privacy backend
+
+**Milestone owner:** M4
+
+**Milestone acceptance ledger:** `docs/m4-web-application.md`
 
 - [-] **ADMIN-001: Implement typed runtime settings**
   - Depends on: MODEL-001, AUTH-007
@@ -532,10 +591,14 @@ guest and registered rules, reconnect, cancellation, retry, and summaries.
 
 ## Phase 7: Frontend foundation and design system
 
+**Milestone owner:** M4
+
+**Milestone acceptance ledger:** `docs/m4-web-application.md`
+
 **Objective:** Build the complete product shell and accessible components before
 wiring full journeys.
 
-- [-] **WEB-001: Implement locale architecture**
+- [x] **WEB-001: Implement locale architecture**
   - Depends on: FOUND-002
   - Select i18n ADR/library, typed keys, Spanish/English dictionaries, browser/profile
     preference, English fallback.
@@ -591,6 +654,10 @@ wiring full journeys.
 
 ## Phase 8: Frontend journeys and API integration
 
+**Milestone owner:** M4
+
+**Milestone acceptance ledger:** `docs/m4-web-application.md`
+
 - [x] **INT-001: Integrate generated HTTP client**
   - Depends on: FOUND-006, WEB-003
   - Add server/client-safe transport, CSRF, request IDs, stable error mapping.
@@ -645,6 +712,10 @@ wiring full journeys.
 **Phase 8 exit:** M4 all MVP screens and states are integrated in Spanish/English.
 
 ## Phase 9: Verification, hardening, and performance
+
+**Milestone owner:** M5
+
+**Milestone acceptance ledger:** `docs/m5-release-candidate.md`
 
 - [ ] **QA-001: Complete backend unit/integration suite**
   - Depends on: all backend MVP tasks
@@ -708,6 +779,10 @@ wiring full journeys.
 privacy, resilience, and performance criteria.
 
 ## Phase 10: Production infrastructure and release
+
+**Milestone owner:** M6
+
+**Milestone acceptance ledger:** `docs/m6-production-launch.md`
 
 - [ ] **PROD-001: Select production API/PostgreSQL/Redis hosting**
   - Depends on: M5
@@ -778,6 +853,8 @@ privacy, resilience, and performance criteria.
   - Acceptance: actions are prioritized; numeric product targets are proposed.
 
 ## Phase 11: Post-MVP backlog
+
+**Milestone owner:** None. This phase is outside the M0-M6 release plan.
 
 These items are intentionally outside the release-critical path:
 

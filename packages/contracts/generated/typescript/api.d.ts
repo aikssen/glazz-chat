@@ -206,7 +206,8 @@ export interface paths {
         readonly delete: operations["requestAccountDeletion"];
         readonly options?: never;
         readonly head?: never;
-        readonly patch?: never;
+        /** Update current-user preferences */
+        readonly patch: operations["updateCurrentUser"];
         readonly trace?: never;
     };
     readonly "/me/sessions": {
@@ -1185,6 +1186,35 @@ export interface operations {
             };
             readonly 401: components["responses"]["Unauthorized"];
             readonly 428: components["responses"]["RecentAuthRequired"];
+        };
+    };
+    readonly updateCurrentUser: {
+        readonly parameters: {
+            readonly query?: never;
+            readonly header?: never;
+            readonly path?: never;
+            readonly cookie?: never;
+        };
+        readonly requestBody: {
+            readonly content: {
+                readonly "application/json": {
+                    /** @enum {string} */
+                    readonly locale: "en" | "es";
+                };
+            };
+        };
+        readonly responses: {
+            /** @description Updated current user. */
+            readonly 200: {
+                headers: {
+                    readonly [name: string]: unknown;
+                };
+                content: {
+                    readonly "application/json": components["schemas"]["CurrentUser"];
+                };
+            };
+            readonly 400: components["responses"]["BadRequest"];
+            readonly 401: components["responses"]["Unauthorized"];
         };
     };
     readonly listAuthSessions: {

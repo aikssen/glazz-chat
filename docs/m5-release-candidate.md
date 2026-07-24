@@ -1,5 +1,11 @@
 # M5 Release Candidate Progress
 
+## Ownership
+
+- **Milestone:** M5
+- **Owned phase:** Phase 9
+- **Reserved release:** `v0.5.0`
+
 ## Status
 
 M5 has not formally started and is not tagged because the M3 and M4 milestone gates
