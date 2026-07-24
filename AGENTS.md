@@ -52,6 +52,29 @@ payloads to Context7. If Context7 is unavailable, use only primary official
 documentation, record the fallback, and re-verify before merging. Search-engine
 snippets and model memory are not sufficient sources for dependency decisions.
 
+## Required local skills
+
+This repository depends on a set of AI coding skills that are **required but not
+committed**. Their contents live under `.agents/skills/` (with `.claude/skills/`
+symlinking into them) and are deliberately listed in `.gitignore`, so they are not
+pushed to the remote. The committed source of truth for which skills are needed is
+[`skills-lock.json`](./skills-lock.json).
+
+Before starting work, verify the skills in `skills-lock.json` are present locally.
+If `.agents/skills/` is missing or incomplete (for example, on a fresh clone),
+install the listed skills before proceeding:
+
+```bash
+# Requires the ctx7 CLI (npm install -g ctx7@latest, or npx ctx7@latest <command>)
+ctx7 skills install /upstash/context7 context7-cli --universal
+ctx7 skills install /anthropics/skills frontend-design --universal
+ctx7 skills install /nextlevelbuilder/ui-ux-pro-max-skill ui-ux-pro-max --universal
+```
+
+The `source` field of each entry in `skills-lock.json` gives the `owner/repo` to
+install from; keep that file in sync when adding or removing a skill. Do not commit
+the skill contents themselves — only `skills-lock.json` is tracked.
+
 ## Milestone versioning
 
 Starting with M2, every completed milestone increments the semantic-version minor

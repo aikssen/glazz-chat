@@ -28,5 +28,10 @@ vendor/
 .redocly/
 .pnpm-store/
 
+# Local AI coding skills — required but not committed.
+# Restore from skills-lock.json with ctx7 (see AGENTS.md).
+.agents/skills/
+.claude/skills/
+
 # Local containers
 deploy/.data/
