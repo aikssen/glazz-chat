@@ -106,7 +106,7 @@ func New(deps Dependencies) http.Handler {
 			router.Get("/auth/test/authorize", deps.testAuthorize)
 		}
 
-		router.With(deps.Browser.CSRF).Post("/auth/refresh", deps.refresh)
+		router.With(deps.Browser.RefreshCSRF).Post("/auth/refresh", deps.refresh)
 		router.Group(func(protected chi.Router) {
 			protected.Use(deps.Auth)
 			protected.Get("/me", deps.me)

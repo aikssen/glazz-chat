@@ -24,6 +24,8 @@ import { ChatTranscript } from "./chat-transcript";
 import { ConversationSidebar } from "./conversation-sidebar";
 
 type Connection = "connecting" | "connected" | "offline";
+const sessionRecoveryKey = "glazz-session-recovery";
+
 type ServerEvent = {
   type: string;
   sequence?: number;
@@ -175,6 +177,7 @@ export function ChatApp() {
       const next = new WebSocket(websocketURL(ticket.ticket));
       socket.current = next;
       next.onopen = () => {
+        window.sessionStorage.removeItem(sessionRecoveryKey);
         setConnection("connected");
         if (lastSequence.current > 0) {
           next.send(
@@ -205,7 +208,21 @@ export function ChatApp() {
           1500,
         );
       };
-    } catch {
+    } catch (cause) {
+      if (
+        cause instanceof APIError &&
+        [401, 403].includes(cause.status) &&
+        !window.sessionStorage.getItem(sessionRecoveryKey)
+      ) {
+        window.sessionStorage.setItem(sessionRecoveryKey, "attempted");
+        try {
+          await api<void>("/api/v1/auth/refresh", { method: "POST" });
+        } catch {
+          // The refresh response clears cookies signed by an obsolete deployment key.
+        }
+        window.location.reload();
+        return;
+      }
       setConnection("offline");
       reconnectTimer.current = window.setTimeout(
         () => setReconnectAttempt((value) => value + 1),

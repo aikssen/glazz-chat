@@ -10,6 +10,10 @@ import (
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/config"
 )
 
+func testCookieConfig(key string) config.Cookies {
+	return config.Cookies{SigningKey: []byte(key), SameSite: "lax"}
+}
+
 func TestIssueUsesSecureBrowserCookiePolicy(t *testing.T) {
 	manager := New(config.Cookies{
 		SigningKey: []byte("01234567890123456789012345678901"),
@@ -58,5 +62,40 @@ func TestCSRFRejectsMissingAndAcceptsSignedDoubleSubmit(t *testing.T) {
 	handler.ServeHTTP(valid, request)
 	if valid.Code != http.StatusNoContent {
 		t.Fatalf("valid status = %d", valid.Code)
+	}
+}
+
+func TestRefreshCSRFClearsCookiesSignedWithPreviousKey(t *testing.T) {
+	previous := New(testCookieConfig("previous-signing-key-32-bytes!!"), time.Minute, time.Hour)
+	current := New(testCookieConfig("current-signing-key--32-bytes!!"), time.Minute, time.Hour)
+	credentials := sessions.Credentials{AccessToken: "access", RefreshToken: "refresh"}
+	issued := httptest.NewRecorder()
+	csrf, err := previous.Issue(issued, credentials)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/refresh", nil)
+	for _, cookie := range issued.Result().Cookies() {
+		request.AddCookie(cookie)
+	}
+	request.Header.Set("X-CSRF-Token", csrf)
+	response := httptest.NewRecorder()
+
+	current.RefreshCSRF(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Fatal("handler must not run with a previous signing key")
+	})).ServeHTTP(response, request)
+
+	if response.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusUnauthorized)
+	}
+	cleared := response.Result().Cookies()
+	if len(cleared) != 3 {
+		t.Fatalf("cleared cookies = %d, want 3", len(cleared))
+	}
+	for _, cookie := range cleared {
+		if cookie.MaxAge >= 0 {
+			t.Errorf("%s MaxAge = %d, want negative", cookie.Name, cookie.MaxAge)
+		}
 	}
 }

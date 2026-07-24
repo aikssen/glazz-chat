@@ -81,6 +81,13 @@ usage rather than OpenCode consumption. Remote setup now documents the separate
 secret sync and container recreation. An opt-in live-provider browser test rejects
 the deterministic response and validates the complete streamed path.
 
+Synchronizing the environment rotated the cookie-signing key and exposed a session
+recovery defect: stale user cookies forced WebSocket ticket requests through the
+wrong CSRF policy and left the composer offline. Refresh now clears cookies signed
+by an obsolete key, actor-aware CSRF falls back to the valid guest session, and the
+client performs one bounded recovery attempt. A browser regression covers the
+deployment-key rotation.
+
 ## Remaining before `v0.4.0`
 
 - Finish the M3 acceptance cases listed in `docs/m3-chat-backend.md` and publish

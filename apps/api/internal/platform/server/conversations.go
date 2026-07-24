@@ -37,9 +37,17 @@ func (deps Dependencies) actor(request *http.Request) (conversations.Actor, erro
 
 func (deps Dependencies) withActorCSRF(next http.HandlerFunc) http.HandlerFunc {
 	return func(response http.ResponseWriter, request *http.Request) {
-		if _, err := request.Cookie(browser.AccessCookie); err == nil {
+		actor, err := deps.actor(request)
+		if err != nil {
+			deps.actorError(response, request, err)
+			return
+		}
+		if actor.Type == conversations.ActorUser {
 			deps.Browser.CSRF(next).ServeHTTP(response, request)
 			return
+		}
+		if _, err := request.Cookie(browser.AccessCookie); err == nil {
+			deps.Browser.Clear(response)
 		}
 		deps.Guests.CSRF(next).ServeHTTP(response, request)
 	}

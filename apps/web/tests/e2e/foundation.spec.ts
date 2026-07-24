@@ -11,6 +11,39 @@ test("renders the responsive chat without overflow", async ({ page }) => {
     .toBe(true);
 });
 
+test("recovers from cookies signed by a previous deployment", async ({
+  context,
+  page,
+}, testInfo) => {
+  const domain = new URL(String(testInfo.project.use.baseURL)).hostname;
+  await context.addCookies([
+    {
+      name: "glazz_access",
+      value: "stale-access",
+      domain,
+      path: "/",
+      httpOnly: true,
+    },
+    {
+      name: "glazz_refresh",
+      value: "stale-refresh",
+      domain,
+      path: "/",
+      httpOnly: true,
+    },
+    {
+      name: "glazz_csrf",
+      value: "stale-csrf",
+      domain,
+      path: "/",
+    },
+  ]);
+
+  await page.goto("/");
+
+  await expect(page.getByLabel("Pregunta a Glazz")).toBeEnabled({ timeout: 10_000 });
+});
+
 test("guest sends a message and receives a streamed response", async ({ page }) => {
   await page.goto("/");
   const composer = page.getByLabel("Pregunta a Glazz");

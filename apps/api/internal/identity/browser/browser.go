@@ -104,6 +104,21 @@ func (manager *Manager) CSRF(next http.Handler) http.Handler {
 	})
 }
 
+func (manager *Manager) RefreshCSRF(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		cookie, err := request.Cookie(CSRFCookie)
+		header := request.Header.Get("X-CSRF-Token")
+		if err == nil && header != "" &&
+			subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(header)) == 1 &&
+			!manager.verify(header) {
+			manager.Clear(response)
+			httpx.WriteError(response, request, http.StatusUnauthorized, "unauthenticated", "Session cookies expired.")
+			return
+		}
+		manager.CSRF(next).ServeHTTP(response, request)
+	})
+}
+
 func Authenticate(
 	ring *tokens.KeyRing,
 	sessionService *sessions.Service,
