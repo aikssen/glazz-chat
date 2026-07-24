@@ -13,14 +13,29 @@ are downloaded automatically by the Go commands.
 
 ## Environment
 
-Copy the values you need from `.env.example` into the local `.env`; never commit
-that file. The web application only receives variables prefixed with
-`NEXT_PUBLIC_`. Provider credentials are server-only.
+Copy the complete `.env.example` to the local `.env`, replace every
+environment-specific value, and never commit that file. Generate a unique
+`COOKIE_SIGNING_KEY` with the command documented in the example. The Go
+configuration loader reads `.env` from the repository root when commands run from
+the root or `apps/api`; variables already injected by the shell, CI, or the
+orchestrator take precedence.
+
+Every declared key is required, including keys whose valid value is empty. Runtime
+configuration has no development URL, credential, policy, legal-version, model, or
+service-name defaults embedded in Go. Tests use `.env.test.example`; production
+must inject its own values and must not use either example file.
+
+The web application only receives variables prefixed with `NEXT_PUBLIC_`. Provider
+credentials are server-only.
 
 `LLM_PROVIDER_BASE_URL` and `LLM_PROVIDER_API_KEY` are the canonical provider
 variables. `API_URL` and `API_KEY` remain temporary server-side aliases for the
 development configuration supplied before M1. Explicit variables take precedence.
 OpenCode Go is a development adapter, not the production provider.
+
+Compose requires the untracked root `.env` for API and worker services. A remote
+execution host must provision its own `.env`; do not copy workstation secrets to
+it as part of source synchronization.
 
 ## Root Commands
 

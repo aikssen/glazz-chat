@@ -5,7 +5,6 @@ package redisx
 import (
 	"context"
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
@@ -14,12 +13,12 @@ import (
 
 func integrationClient(t *testing.T) *Client {
 	t.Helper()
-	redisURL := os.Getenv("REDIS_URL")
-	if redisURL == "" {
-		t.Skip("REDIS_URL is required for Redis integration tests")
+	runtimeConfig, err := config.Load()
+	if err != nil {
+		t.Fatalf("config.Load() error = %v", err)
 	}
 	client, err := Open(context.Background(), config.Redis{
-		URL:           redisURL,
+		URL:           runtimeConfig.Redis.URL,
 		Prefix:        fmt.Sprintf("glazz-test-%d", time.Now().UnixNano()),
 		HealthTimeout: time.Second,
 	})

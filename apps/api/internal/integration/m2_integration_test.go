@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"net/http/httptest"
 	"net/netip"
-	"os"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -33,13 +32,12 @@ import (
 )
 
 func TestM2IdentityGuestQuotaAndOutbox(t *testing.T) {
-	databaseURL := os.Getenv("DATABASE_URL")
-	redisURL := os.Getenv("REDIS_URL")
-	if databaseURL == "" || redisURL == "" {
-		t.Skip("DATABASE_URL and REDIS_URL are required")
+	runtimeConfig, err := config.Load()
+	if err != nil {
+		t.Fatal(err)
 	}
 	ctx := context.Background()
-	migrations, err := database.NewMigrationRunner(databaseURL)
+	migrations, err := database.NewMigrationRunner(runtimeConfig.Database.URL)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +55,7 @@ func TestM2IdentityGuestQuotaAndOutbox(t *testing.T) {
 	}
 
 	pool, err := database.Open(ctx, config.Database{
-		URL: databaseURL, MaxConnections: 10, MinConnections: 1,
+		URL: runtimeConfig.Database.URL, MaxConnections: 10, MinConnections: 1,
 		MaxLifetime: time.Hour, MaxIdleTime: time.Minute, HealthTimeout: time.Second,
 	})
 	if err != nil {
@@ -65,7 +63,7 @@ func TestM2IdentityGuestQuotaAndOutbox(t *testing.T) {
 	}
 	defer pool.Close()
 	redisClient, err := redisx.Open(ctx, config.Redis{
-		URL: redisURL, Prefix: "glazz-m2-integration-" + uuid.NewString(), HealthTimeout: time.Second,
+		URL: runtimeConfig.Redis.URL, Prefix: "glazz-m2-integration-" + uuid.NewString(), HealthTimeout: time.Second,
 	})
 	if err != nil {
 		t.Fatal(err)

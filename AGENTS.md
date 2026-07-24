@@ -311,6 +311,12 @@ Forbidden:
 - Rate limiting must fail safely when Redis is unavailable.
 - Secrets come from environment/secret management and are never committed.
 - `.env.example` contains names and safe placeholders only.
+- Runtime code must not embed environment-specific URLs, credentials, legal
+  versions, provider/model selections, service names, or operational tuning
+  defaults. Declare them in `.env.example`, require them through typed
+  configuration, and provision an untracked `.env` per execution host.
+- Never synchronize `.env` between the authoritative workstation and a remote
+  execution host. Each host owns its secrets and environment-specific values.
 
 Run threat modeling before authentication, realtime, admin, or deletion slices are
 considered complete.

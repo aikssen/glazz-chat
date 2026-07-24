@@ -6,7 +6,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/json"
-	"os"
 	"testing"
 	"time"
 
@@ -27,15 +26,14 @@ import (
 )
 
 func TestM3DurableIdempotentChat(t *testing.T) {
-	databaseURL := os.Getenv("DATABASE_URL")
-	redisURL := os.Getenv("REDIS_URL")
-	if databaseURL == "" || redisURL == "" {
-		t.Skip("DATABASE_URL and REDIS_URL are required")
+	runtimeConfig, err := config.Load()
+	if err != nil {
+		t.Fatal(err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	pool, err := database.Open(ctx, config.Database{
-		URL: databaseURL, MaxConnections: 10, MinConnections: 1,
+		URL: runtimeConfig.Database.URL, MaxConnections: 10, MinConnections: 1,
 		MaxLifetime: time.Hour, MaxIdleTime: time.Minute, HealthTimeout: time.Second,
 	})
 	if err != nil {
@@ -43,7 +41,7 @@ func TestM3DurableIdempotentChat(t *testing.T) {
 	}
 	defer pool.Close()
 	redisClient, err := redisx.Open(ctx, config.Redis{
-		URL: redisURL, Prefix: "glazz-m3-integration-" + uuid.NewString(),
+		URL: runtimeConfig.Redis.URL, Prefix: "glazz-m3-integration-" + uuid.NewString(),
 		HealthTimeout: time.Second,
 	})
 	if err != nil {

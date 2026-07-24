@@ -7,14 +7,12 @@ import (
 	"net/netip"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
-)
 
-const (
-	developmentDatabaseURL = "postgres://glazz:glazz@localhost:5432/glazz?sslmode=disable"
-	developmentRedisURL    = "redis://localhost:6379/0"
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -101,73 +99,107 @@ type Telemetry struct {
 }
 
 func Load() (Config, error) {
-	environment := valueOrDefault("GLAZZ_ENV", "development")
+	if err := loadEnvironmentFile(); err != nil {
+		return Config{}, err
+	}
+	environment, err := nonEmptyValue("GLAZZ_ENV")
+	if err != nil {
+		return Config{}, err
+	}
 	if environment != "development" && environment != "test" && environment != "production" {
 		return Config{}, errors.New("parse GLAZZ_ENV: must be development, test, or production")
 	}
 
-	port, err := integer("API_PORT", 8080, 1, 65535)
+	port, err := integer("API_PORT", 1, 65535)
 	if err != nil {
 		return Config{}, err
 	}
-	maxBodyBytes, err := integer64("HTTP_MAX_BODY_BYTES", 1<<20, 1024, 16<<20)
+	maxBodyBytes, err := integer64("HTTP_MAX_BODY_BYTES", 1024, 16<<20)
 	if err != nil {
 		return Config{}, err
 	}
-	maxConnections, err := integer("DATABASE_MAX_CONNECTIONS", 20, 1, 200)
+	maxConnections, err := integer("DATABASE_MAX_CONNECTIONS", 1, 200)
 	if err != nil {
 		return Config{}, err
 	}
-	minConnections, err := integer("DATABASE_MIN_CONNECTIONS", 2, 0, maxConnections)
+	minConnections, err := integer("DATABASE_MIN_CONNECTIONS", 0, maxConnections)
 	if err != nil {
 		return Config{}, err
 	}
 
-	webURL := valueOrDefault("WEB_URL", "http://localhost:3000")
+	webURL, err := nonEmptyValue("WEB_URL")
+	if err != nil {
+		return Config{}, err
+	}
 	if err := absoluteHTTPURL("WEB_URL", webURL); err != nil {
 		return Config{}, err
 	}
-	databaseURL := valueOrDefault("DATABASE_URL", developmentDatabaseURL)
+	databaseURL, err := nonEmptyValue("DATABASE_URL")
+	if err != nil {
+		return Config{}, err
+	}
 	if err := connectionURL("DATABASE_URL", databaseURL, "postgres", "postgresql"); err != nil {
 		return Config{}, err
 	}
-	redisURL := valueOrDefault("REDIS_URL", developmentRedisURL)
+	redisURL, err := nonEmptyValue("REDIS_URL")
+	if err != nil {
+		return Config{}, err
+	}
 	if err := connectionURL("REDIS_URL", redisURL, "redis", "rediss"); err != nil {
 		return Config{}, err
 	}
 
-	oauthClientID := os.Getenv("GOOGLE_CLIENT_ID")
-	oauthClientSecret := os.Getenv("GOOGLE_CLIENT_SECRET")
+	oauthClientID, err := value("GOOGLE_CLIENT_ID")
+	if err != nil {
+		return Config{}, err
+	}
+	oauthClientSecret, err := value("GOOGLE_CLIENT_SECRET")
+	if err != nil {
+		return Config{}, err
+	}
 	if (oauthClientID == "") != (oauthClientSecret == "") {
 		return Config{}, errors.New("configure Google OAuth: GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set together")
 	}
 	oauthEnabled := oauthClientID != ""
-	callbackURL := valueOrDefault("GOOGLE_CALLBACK_URL", "http://localhost:8080/api/v1/auth/google/callback")
-	if oauthEnabled {
-		if err := absoluteHTTPURL("GOOGLE_CALLBACK_URL", callbackURL); err != nil {
-			return Config{}, err
-		}
+	callbackURL, err := nonEmptyValue("GOOGLE_CALLBACK_URL")
+	if err != nil {
+		return Config{}, err
+	}
+	if err := absoluteHTTPURL("GOOGLE_CALLBACK_URL", callbackURL); err != nil {
+		return Config{}, err
 	}
 
-	cookieKey, err := cookieSigningKey(environment)
+	cookieKey, err := cookieSigningKey()
 	if err != nil {
 		return Config{}, err
 	}
-	cookieSecure, err := boolean("COOKIE_SECURE", environment == "production")
+	cookieSecure, err := boolean("COOKIE_SECURE")
 	if err != nil {
 		return Config{}, err
 	}
-	migrateOnStartup, err := boolean("DATABASE_MIGRATE_ON_STARTUP", environment != "production")
+	migrateOnStartup, err := boolean("DATABASE_MIGRATE_ON_STARTUP")
 	if err != nil {
 		return Config{}, err
 	}
-	maintenance, err := boolean("MAINTENANCE_MODE", false)
+	maintenance, err := boolean("MAINTENANCE_MODE")
 	if err != nil {
 		return Config{}, err
 	}
-	trustedProxies, err := prefixes(os.Getenv("TRUSTED_PROXY_CIDRS"))
+	trustedProxyValue, err := value("TRUSTED_PROXY_CIDRS")
 	if err != nil {
 		return Config{}, err
+	}
+	trustedProxies, err := prefixes(trustedProxyValue)
+	if err != nil {
+		return Config{}, err
+	}
+	allowedOriginValue, err := nonEmptyValue("CORS_ALLOWED_ORIGINS")
+	if err != nil {
+		return Config{}, err
+	}
+	allowedOrigins := stringList(allowedOriginValue)
+	if len(allowedOrigins) == 0 {
+		return Config{}, errors.New("parse CORS_ALLOWED_ORIGINS: at least one origin is required")
 	}
 
 	providerBaseURL := firstValue("LLM_PROVIDER_BASE_URL", "API_URL")
@@ -177,32 +209,135 @@ func Load() (Config, error) {
 		}
 		providerBaseURL = strings.TrimRight(providerBaseURL, "/")
 	}
+	providerKind, err := nonEmptyValue("LLM_PROVIDER_KIND")
+	if err != nil {
+		return Config{}, err
+	}
+	defaultModel, err := nonEmptyValue("LLM_DEFAULT_MODEL")
+	if err != nil {
+		return Config{}, err
+	}
+	if _, ok := os.LookupEnv("LLM_PROVIDER_API_KEY"); !ok {
+		if _, aliasOK := os.LookupEnv("API_KEY"); !aliasOK {
+			return Config{}, errors.New("parse LLM_PROVIDER_API_KEY: environment variable is required")
+		}
+	}
+
+	shutdownTimeout, err := duration("SHUTDOWN_TIMEOUT")
+	if err != nil {
+		return Config{}, err
+	}
+	requestTimeout, err := duration("HTTP_REQUEST_TIMEOUT")
+	if err != nil {
+		return Config{}, err
+	}
+	databaseMaxLifetime, err := duration("DATABASE_MAX_LIFETIME")
+	if err != nil {
+		return Config{}, err
+	}
+	databaseMaxIdleTime, err := duration("DATABASE_MAX_IDLE_TIME")
+	if err != nil {
+		return Config{}, err
+	}
+	databaseHealthTimeout, err := duration("DATABASE_HEALTH_TIMEOUT")
+	if err != nil {
+		return Config{}, err
+	}
+	redisHealthTimeout, err := duration("REDIS_HEALTH_TIMEOUT")
+	if err != nil {
+		return Config{}, err
+	}
+	accessTokenTTL, err := duration("JWT_ACCESS_TTL")
+	if err != nil {
+		return Config{}, err
+	}
+	refreshTokenTTL, err := duration("AUTH_REFRESH_TTL")
+	if err != nil {
+		return Config{}, err
+	}
+	recentAuthTTL, err := duration("AUTH_RECENT_TTL")
+	if err != nil {
+		return Config{}, err
+	}
+
+	redisPrefix, err := nonEmptyValue("REDIS_PREFIX")
+	if err != nil {
+		return Config{}, err
+	}
+	jwtIssuer, err := nonEmptyValue("JWT_ISSUER")
+	if err != nil {
+		return Config{}, err
+	}
+	jwtAudience, err := nonEmptyValue("JWT_AUDIENCE")
+	if err != nil {
+		return Config{}, err
+	}
+	jwtActiveKeyID, err := nonEmptyValue("JWT_ACTIVE_KID")
+	if err != nil {
+		return Config{}, err
+	}
+	jwtPrivateKeyPath, err := value("JWT_PRIVATE_KEY_PATH")
+	if err != nil {
+		return Config{}, err
+	}
+	termsVersion, err := nonEmptyValue("TERMS_VERSION")
+	if err != nil {
+		return Config{}, err
+	}
+	privacyVersion, err := nonEmptyValue("PRIVACY_VERSION")
+	if err != nil {
+		return Config{}, err
+	}
+	cookieDomain, err := value("COOKIE_DOMAIN")
+	if err != nil {
+		return Config{}, err
+	}
+	cookieSameSite, err := nonEmptyValue("COOKIE_SAME_SITE")
+	if err != nil {
+		return Config{}, err
+	}
+	bootstrapEmails, err := value("BOOTSTRAP_ADMIN_EMAILS")
+	if err != nil {
+		return Config{}, err
+	}
+	otelServiceName, err := nonEmptyValue("OTEL_SERVICE_NAME")
+	if err != nil {
+		return Config{}, err
+	}
+	otelEndpoint, err := value("OTEL_EXPORTER_OTLP_ENDPOINT")
+	if err != nil {
+		return Config{}, err
+	}
+	metricsPath, err := nonEmptyValue("METRICS_PATH")
+	if err != nil {
+		return Config{}, err
+	}
 
 	cfg := Config{
 		Runtime: Runtime{
 			Environment:     environment,
 			APIAddress:      fmt.Sprintf(":%d", port),
 			WebURL:          strings.TrimRight(webURL, "/"),
-			ShutdownTimeout: duration("SHUTDOWN_TIMEOUT", 10*time.Second),
-			RequestTimeout:  duration("HTTP_REQUEST_TIMEOUT", 30*time.Second),
+			ShutdownTimeout: shutdownTimeout,
+			RequestTimeout:  requestTimeout,
 			MaxBodyBytes:    maxBodyBytes,
 			Maintenance:     maintenance,
 			TrustedProxies:  trustedProxies,
-			AllowedOrigins:  stringList(valueOrDefault("CORS_ALLOWED_ORIGINS", webURL)),
+			AllowedOrigins:  allowedOrigins,
 		},
 		Database: Database{
 			URL:              databaseURL,
 			MaxConnections:   int32(maxConnections),
 			MinConnections:   int32(minConnections),
-			MaxLifetime:      duration("DATABASE_MAX_LIFETIME", time.Hour),
-			MaxIdleTime:      duration("DATABASE_MAX_IDLE_TIME", 30*time.Minute),
-			HealthTimeout:    duration("DATABASE_HEALTH_TIMEOUT", 2*time.Second),
+			MaxLifetime:      databaseMaxLifetime,
+			MaxIdleTime:      databaseMaxIdleTime,
+			HealthTimeout:    databaseHealthTimeout,
 			MigrateOnStartup: migrateOnStartup,
 		},
 		Redis: Redis{
 			URL:           redisURL,
-			Prefix:        valueOrDefault("REDIS_PREFIX", "glazz"),
-			HealthTimeout: duration("REDIS_HEALTH_TIMEOUT", 2*time.Second),
+			Prefix:        redisPrefix,
+			HealthTimeout: redisHealthTimeout,
 		},
 		OAuth: OAuth{
 			Enabled:      oauthEnabled,
@@ -211,33 +346,33 @@ func Load() (Config, error) {
 			CallbackURL:  callbackURL,
 		},
 		Auth: Auth{
-			Issuer:          valueOrDefault("JWT_ISSUER", "http://localhost:8080"),
-			Audience:        valueOrDefault("JWT_AUDIENCE", "glazz-web"),
-			ActiveKeyID:     valueOrDefault("JWT_ACTIVE_KID", "local-1"),
-			PrivateKeyPath:  os.Getenv("JWT_PRIVATE_KEY_PATH"),
-			AccessTokenTTL:  duration("JWT_ACCESS_TTL", 15*time.Minute),
-			RefreshTokenTTL: duration("AUTH_REFRESH_TTL", 30*24*time.Hour),
-			RecentAuthTTL:   duration("AUTH_RECENT_TTL", 15*time.Minute),
-			TermsVersion:    valueOrDefault("TERMS_VERSION", "2026-07-23"),
-			PrivacyVersion:  valueOrDefault("PRIVACY_VERSION", "2026-07-23"),
+			Issuer:          jwtIssuer,
+			Audience:        jwtAudience,
+			ActiveKeyID:     jwtActiveKeyID,
+			PrivateKeyPath:  jwtPrivateKeyPath,
+			AccessTokenTTL:  accessTokenTTL,
+			RefreshTokenTTL: refreshTokenTTL,
+			RecentAuthTTL:   recentAuthTTL,
+			TermsVersion:    termsVersion,
+			PrivacyVersion:  privacyVersion,
 		},
 		Cookies: Cookies{
 			SigningKey: cookieKey,
-			Domain:     os.Getenv("COOKIE_DOMAIN"),
+			Domain:     cookieDomain,
 			Secure:     cookieSecure,
-			SameSite:   valueOrDefault("COOKIE_SAME_SITE", "lax"),
+			SameSite:   cookieSameSite,
 		},
 		Provider: Provider{
-			Kind:         valueOrDefault("LLM_PROVIDER_KIND", "fake"),
+			Kind:         providerKind,
 			BaseURL:      providerBaseURL,
 			APIKey:       firstValue("LLM_PROVIDER_API_KEY", "API_KEY"),
-			DefaultModel: valueOrDefault("LLM_DEFAULT_MODEL", "deepseek-v4-flash"),
+			DefaultModel: defaultModel,
 		},
-		Admin: Admin{BootstrapEmails: normalizedSet(os.Getenv("BOOTSTRAP_ADMIN_EMAILS"))},
+		Admin: Admin{BootstrapEmails: normalizedSet(bootstrapEmails)},
 		Telemetry: Telemetry{
-			ServiceName:  valueOrDefault("OTEL_SERVICE_NAME", "glazz-api"),
-			OTLPEndpoint: os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"),
-			MetricsPath:  valueOrDefault("METRICS_PATH", "/metrics"),
+			ServiceName:  otelServiceName,
+			OTLPEndpoint: otelEndpoint,
+			MetricsPath:  metricsPath,
 		},
 	}
 
@@ -275,6 +410,26 @@ func (c Config) Validate() error {
 	if c.Auth.RecentAuthTTL <= 0 {
 		return errors.New("validate AUTH_RECENT_TTL: must be positive")
 	}
+	if err := absoluteHTTPURL("JWT_ISSUER", c.Auth.Issuer); err != nil {
+		return err
+	}
+	for _, origin := range c.Runtime.AllowedOrigins {
+		if err := absoluteHTTPURL("CORS_ALLOWED_ORIGINS", origin); err != nil {
+			return err
+		}
+	}
+	switch c.Provider.Kind {
+	case "fake":
+	case "openai-compatible":
+		if c.Provider.BaseURL == "" {
+			return errors.New("validate LLM_PROVIDER_BASE_URL: required for openai-compatible provider")
+		}
+		if c.Provider.APIKey == "" {
+			return errors.New("validate LLM_PROVIDER_API_KEY: required for openai-compatible provider")
+		}
+	default:
+		return errors.New("validate LLM_PROVIDER_KIND: must be fake or openai-compatible")
+	}
 	if c.Runtime.Environment == "production" {
 		if !c.OAuth.Enabled {
 			return errors.New("validate production config: Google OAuth credentials are required")
@@ -298,13 +453,42 @@ func (c Config) Validate() error {
 	return nil
 }
 
-func cookieSigningKey(environment string) ([]byte, error) {
-	raw := os.Getenv("COOKIE_SIGNING_KEY")
-	if raw == "" {
-		if environment == "production" {
-			return nil, errors.New("parse COOKIE_SIGNING_KEY: required in production")
+func loadEnvironmentFile() error {
+	if configured := os.Getenv("GLAZZ_ENV_FILE"); configured != "" {
+		if err := godotenv.Load(configured); err != nil {
+			return fmt.Errorf("load GLAZZ_ENV_FILE: %w", err)
 		}
-		return []byte("local-development-cookie-key-32b"), nil
+		return nil
+	}
+	directory, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("resolve environment directory: %w", err)
+	}
+	for {
+		if _, markerErr := os.Stat(filepath.Join(directory, "go.work")); markerErr == nil {
+			envPath := filepath.Join(directory, ".env")
+			if loadErr := godotenv.Load(envPath); loadErr != nil &&
+				!errors.Is(loadErr, os.ErrNotExist) {
+				return fmt.Errorf("load environment file: %w", loadErr)
+			}
+			return nil
+		}
+		parent := filepath.Dir(directory)
+		if parent == directory {
+			break
+		}
+		directory = parent
+	}
+	if err := godotenv.Load(); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("load environment file: %w", err)
+	}
+	return nil
+}
+
+func cookieSigningKey() ([]byte, error) {
+	raw, err := nonEmptyValue("COOKIE_SIGNING_KEY")
+	if err != nil {
+		return nil, err
 	}
 	key, err := base64.RawURLEncoding.DecodeString(raw)
 	if err != nil || len(key) < 32 {
@@ -313,22 +497,22 @@ func cookieSigningKey(environment string) ([]byte, error) {
 	return key, nil
 }
 
-func duration(key string, fallback time.Duration) time.Duration {
-	raw := os.Getenv(key)
-	if raw == "" {
-		return fallback
+func duration(key string) (time.Duration, error) {
+	raw, err := nonEmptyValue(key)
+	if err != nil {
+		return 0, err
 	}
 	parsed, err := time.ParseDuration(raw)
-	if err != nil {
-		return -1
+	if err != nil || parsed <= 0 {
+		return 0, fmt.Errorf("parse %s: must be a positive duration", key)
 	}
-	return parsed
+	return parsed, nil
 }
 
-func integer(key string, fallback, minimum, maximum int) (int, error) {
-	raw := os.Getenv(key)
-	if raw == "" {
-		return fallback, nil
+func integer(key string, minimum, maximum int) (int, error) {
+	raw, err := nonEmptyValue(key)
+	if err != nil {
+		return 0, err
 	}
 	value, err := strconv.Atoi(raw)
 	if err != nil || value < minimum || value > maximum {
@@ -337,10 +521,10 @@ func integer(key string, fallback, minimum, maximum int) (int, error) {
 	return value, nil
 }
 
-func integer64(key string, fallback, minimum, maximum int64) (int64, error) {
-	raw := os.Getenv(key)
-	if raw == "" {
-		return fallback, nil
+func integer64(key string, minimum, maximum int64) (int64, error) {
+	raw, err := nonEmptyValue(key)
+	if err != nil {
+		return 0, err
 	}
 	value, err := strconv.ParseInt(raw, 10, 64)
 	if err != nil || value < minimum || value > maximum {
@@ -349,10 +533,10 @@ func integer64(key string, fallback, minimum, maximum int64) (int64, error) {
 	return value, nil
 }
 
-func boolean(key string, fallback bool) (bool, error) {
-	raw := os.Getenv(key)
-	if raw == "" {
-		return fallback, nil
+func boolean(key string) (bool, error) {
+	raw, err := nonEmptyValue(key)
+	if err != nil {
+		return false, err
 	}
 	value, err := strconv.ParseBool(raw)
 	if err != nil {
@@ -416,11 +600,23 @@ func normalizedSet(raw string) map[string]struct{} {
 	return result
 }
 
-func valueOrDefault(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
+func value(key string) (string, error) {
+	result, ok := os.LookupEnv(key)
+	if !ok {
+		return "", fmt.Errorf("parse %s: environment variable is required", key)
 	}
-	return fallback
+	return result, nil
+}
+
+func nonEmptyValue(key string) (string, error) {
+	result, err := value(key)
+	if err != nil {
+		return "", err
+	}
+	if strings.TrimSpace(result) == "" {
+		return "", fmt.Errorf("parse %s: value must not be empty", key)
+	}
+	return result, nil
 }
 
 func firstValue(primary, alias string) string {

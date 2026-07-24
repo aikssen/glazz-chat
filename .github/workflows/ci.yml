@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
+      GLAZZ_ENV_FILE: ${{ github.workspace }}/.env.test.example
       DATABASE_URL: postgres://glazz:glazz@localhost:5432/glazz?sslmode=disable
       REDIS_URL: redis://localhost:6379/0
     services:

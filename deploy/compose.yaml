@@ -34,6 +34,9 @@ services:
     build:
       context: ..
       dockerfile: deploy/docker/api.Dockerfile
+    env_file:
+      - path: ../.env
+        required: true
     environment: &api-environment
       GLAZZ_ENV: development
       API_PORT: "8080"
@@ -62,6 +65,9 @@ services:
     build:
       context: ..
       dockerfile: deploy/docker/api.Dockerfile
+    env_file:
+      - path: ../.env
+        required: true
     environment: *api-environment
     command: ["/app/worker"]
     depends_on:

@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -24,13 +23,13 @@ import (
 )
 
 func TestWebSocketTicketLifecycle(t *testing.T) {
-	redisURL := os.Getenv("REDIS_URL")
-	if redisURL == "" {
-		t.Skip("REDIS_URL is required")
+	runtimeConfig, err := config.Load()
+	if err != nil {
+		t.Fatal(err)
 	}
 	ctx := context.Background()
 	store, err := redisx.Open(ctx, config.Redis{
-		URL: redisURL, Prefix: "glazz-ws-integration-" + uuid.NewString(),
+		URL: runtimeConfig.Redis.URL, Prefix: "glazz-ws-integration-" + uuid.NewString(),
 		HealthTimeout: time.Second,
 	})
 	if err != nil {

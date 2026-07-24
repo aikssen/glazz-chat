@@ -61,6 +61,7 @@ Research date: 2026-07-23
 | Redis client              | `/redis/go-redis`                | `go-redis/v9` 9.21.0      | TTL state, atomic scripts, leases, rate limiting, and pub/sub                                    |
 | OpenID Connect            | `/coreos/go-oidc`                | `go-oidc/v3` 3.20.0       | Google discovery and verified ID-token claims                                                    |
 | OAuth 2.0                 | `/golang/oauth2`                 | `oauth2` 0.36.0           | Authorization code exchange with PKCE                                                            |
+| Go environment files     | `/joho/godotenv`                 | `godotenv` 1.5.1          | Development-only `.env` loading without overriding injected process variables                    |
 | OpenTelemetry Go          | `/open-telemetry/opentelemetry-go` | `otel` 1.44.0          | Trace SDK and OTLP HTTP exporter                                                                 |
 | OpenTelemetry HTTP        | `/open-telemetry/opentelemetry-go-contrib` | `otelhttp` 0.69.0 | Server request instrumentation                                                                   |
 | Prometheus Go             | `/prometheus/client_golang`      | `client_golang` 1.24.0    | Bounded HTTP metrics and exposition                                                              |
