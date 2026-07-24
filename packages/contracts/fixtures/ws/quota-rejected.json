@@ -10,22 +10,7 @@
       "commandEventId": "evt_generate_over_quota_01",
       "code": "quota_exceeded",
       "message": "Daily message limit reached.",
-      "details": {"resetAt": "2026-07-24T05:00:00Z"}
-    }
-  },
-  {
-    "version": 1,
-    "type": "quota.updated",
-    "eventId": "evt_quota_updated_01",
-    "requestId": "req_quota_01",
-    "sequence": 32,
-    "occurredAt": "2026-07-23T20:30:00.010Z",
-    "payload": {
-      "messagesRemaining": 0,
-      "outputTokensRemaining": 1200,
-      "concurrentRemaining": 1,
-      "resetAt": "2026-07-24T05:00:00Z"
+      "details": { "resetAt": "2026-07-24T05:00:00Z" }
     }
   }
 ]
-

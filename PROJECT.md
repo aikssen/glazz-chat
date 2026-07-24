@@ -6,7 +6,7 @@
 
 ## Document status
 
-- Status: M4 published as `v0.4.0`; Phase 9/M5 in progress
+- Status: Phase 9/M5 locally accepted; `v0.5.0` publication pending
 - Product domain: `https://glazz.hlab.sh`
 - Primary audience: General public
 - Interface languages: Spanish and English

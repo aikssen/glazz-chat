@@ -369,18 +369,25 @@ test("Google approval covers the registered-user lifecycle", async ({
   await secondPage.getByRole("link", { name: "Approve" }).click();
   await secondPage.getByRole("button", { name: "Abrir conversaciones" }).click();
   await expect(secondPage.getByText("Glazz E2E Administrator")).toBeVisible();
+  const secondSessionID = await secondPage.evaluate(async (origin) => {
+    const response = await fetch(`${origin}/api/v1/me/sessions`, { credentials: "include" });
+    const body = (await response.json()) as { items: Array<{ current: boolean; id: string }> };
+    const current = body.items.find((session) => session.current);
+    if (!current) throw new Error("second browser current session was not found");
+    return current.id;
+  }, apiOrigin.origin);
 
   await page.goto("/settings");
   await expect(page.getByRole("heading", { name: "Ajustes" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Sesiones activas" })).toBeVisible();
   await expect(page.getByText(/Actual/)).toBeVisible();
   const sessionRows = page.locator(".session-row");
-  await expect(sessionRows).toHaveCount(2);
-  const sessionLabels = await sessionRows.allTextContents();
-  const otherSession = sessionLabels.findIndex((label) => !label.includes("Actual"));
-  expect(otherSession).toBeGreaterThanOrEqual(0);
-  await sessionRows.nth(otherSession).getByRole("button", { name: "Revocar sesión" }).click();
-  await expect(sessionRows).toHaveCount(1);
+  const sessionsBeforeRevocation = await sessionRows.count();
+  expect(sessionsBeforeRevocation).toBeGreaterThanOrEqual(2);
+  const secondSessionRow = page.locator(`.session-row[data-session-id="${secondSessionID}"]`);
+  await expect(secondSessionRow).toBeVisible();
+  await secondSessionRow.getByRole("button", { name: "Revocar sesión" }).click();
+  await expect(sessionRows).toHaveCount(sessionsBeforeRevocation - 1);
   await secondPage.goto("/settings");
   await expect(secondPage.getByText("Inicia sesión para abrir los ajustes.")).toBeVisible();
   await secondContext.close();
@@ -404,14 +411,10 @@ test("Google approval covers the registered-user lifecycle", async ({
   await thirdPage.reload();
   await expect(thirdPage.getByRole("heading", { name: "Ajustes" })).toBeVisible();
   const thirdSessionRows = thirdPage.locator(".session-row");
-  await expect(thirdSessionRows).toHaveCount(2);
-  const thirdSessionLabels = await thirdSessionRows.allTextContents();
-  const currentThirdSession = thirdSessionLabels.findIndex((label) => label.includes("Actual"));
-  expect(currentThirdSession).toBeGreaterThanOrEqual(0);
-  await thirdSessionRows
-    .nth(currentThirdSession)
-    .getByRole("button", { name: "Revocar sesión" })
-    .click();
+  expect(await thirdSessionRows.count()).toBeGreaterThanOrEqual(2);
+  const currentThirdSession = thirdSessionRows.filter({ hasText: "Actual" });
+  await expect(currentThirdSession).toHaveCount(1);
+  await currentThirdSession.getByRole("button", { name: "Revocar sesión" }).click();
   await expect(thirdPage).toHaveURL("/");
   await expect(thirdPage.getByLabel("Pregunta a Glazz")).toBeEnabled();
   await thirdContext.close();

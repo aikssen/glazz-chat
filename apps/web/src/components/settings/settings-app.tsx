@@ -186,7 +186,7 @@ export function SettingsApp() {
         <h2>{copy.sessions}</h2>
         <div className="session-list">
           {sessions.map((session) => (
-            <div key={session.id} className="session-row">
+            <div key={session.id} className="session-row" data-session-id={session.id}>
               {session.deviceLabel?.toLowerCase().includes("mobile") ? <Smartphone /> : <Laptop />}
               <div>
                 <strong>

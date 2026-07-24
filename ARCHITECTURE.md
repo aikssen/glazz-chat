@@ -467,9 +467,7 @@ after its durable state is committed.
 | `chat.completed`             | Final status, usage, finish reason                   |
 | `chat.cancelled`             | Cancellation confirmed, partial content status       |
 | `chat.failed`                | Retryable flag and normalized error code             |
-| `quota.updated`              | Remaining actor quota and reset time                 |
 | `conversation.updated`       | Metadata changed, including generated title          |
-| `maintenance.changed`        | Service became limited or available                  |
 | `heartbeat.ping`             | Connection liveness probe                            |
 | `connection.resync_required` | Buffer missed; refetch REST resources                |
 

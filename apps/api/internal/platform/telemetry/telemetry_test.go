@@ -3,17 +3,20 @@ package telemetry
 import (
 	"bytes"
 	"context"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 
+	"github.com/aikssen/glazz-chat/apps/api/internal/platform/config"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/httpx"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/ids"
 )
@@ -53,5 +56,31 @@ func TestRequestCorrelatesTraceMetricAndSafeLog(t *testing.T) {
 	runtime.MetricsHandler().ServeHTTP(metrics, httptest.NewRequest(http.MethodGet, "/metrics", nil))
 	if !strings.Contains(metrics.Body.String(), `route="/synthetic/{id}"`) {
 		t.Fatalf("metrics lack bounded route: %s", metrics.Body.String())
+	}
+}
+
+func TestUnavailableCollectorDoesNotFailRequests(t *testing.T) {
+	runtime, err := New(context.Background(), config.Telemetry{
+		ServiceName:  "glazz-test",
+		OTLPEndpoint: "http://127.0.0.1:1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		defer cancel()
+		_ = runtime.Shutdown(ctx)
+	})
+
+	router := chi.NewRouter()
+	router.Use(runtime.Middleware(slog.New(slog.NewTextHandler(io.Discard, nil))))
+	router.Get("/health", func(response http.ResponseWriter, _ *http.Request) {
+		response.WriteHeader(http.StatusNoContent)
+	})
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/health", nil))
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusNoContent)
 	}
 }

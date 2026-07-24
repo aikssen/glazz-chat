@@ -42,18 +42,16 @@ Rules:
 | M2        | Phases 2-3   | Local platform, identity, guests, and quotas     | Complete       | Complete       | `v0.2.0`                            |
 | M3        | Phases 4-5   | Provider-neutral streamed chat backend           | Complete       | Complete       | `v0.3.0`                            |
 | M4        | Phases 6-8   | Responsive web application and admin surface     | Complete       | Complete       | `v0.4.0`                            |
-| M5        | Phase 9      | Integrated, tested, observable release candidate | In progress    | Open           | `v0.5.0` reserved                   |
+| M5        | Phase 9      | Integrated, tested, observable release candidate | Complete       | Local complete | `v0.5.0` reserved                   |
 | M6        | Phase 10     | Approved provider and production deployment      | Not started    | Open           | `v0.6.0` reserved                   |
 | Post-MVP  | Phase 11     | Explicitly non-release-critical backlog          | Not started    | Not applicable | Future planning                     |
 
-Current progress: M4 is published as `v0.4.0`. Phases 6-8 and M4 acceptance are
-complete.
+Current progress: M4 is published as `v0.4.0`. Phase 9 and local M5 acceptance are
+complete; the M5 commit, CI run, and `v0.5.0` publication remain release actions.
 Granular acceptance evidence is tracked in `docs/m3-chat-backend.md`,
 `docs/m4-web-application.md`, and `docs/m5-release-candidate.md`. A `[-]` task
 means its implementation exists but at least one acceptance criterion is still
-pending; it does not mean the feature is unavailable. M5 and Phase 9 are in
-progress with their functional test gates accepted; resilience, security, visual,
-privacy, performance, and contract review remain open.
+pending; it does not mean the feature is unavailable.
 
 ## Phase 0: API and architecture contract
 
@@ -755,45 +753,47 @@ session renewal. GitHub Actions run `30118902670` passed and M4 was published as
     sessions, deletion, admin, themes/locales, mobile.
   - Acceptance: deterministic fake provider suite passes in CI.
 
-- [ ] **QA-005: Run visual regression matrix**
+- [x] **QA-005: Run visual regression matrix**
   - Depends on: QA-003, QA-004
   - Capture 375/768/1024/1440, light/dark, Spanish/English, empty/stream/error/quota,
     admin.
   - Acceptance: no overlap, clipping, unstable dimensions, or unapproved diffs.
 
-- [ ] **SEC-002: Execute application security review**
+- [x] **SEC-002: Execute application security review**
   - Depends on: QA-001, QA-003, SEC-001
   - Test OAuth/CSRF/JWT/refresh/WS/IDOR/admin/guest bypass/XSS/CSP/secrets/dependencies.
   - Acceptance: no open critical/high findings; medium findings owned and scheduled.
 
-- [ ] **QA-006: Load and soak test realtime API**
+- [x] **QA-006: Load and soak test realtime API**
   - Depends on: CHAT-009, PLAT-008
   - Model expected connections, slow clients, reconnect storms, cancellation, Redis
     pub/sub, provider latency.
   - Acceptance: bounded memory/queues; p95 targets and graceful degradation documented.
 
-- [ ] **QA-007: Test dependency failure matrix**
+- [x] **QA-007: Test dependency failure matrix**
   - Depends on: QA-006
   - Simulate PostgreSQL, Redis, provider, telemetry, worker, and network failures.
   - Acceptance: no acknowledged data loss; correct readiness/circuit/recovery.
 
-- [ ] **QA-008: Validate privacy and deletion**
+- [x] **QA-008: Validate privacy and deletion**
   - Depends on: PRIV-003, PRIV-004
   - Inspect logs/traces/errors/analytics, guest purge, account purge, retained metrics.
   - Acceptance: no content leaks; deletion SLA and retention rules pass.
 
-- [ ] **QA-009: Bundle and web performance audit**
+- [x] **QA-009: Bundle and web performance audit**
   - Depends on: QA-005
   - Analyze client bundle, hydration, fonts, CLS, long transcripts, code highlighting.
   - Acceptance: no avoidable client-heavy dependency; CLS below 0.1; budgets recorded.
 
-- [ ] **QA-010: Final contract compatibility review**
+- [x] **QA-010: Final contract compatibility review**
   - Depends on: QA-004
   - Compare implementation, generated clients, examples, and future mobile needs.
   - Acceptance: zero undocumented endpoints/events or incompatible drift.
 
-**Phase 9 exit:** M5 release candidate satisfies functional, accessibility, security,
-privacy, resilience, and performance criteria.
+**Phase 9 exit:** Complete on 2026-07-24. The M5 release candidate satisfies local
+functional, accessibility, security, privacy, resilience, performance, visual, and
+contract criteria. Publication still requires the requested commit, GitHub CI, and
+annotated `v0.5.0` tag.
 
 ## Phase 10: Production infrastructure and release
 

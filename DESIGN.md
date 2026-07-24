@@ -354,16 +354,16 @@ All animation has a reduced-motion alternative.
 
 ## 13. Design QA checklist
 
-- [ ] Chat is the first screen, not a landing hero
-- [ ] Product name is a clear first-viewport signal
-- [ ] Light and dark tokens pass contrast checks
-- [ ] 375/768/1024/1440 screenshots show no overlap or clipped controls
-- [ ] Mobile keyboard does not cover composer or last message
-- [ ] Long Markdown, tables, code, and unbroken strings remain contained
-- [ ] Keyboard, screen reader, 200% zoom, and reduced-motion paths pass
-- [ ] Streaming, cancellation, retry, reconnect, quota, and maintenance states are
+- [x] Chat is the first screen, not a landing hero
+- [x] Product name is a clear first-viewport signal
+- [x] Light and dark tokens pass contrast checks
+- [x] 375/768/1024/1440 screenshots show no overlap or clipped controls
+- [x] Mobile keyboard does not cover composer or last message
+- [x] Long Markdown, tables, code, and unbroken strings remain contained
+- [x] Keyboard, screen reader, 200% zoom, and reduced-motion paths pass
+- [x] Streaming, cancellation, retry, reconnect, quota, and maintenance states are
       visually distinct
-- [ ] Icon buttons have labels/tooltips and stable 44px targets
-- [ ] No nested cards, decorative orbs, emoji icons, or generic purple AI styling
-- [ ] Browser console has no errors or hydration warnings
-- [ ] Playwright visual checks cover guest, authenticated, dark, mobile, and admin
+- [x] Icon buttons have labels/tooltips and stable 44px targets
+- [x] No nested cards, decorative orbs, emoji icons, or generic purple AI styling
+- [x] Browser console has no unexpected runtime errors or hydration warnings
+- [x] Playwright visual checks cover guest, authenticated, dark, mobile, and admin

@@ -807,6 +807,46 @@ body {
   line-height: 1.6;
 }
 
+.code-block .hljs {
+  display: block;
+  color: #f5f3ef;
+}
+
+.code-block .hljs-comment,
+.code-block .hljs-quote {
+  color: #9b968d;
+}
+
+.code-block .hljs-keyword,
+.code-block .hljs-selector-tag,
+.code-block .hljs-built_in {
+  color: #ff9b73;
+}
+
+.code-block .hljs-string,
+.code-block .hljs-attr,
+.code-block .hljs-template-variable {
+  color: #8fe3d8;
+}
+
+.code-block .hljs-number,
+.code-block .hljs-literal,
+.code-block .hljs-variable {
+  color: #f4c95d;
+}
+
+.code-block .hljs-title,
+.code-block .hljs-function,
+.code-block .hljs-selector-class {
+  color: #9db9ff;
+}
+
+.code-block .hljs-type,
+.code-block .hljs-meta,
+.code-block .hljs-symbol {
+  color: #d6a8ff;
+}
+
 .message-error {
   display: flex;
   align-items: center;

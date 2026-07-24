@@ -305,6 +305,47 @@ func TestM2IdentityGuestQuotaAndOutbox(t *testing.T) {
 	if processed, err := runner.RunOnce(ctx); err != nil || processed != 0 || handled.Load() != 1 {
 		t.Fatalf("outbox replay = processed %d, handled %d, error %v", processed, handled.Load(), err)
 	}
+
+	failingEventID, _ := idSource.New()
+	failingKey := "integration-failure-" + failingEventID.String()
+	if err := pool.Queries().EnqueueOutboxEvent(ctx, store.EnqueueOutboxEventParams{
+		ID: failingEventID, EventType: "integration.failure", Payload: []byte(`{"safe":true}`),
+		IdempotencyKey: failingKey,
+		AvailableAt:    pgtype.Timestamptz{Time: timeSource.Now(), Valid: true},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	failingRunner, err := outbox.New(
+		pool, timeSource, testLogger(), map[string]outbox.Handler{
+			"integration.failure": outbox.HandlerFunc(func(context.Context, outbox.Event) error {
+				return errors.New("synthetic dependency failure")
+			}),
+		},
+		outbox.Options{
+			WorkerID: "worker-failure", BatchSize: 10, MaxAttempts: 2,
+			LockTTL: time.Minute, PollEvery: time.Second,
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if processed, err := failingRunner.RunOnce(ctx); processed != 1 || err != nil {
+		t.Fatalf("first failed outbox attempt = processed %d, error %v", processed, err)
+	}
+	retrying, err := pool.Queries().GetOutboxEventByIdempotencyKey(ctx, failingKey)
+	if err != nil || retrying.Attempts != 1 || retrying.DeadLetteredAt.Valid ||
+		!retrying.AvailableAt.Time.Equal(timeSource.Now().Add(time.Second)) {
+		t.Fatalf("retrying outbox event = %#v, error %v", retrying, err)
+	}
+	timeSource.Advance(time.Second)
+	if processed, err := failingRunner.RunOnce(ctx); processed != 1 || err != nil {
+		t.Fatalf("terminal failed outbox attempt = processed %d, error %v", processed, err)
+	}
+	deadLettered, err := pool.Queries().GetOutboxEventByIdempotencyKey(ctx, failingKey)
+	if err != nil || deadLettered.Attempts != 2 || !deadLettered.DeadLetteredAt.Valid ||
+		deadLettered.ProcessedAt.Valid || deadLettered.LastErrorClass == nil {
+		t.Fatalf("dead-lettered outbox event = %#v, error %v", deadLettered, err)
+	}
 }
 
 func testLogger() *slog.Logger {

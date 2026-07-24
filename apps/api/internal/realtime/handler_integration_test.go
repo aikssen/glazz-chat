@@ -8,6 +8,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -238,6 +241,104 @@ func TestWebSocketReconnectLoad(t *testing.T) {
 		t.Error(err)
 	}
 	fixture.close()
+	goleak.VerifyNone(t, baseline)
+}
+
+func TestWebSocketReconnectSoak(t *testing.T) {
+	if os.Getenv("GLAZZ_RUN_SOAK") != "true" {
+		t.Skip("set GLAZZ_RUN_SOAK=true to run the realtime soak profile")
+	}
+
+	baseline := goleak.IgnoreCurrent()
+	runtime.GC()
+	var memoryBefore runtime.MemStats
+	runtime.ReadMemStats(&memoryBefore)
+	goroutinesBefore := runtime.NumGoroutine()
+
+	fixture := newWebSocketFixture(t)
+	const (
+		waves              = 40
+		connectionsPerWave = 32
+		p95Budget          = 2 * time.Second
+		heapGrowthBudget   = 64 << 20
+		goroutineBudget    = 16
+	)
+
+	startedAt := time.Now()
+	latencies := make([]time.Duration, 0, waves*connectionsPerWave)
+	for wave := 0; wave < waves; wave++ {
+		var wait sync.WaitGroup
+		results := make(chan time.Duration, connectionsPerWave)
+		errorsFound := make(chan error, connectionsPerWave)
+		wait.Add(connectionsPerWave)
+		for index := 0; index < connectionsPerWave; index++ {
+			go func() {
+				defer wait.Done()
+				connectionStartedAt := time.Now()
+				connection, err := fixture.connect()
+				if err != nil {
+					errorsFound <- err
+					return
+				}
+				defer connection.CloseNow()
+				readCtx, cancel := context.WithTimeout(context.Background(), p95Budget)
+				defer cancel()
+				var ready Event
+				if err := wsjson.Read(readCtx, connection, &ready); err != nil {
+					errorsFound <- err
+					return
+				}
+				if ready.Type != "connection.ready" {
+					errorsFound <- errors.New("first event was not connection.ready")
+					return
+				}
+				results <- time.Since(connectionStartedAt)
+			}()
+		}
+		wait.Wait()
+		close(results)
+		close(errorsFound)
+		for err := range errorsFound {
+			t.Errorf("wave %d: %v", wave+1, err)
+		}
+		for latency := range results {
+			latencies = append(latencies, latency)
+		}
+	}
+	fixture.close()
+
+	runtime.GC()
+	time.Sleep(250 * time.Millisecond)
+	runtime.GC()
+	var memoryAfter runtime.MemStats
+	runtime.ReadMemStats(&memoryAfter)
+	goroutinesAfter := runtime.NumGoroutine()
+
+	if len(latencies) != waves*connectionsPerWave {
+		t.Fatalf("successful connections = %d, want %d", len(latencies), waves*connectionsPerWave)
+	}
+	sort.Slice(latencies, func(left, right int) bool {
+		return latencies[left] < latencies[right]
+	})
+	p95 := latencies[(len(latencies)*95+99)/100-1]
+	if p95 > p95Budget {
+		t.Errorf("handshake p95 = %s, budget %s", p95, p95Budget)
+	}
+	heapGrowth := int64(memoryAfter.HeapAlloc) - int64(memoryBefore.HeapAlloc)
+	if heapGrowth > heapGrowthBudget {
+		t.Errorf("heap growth = %d bytes, budget %d", heapGrowth, heapGrowthBudget)
+	}
+	goroutineGrowth := goroutinesAfter - goroutinesBefore
+	if goroutineGrowth > goroutineBudget {
+		t.Errorf("goroutine growth = %d, budget %d", goroutineGrowth, goroutineBudget)
+	}
+
+	elapsed := time.Since(startedAt)
+	t.Logf(
+		"connections=%d elapsed=%s throughput=%.1f/s p95=%s heap_delta=%d goroutine_delta=%d",
+		len(latencies), elapsed, float64(len(latencies))/elapsed.Seconds(), p95,
+		heapGrowth, goroutineGrowth,
+	)
 	goleak.VerifyNone(t, baseline)
 }
 

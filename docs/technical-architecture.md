@@ -302,7 +302,10 @@ sequenceDiagram
 
     L-->>A: terminal usage + finish reason
     A->>P: Complete generation, settle quota, write usage ledger
-    A-->>B: chat.completed + quota.updated
+    A-->>B: chat.completed
+    B->>A: GET /usage
+    A->>P: Read authoritative quota state
+    A-->>B: Updated allowance
 ```
 
 The acceptance acknowledgement occurs only after durable state exists. If the
@@ -556,8 +559,7 @@ Tradeoff: cookie authentication requires explicit CSRF and origin policy.
 
 Before public production:
 
-1. complete M5 security, visual, load, failure, privacy, performance, and contract
-   gates;
+1. publish the locally accepted M5 release candidate;
 2. select hosting and LLM provider through ADRs;
 3. prove database backup and restore;
 4. configure production OAuth, domains, TLS, CSP, CORS, cookies, and proxy trust;

@@ -192,6 +192,10 @@ export function ChatApp() {
         }
         return;
       }
+      if (event.type === "conversation.updated") {
+        void refreshLists();
+        return;
+      }
       if (event.type === "chat.started") {
         const assistantID = String(event.payload.assistantMessageId);
         const generationID = String(event.payload.generationId);

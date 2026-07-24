@@ -278,7 +278,7 @@ Implemented and accepted through M4:
 - account/settings/admin journeys;
 - deterministic E2E and live-provider preview smoke.
 
-M5 currently hardens the release candidate. M6 remains responsible for selecting
-production hosting/provider, provisioning environments, backups/restores, domains,
-production OAuth, observability ownership, legal approval, staged rollout, and the
-go-live decision.
+M5 has locally accepted the release candidate and awaits commit, CI, and tag
+publication. M6 remains responsible for selecting production hosting/provider,
+provisioning environments, backups/restores, domains, production OAuth,
+observability ownership, legal approval, staged rollout, and the go-live decision.

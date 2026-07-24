@@ -7,6 +7,7 @@ import remarkGfm from "remark-gfm";
 import { Button } from "@/components/ui/button";
 import { usePreferences } from "@/components/theme-provider";
 import { dictionary } from "@/lib/i18n";
+import { highlightSyntax } from "@/lib/syntax-highlight";
 
 export function MessageContent({ content }: { content: string }) {
   return (
@@ -40,6 +41,7 @@ function CodeBlock({ children }: { children?: React.ReactNode }) {
   const t = dictionary(locale);
   const value = extractText(children);
   const language = findLanguage(children) || "code";
+  const highlighted = highlightSyntax(value, language);
 
   async function copy() {
     await navigator.clipboard.writeText(value);
@@ -62,7 +64,16 @@ function CodeBlock({ children }: { children?: React.ReactNode }) {
           {copied ? <Check /> : <Copy />}
         </Button>
       </div>
-      <pre>{children}</pre>
+      <pre>
+        {highlighted ? (
+          <code
+            className={`hljs language-${highlighted.language}`}
+            dangerouslySetInnerHTML={{ __html: highlighted.html }}
+          />
+        ) : (
+          children
+        )}
+      </pre>
     </div>
   );
 }

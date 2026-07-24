@@ -10,10 +10,10 @@ history, model selection, usage visibility, session management, and account
 controls. Administrators manage model exposure, runtime limits, users, aggregate
 usage, and an auditable configuration trail.
 
-> **Release status:** M4 is published as `v0.4.0`. M5/Phase 9 is in progress and is
-> hardening the release candidate through visual, security, load, failure, privacy,
-> performance, and final contract reviews. Glazz is not yet approved for public
-> production traffic.
+> **Release status:** M4 is published as `v0.4.0`. M5/Phase 9 has passed its local
+> visual, security, load, failure, privacy, performance, and contract gates.
+> Commit, GitHub CI, and `v0.5.0` publication remain. Glazz is not yet approved for
+> public production traffic.
 
 ## Why Glazz exists
 
@@ -402,7 +402,7 @@ Glazz uses layered evidence proportional to risk:
    sessions, deletion, administration, locales, themes, accessibility, mobile, and
    PWA states.
 6. Contract lint and generation drift protect the Go/TypeScript boundary.
-7. M5 adds the visual matrix, security review, realtime load/soak, dependency
+7. M5 verifies the visual matrix, security review, realtime load/soak, dependency
    failure matrix, privacy inspection, performance audit, and final compatibility
    review.
 

@@ -16,6 +16,32 @@ Rules:
 
 ## 2026-07-24
 
+### Phase 9 completed locally
+
+- Closed QA-005 through QA-010 and SEC-002 with linked evidence in
+  `docs/reports/`; all local M5 acceptance rows are green.
+- Added and reviewed 20 visual baselines covering five states across 375, 768,
+  1024, and 1440 pixel viewports; a second run produced no visual diffs.
+- Added an AST-based OpenAPI/runtime route coverage gate, removed two unimplemented
+  AsyncAPI events, and handled `conversation.updated` in the browser.
+- Added Next.js CSP and security headers, disabled `X-Powered-By`, passed dependency,
+  vulnerability, secret, race, XSS, and browser-policy checks, and assigned three
+  medium infrastructure hardening items to Phase 10.
+- Passed a 1,280-connection WebSocket soak under `-race` with 14.17 ms handshake
+  p95, 472,656-byte heap delta, and zero goroutine delta.
+- Added real PostgreSQL/Redis readiness failure tests, outbox retry/dead-letter
+  evidence, and OTLP collector failure isolation.
+- Revalidated account/guest purge, anonymous aggregate retention, redacted audits,
+  and content-free telemetry.
+- Added production-browser performance budgets. Mobile/wide CLS remained at or
+  below 0.0311, encoded JavaScript was 238,867 bytes, and 200-message layout/scroll
+  completed within 17 ms without overflow or console errors.
+- Corrected the previously accepted code-rendering gap by adding pinned
+  `highlight.js` core with nine registered languages and XSS escape tests.
+- Passed the complete 112-profile Playwright run with 49 applicable cases green
+  and 63 explicit opt-in/non-applicable skips, the full monorepo presubmit, and all
+  Go integration packages sequentially under `-race` against isolated services.
+
 ### Technical documentation consolidated
 
 - Added a detailed repository `README.md` covering the product, capabilities,

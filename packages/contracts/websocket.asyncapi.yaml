@@ -32,291 +32,263 @@ channels:
               description: Opaque single-use ticket with a maximum 30-second lifetime.
         bindingVersion: 0.1.0
     messages:
-      ConnectionResume: {$ref: "#/components/messages/ConnectionResume"}
-      ChatGenerate: {$ref: "#/components/messages/ChatGenerate"}
-      ChatCancel: {$ref: "#/components/messages/ChatCancel"}
-      HeartbeatPong: {$ref: "#/components/messages/HeartbeatPong"}
-      ConnectionReady: {$ref: "#/components/messages/ConnectionReady"}
-      ConnectionResyncRequired: {$ref: "#/components/messages/ConnectionResyncRequired"}
-      CommandAcknowledged: {$ref: "#/components/messages/CommandAcknowledged"}
-      CommandRejected: {$ref: "#/components/messages/CommandRejected"}
-      ChatStarted: {$ref: "#/components/messages/ChatStarted"}
-      ChatDelta: {$ref: "#/components/messages/ChatDelta"}
-      ChatCompleted: {$ref: "#/components/messages/ChatCompleted"}
-      ChatCancelled: {$ref: "#/components/messages/ChatCancelled"}
-      ChatFailed: {$ref: "#/components/messages/ChatFailed"}
-      QuotaUpdated: {$ref: "#/components/messages/QuotaUpdated"}
-      ConversationUpdated: {$ref: "#/components/messages/ConversationUpdated"}
-      MaintenanceChanged: {$ref: "#/components/messages/MaintenanceChanged"}
-      HeartbeatPing: {$ref: "#/components/messages/HeartbeatPing"}
+      ConnectionResume: { $ref: "#/components/messages/ConnectionResume" }
+      ChatGenerate: { $ref: "#/components/messages/ChatGenerate" }
+      ChatCancel: { $ref: "#/components/messages/ChatCancel" }
+      HeartbeatPong: { $ref: "#/components/messages/HeartbeatPong" }
+      ConnectionReady: { $ref: "#/components/messages/ConnectionReady" }
+      ConnectionResyncRequired: { $ref: "#/components/messages/ConnectionResyncRequired" }
+      CommandAcknowledged: { $ref: "#/components/messages/CommandAcknowledged" }
+      CommandRejected: { $ref: "#/components/messages/CommandRejected" }
+      ChatStarted: { $ref: "#/components/messages/ChatStarted" }
+      ChatDelta: { $ref: "#/components/messages/ChatDelta" }
+      ChatCompleted: { $ref: "#/components/messages/ChatCompleted" }
+      ChatCancelled: { $ref: "#/components/messages/ChatCancelled" }
+      ChatFailed: { $ref: "#/components/messages/ChatFailed" }
+      ConversationUpdated: { $ref: "#/components/messages/ConversationUpdated" }
+      HeartbeatPing: { $ref: "#/components/messages/HeartbeatPing" }
 operations:
   sendClientCommand:
     action: send
-    channel: {$ref: "#/channels/realtime"}
+    channel: { $ref: "#/channels/realtime" }
     messages:
-      - {$ref: "#/channels/realtime/messages/ConnectionResume"}
-      - {$ref: "#/channels/realtime/messages/ChatGenerate"}
-      - {$ref: "#/channels/realtime/messages/ChatCancel"}
-      - {$ref: "#/channels/realtime/messages/HeartbeatPong"}
+      - { $ref: "#/channels/realtime/messages/ConnectionResume" }
+      - { $ref: "#/channels/realtime/messages/ChatGenerate" }
+      - { $ref: "#/channels/realtime/messages/ChatCancel" }
+      - { $ref: "#/channels/realtime/messages/HeartbeatPong" }
   receiveServerEvent:
     action: receive
-    channel: {$ref: "#/channels/realtime"}
+    channel: { $ref: "#/channels/realtime" }
     messages:
-      - {$ref: "#/channels/realtime/messages/ConnectionReady"}
-      - {$ref: "#/channels/realtime/messages/ConnectionResyncRequired"}
-      - {$ref: "#/channels/realtime/messages/CommandAcknowledged"}
-      - {$ref: "#/channels/realtime/messages/CommandRejected"}
-      - {$ref: "#/channels/realtime/messages/ChatStarted"}
-      - {$ref: "#/channels/realtime/messages/ChatDelta"}
-      - {$ref: "#/channels/realtime/messages/ChatCompleted"}
-      - {$ref: "#/channels/realtime/messages/ChatCancelled"}
-      - {$ref: "#/channels/realtime/messages/ChatFailed"}
-      - {$ref: "#/channels/realtime/messages/QuotaUpdated"}
-      - {$ref: "#/channels/realtime/messages/ConversationUpdated"}
-      - {$ref: "#/channels/realtime/messages/MaintenanceChanged"}
-      - {$ref: "#/channels/realtime/messages/HeartbeatPing"}
+      - { $ref: "#/channels/realtime/messages/ConnectionReady" }
+      - { $ref: "#/channels/realtime/messages/ConnectionResyncRequired" }
+      - { $ref: "#/channels/realtime/messages/CommandAcknowledged" }
+      - { $ref: "#/channels/realtime/messages/CommandRejected" }
+      - { $ref: "#/channels/realtime/messages/ChatStarted" }
+      - { $ref: "#/channels/realtime/messages/ChatDelta" }
+      - { $ref: "#/channels/realtime/messages/ChatCompleted" }
+      - { $ref: "#/channels/realtime/messages/ChatCancelled" }
+      - { $ref: "#/channels/realtime/messages/ChatFailed" }
+      - { $ref: "#/channels/realtime/messages/ConversationUpdated" }
+      - { $ref: "#/channels/realtime/messages/HeartbeatPing" }
 components:
   messages:
     ConnectionResume:
       name: connection.resume
       payload:
         allOf:
-          - {$ref: "#/components/schemas/ClientEnvelope"}
+          - { $ref: "#/components/schemas/ClientEnvelope" }
           - type: object
             properties:
-              type: {const: connection.resume}
+              type: { const: connection.resume }
               payload:
                 type: object
                 additionalProperties: false
                 required: [lastSequence]
                 properties:
-                  lastSequence: {type: integer, minimum: 0}
+                  lastSequence: { type: integer, minimum: 0 }
     ChatGenerate:
       name: chat.generate
       payload:
         allOf:
-          - {$ref: "#/components/schemas/ClientEnvelope"}
+          - { $ref: "#/components/schemas/ClientEnvelope" }
           - type: object
             properties:
-              type: {const: chat.generate}
-              payload: {$ref: "#/components/schemas/GeneratePayload"}
+              type: { const: chat.generate }
+              payload: { $ref: "#/components/schemas/GeneratePayload" }
     ChatCancel:
       name: chat.cancel
       payload:
         allOf:
-          - {$ref: "#/components/schemas/ClientEnvelope"}
+          - { $ref: "#/components/schemas/ClientEnvelope" }
           - type: object
             properties:
-              type: {const: chat.cancel}
+              type: { const: chat.cancel }
               payload:
                 type: object
                 additionalProperties: false
                 required: [conversationId, generationId]
                 properties:
-                  conversationId: {$ref: "#/components/schemas/Id"}
-                  generationId: {$ref: "#/components/schemas/Id"}
+                  conversationId: { $ref: "#/components/schemas/Id" }
+                  generationId: { $ref: "#/components/schemas/Id" }
     HeartbeatPong:
       name: heartbeat.pong
       payload:
         allOf:
-          - {$ref: "#/components/schemas/ClientEnvelope"}
+          - { $ref: "#/components/schemas/ClientEnvelope" }
           - type: object
             properties:
-              type: {const: heartbeat.pong}
+              type: { const: heartbeat.pong }
               payload:
                 type: object
                 additionalProperties: false
                 required: [heartbeatId]
                 properties:
-                  heartbeatId: {type: string}
+                  heartbeatId: { type: string }
     ConnectionReady:
       name: connection.ready
       payload:
         allOf:
-          - {$ref: "#/components/schemas/ServerEnvelope"}
+          - { $ref: "#/components/schemas/ServerEnvelope" }
           - type: object
             properties:
-              type: {const: connection.ready}
+              type: { const: connection.ready }
               payload:
                 type: object
                 additionalProperties: false
                 required: [actorType, heartbeatIntervalMs, replayWindow, serverTime]
                 properties:
-                  actorType: {type: string, enum: [guest, user, admin]}
-                  heartbeatIntervalMs: {type: integer, minimum: 5000}
-                  replayWindow: {type: integer, minimum: 0}
-                  serverTime: {type: string, format: date-time}
+                  actorType: { type: string, enum: [guest, user, admin] }
+                  heartbeatIntervalMs: { type: integer, minimum: 5000 }
+                  replayWindow: { type: integer, minimum: 0 }
+                  serverTime: { type: string, format: date-time }
     ConnectionResyncRequired:
       name: connection.resync_required
       payload:
         allOf:
-          - {$ref: "#/components/schemas/ServerEnvelope"}
+          - { $ref: "#/components/schemas/ServerEnvelope" }
           - type: object
             properties:
-              type: {const: connection.resync_required}
+              type: { const: connection.resync_required }
               payload:
                 type: object
                 additionalProperties: false
                 required: [reason, resources]
                 properties:
-                  reason: {type: string, enum: [replay_window_missed, server_restart]}
+                  reason: { type: string, enum: [replay_window_missed, server_restart] }
                   resources:
                     type: array
-                    items: {type: string, enum: [conversations, messages, usage]}
+                    items: { type: string, enum: [conversations, messages, usage] }
                     uniqueItems: true
     CommandAcknowledged:
       name: command.acknowledged
       payload:
         allOf:
-          - {$ref: "#/components/schemas/ServerEnvelope"}
+          - { $ref: "#/components/schemas/ServerEnvelope" }
           - type: object
             properties:
-              type: {const: command.acknowledged}
+              type: { const: command.acknowledged }
               payload:
                 type: object
                 additionalProperties: false
                 required: [commandEventId]
                 properties:
-                  commandEventId: {type: string}
+                  commandEventId: { type: string }
     CommandRejected:
       name: command.rejected
       payload:
         allOf:
-          - {$ref: "#/components/schemas/ServerEnvelope"}
+          - { $ref: "#/components/schemas/ServerEnvelope" }
           - type: object
             properties:
-              type: {const: command.rejected}
-              payload: {$ref: "#/components/schemas/RealtimeError"}
+              type: { const: command.rejected }
+              payload: { $ref: "#/components/schemas/RealtimeError" }
     ChatStarted:
       name: chat.started
       payload:
         allOf:
-          - {$ref: "#/components/schemas/ServerEnvelope"}
+          - { $ref: "#/components/schemas/ServerEnvelope" }
           - type: object
             properties:
-              type: {const: chat.started}
+              type: { const: chat.started }
               payload:
                 type: object
                 additionalProperties: false
                 required: [conversationId, generationId, userMessageId, assistantMessageId]
                 properties:
-                  conversationId: {$ref: "#/components/schemas/Id"}
-                  generationId: {$ref: "#/components/schemas/Id"}
-                  userMessageId: {$ref: "#/components/schemas/Id"}
-                  assistantMessageId: {$ref: "#/components/schemas/Id"}
+                  conversationId: { $ref: "#/components/schemas/Id" }
+                  generationId: { $ref: "#/components/schemas/Id" }
+                  userMessageId: { $ref: "#/components/schemas/Id" }
+                  assistantMessageId: { $ref: "#/components/schemas/Id" }
     ChatDelta:
       name: chat.delta
       payload:
         allOf:
-          - {$ref: "#/components/schemas/ServerEnvelope"}
+          - { $ref: "#/components/schemas/ServerEnvelope" }
           - type: object
             properties:
-              type: {const: chat.delta}
+              type: { const: chat.delta }
               payload:
                 type: object
                 additionalProperties: false
                 required: [generationId, offset, text]
                 properties:
-                  generationId: {$ref: "#/components/schemas/Id"}
-                  offset: {type: integer, minimum: 0}
-                  text: {type: string, minLength: 1, maxLength: 16384}
+                  generationId: { $ref: "#/components/schemas/Id" }
+                  offset: { type: integer, minimum: 0 }
+                  text: { type: string, minLength: 1, maxLength: 16384 }
     ChatCompleted:
       name: chat.completed
       payload:
         allOf:
-          - {$ref: "#/components/schemas/ServerEnvelope"}
+          - { $ref: "#/components/schemas/ServerEnvelope" }
           - type: object
             properties:
-              type: {const: chat.completed}
-              payload: {$ref: "#/components/schemas/TerminalPayload"}
+              type: { const: chat.completed }
+              payload: { $ref: "#/components/schemas/TerminalPayload" }
     ChatCancelled:
       name: chat.cancelled
       payload:
         allOf:
-          - {$ref: "#/components/schemas/ServerEnvelope"}
+          - { $ref: "#/components/schemas/ServerEnvelope" }
           - type: object
             properties:
-              type: {const: chat.cancelled}
+              type: { const: chat.cancelled }
               payload:
                 allOf:
-                  - {$ref: "#/components/schemas/TerminalPayload"}
+                  - { $ref: "#/components/schemas/TerminalPayload" }
                   - type: object
                     required: [partialContentRetained]
                     properties:
-                      partialContentRetained: {type: boolean}
+                      partialContentRetained: { type: boolean }
     ChatFailed:
       name: chat.failed
       payload:
         allOf:
-          - {$ref: "#/components/schemas/ServerEnvelope"}
+          - { $ref: "#/components/schemas/ServerEnvelope" }
           - type: object
             properties:
-              type: {const: chat.failed}
+              type: { const: chat.failed }
               payload:
                 allOf:
-                  - {$ref: "#/components/schemas/RealtimeError"}
+                  - { $ref: "#/components/schemas/RealtimeError" }
                   - type: object
                     required: [generationId, retryable, partialContentRetained]
                     properties:
-                      generationId: {$ref: "#/components/schemas/Id"}
-                      retryable: {type: boolean}
-                      partialContentRetained: {type: boolean}
-    QuotaUpdated:
-      name: quota.updated
-      payload:
-        allOf:
-          - {$ref: "#/components/schemas/ServerEnvelope"}
-          - type: object
-            properties:
-              type: {const: quota.updated}
-              payload: {$ref: "#/components/schemas/QuotaPayload"}
+                      generationId: { $ref: "#/components/schemas/Id" }
+                      retryable: { type: boolean }
+                      partialContentRetained: { type: boolean }
     ConversationUpdated:
       name: conversation.updated
       payload:
         allOf:
-          - {$ref: "#/components/schemas/ServerEnvelope"}
+          - { $ref: "#/components/schemas/ServerEnvelope" }
           - type: object
             properties:
-              type: {const: conversation.updated}
+              type: { const: conversation.updated }
               payload:
                 type: object
                 additionalProperties: false
                 required: [conversationId, changedFields]
                 properties:
-                  conversationId: {$ref: "#/components/schemas/Id"}
+                  conversationId: { $ref: "#/components/schemas/Id" }
                   changedFields:
                     type: array
-                    items: {type: string, enum: [title, status, modelId, updatedAt]}
+                    items: { type: string, enum: [title, status, modelId, updatedAt] }
                     uniqueItems: true
-    MaintenanceChanged:
-      name: maintenance.changed
-      payload:
-        allOf:
-          - {$ref: "#/components/schemas/ServerEnvelope"}
-          - type: object
-            properties:
-              type: {const: maintenance.changed}
-              payload:
-                type: object
-                additionalProperties: false
-                required: [enabled]
-                properties:
-                  enabled: {type: boolean}
-                  retryAfterSeconds: {type: [integer, "null"], minimum: 1}
     HeartbeatPing:
       name: heartbeat.ping
       payload:
         allOf:
-          - {$ref: "#/components/schemas/ServerEnvelope"}
+          - { $ref: "#/components/schemas/ServerEnvelope" }
           - type: object
             properties:
-              type: {const: heartbeat.ping}
+              type: { const: heartbeat.ping }
               payload:
                 type: object
                 additionalProperties: false
                 required: [heartbeatId]
                 properties:
-                  heartbeatId: {type: string}
+                  heartbeatId: { type: string }
   schemas:
     Id:
       type: string
@@ -325,54 +297,54 @@ components:
       type: object
       required: [version, type, eventId, requestId, occurredAt, payload]
       properties:
-        version: {type: integer, const: 1}
-        type: {type: string}
-        eventId: {type: string, minLength: 8, maxLength: 128}
-        requestId: {type: string, minLength: 8, maxLength: 128}
-        occurredAt: {type: string, format: date-time}
-        payload: {type: object}
+        version: { type: integer, const: 1 }
+        type: { type: string }
+        eventId: { type: string, minLength: 8, maxLength: 128 }
+        requestId: { type: string, minLength: 8, maxLength: 128 }
+        occurredAt: { type: string, format: date-time }
+        payload: { type: object }
     ClientEnvelope:
       allOf:
-        - {$ref: "#/components/schemas/BaseEnvelope"}
+        - { $ref: "#/components/schemas/BaseEnvelope" }
         - type: object
           required: [idempotencyKey]
           properties:
-            idempotencyKey: {type: string, minLength: 16, maxLength: 128}
+            idempotencyKey: { type: string, minLength: 16, maxLength: 128 }
     ServerEnvelope:
       allOf:
-        - {$ref: "#/components/schemas/BaseEnvelope"}
+        - { $ref: "#/components/schemas/BaseEnvelope" }
         - type: object
           required: [sequence]
           properties:
-            sequence: {type: integer, minimum: 1}
+            sequence: { type: integer, minimum: 1 }
     GeneratePayload:
       type: object
       additionalProperties: false
       required: [conversationId, content]
       properties:
-        conversationId: {$ref: "#/components/schemas/Id"}
-        content: {type: string, minLength: 1, maxLength: 32000}
+        conversationId: { $ref: "#/components/schemas/Id" }
+        content: { type: string, minLength: 1, maxLength: 32000 }
     Usage:
       type: object
       additionalProperties: false
       required: [inputTokens, outputTokens]
       properties:
-        inputTokens: {type: integer, minimum: 0}
-        outputTokens: {type: integer, minimum: 0}
-        cachedTokens: {type: integer, minimum: 0}
+        inputTokens: { type: integer, minimum: 0 }
+        outputTokens: { type: integer, minimum: 0 }
+        cachedTokens: { type: integer, minimum: 0 }
     TerminalPayload:
       type: object
       required: [generationId, assistantMessageId, usage, finishReason]
       properties:
-        generationId: {$ref: "#/components/schemas/Id"}
-        assistantMessageId: {$ref: "#/components/schemas/Id"}
-        usage: {$ref: "#/components/schemas/Usage"}
-        finishReason: {type: string, enum: [stop, length, cancelled, safety, error]}
+        generationId: { $ref: "#/components/schemas/Id" }
+        assistantMessageId: { $ref: "#/components/schemas/Id" }
+        usage: { $ref: "#/components/schemas/Usage" }
+        finishReason: { type: string, enum: [stop, length, cancelled, safety, error] }
     RealtimeError:
       type: object
       required: [code, message]
       properties:
-        commandEventId: {type: string}
+        commandEventId: { type: string }
         code:
           type: string
           enum:
@@ -389,14 +361,5 @@ components:
             - provider_timeout
             - safety_blocked
             - resync_required
-        message: {type: string}
-        details: {type: object, additionalProperties: true}
-    QuotaPayload:
-      type: object
-      additionalProperties: false
-      required: [messagesRemaining, outputTokensRemaining, concurrentRemaining]
-      properties:
-        messagesRemaining: {type: integer, minimum: 0}
-        outputTokensRemaining: {type: integer, minimum: 0}
-        concurrentRemaining: {type: integer, minimum: 0}
-        resetAt: {type: [string, "null"], format: date-time}
+        message: { type: string }
+        details: { type: object, additionalProperties: true }

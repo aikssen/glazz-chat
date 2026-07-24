@@ -78,21 +78,18 @@ Milestone documents are acceptance ledgers. They do not replace `TASKS.md`.
 - [M0 Threat Model](./threat-model/m0-threat-model.md)
 - [Deployment Notes](../deploy/README.md)
 
+## Verification reports
+
+Phase 9 evidence is derived from executed acceptance gates:
+
+| Scope                                              | Report                                                                                |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Visual matrix and contract compatibility           | [Phase 9 visual and contract verification](./reports/phase9-visual-contract.md)       |
+| Threat-driven review and finding ownership         | [Phase 9 application security review](./reports/phase9-security-review.md)            |
+| Load, dependency failures, privacy, and deletion   | [Phase 9 resilience and privacy verification](./reports/phase9-resilience-privacy.md) |
+| Bundle, Web Vitals, transcript, and code rendering | [Phase 9 web performance audit](./reports/phase9-web-performance.md)                  |
+
 ## Documentation still required
-
-The documentation baseline is current through the start of M5. The following
-artifacts must be produced from real acceptance evidence rather than written in
-advance as if the work had passed.
-
-### M5 evidence
-
-- visual regression matrix and approved baseline procedure;
-- application security review with finding severity, ownership, and closure;
-- realtime load/soak model, results, bottlenecks, and capacity budget;
-- dependency failure matrix and recovery evidence;
-- privacy/deletion inspection report covering logs, traces, analytics, and stores;
-- web bundle/Core Web Vitals performance report;
-- final implementation-to-OpenAPI/AsyncAPI compatibility report.
 
 ### M6 decisions and runbooks
 
@@ -108,8 +105,8 @@ advance as if the work had passed.
 - production architecture diagram updated with selected vendors, regions, and
   recovery topology.
 
-These are tracked by Phase 9 and Phase 10 in `TASKS.md`. They should link their
-evidence from the M5/M6 acceptance ledgers when completed.
+These are tracked by Phase 10 in `TASKS.md`. They must link their evidence from the
+M6 acceptance ledger when completed.
 
 ## Diagram convention
 
