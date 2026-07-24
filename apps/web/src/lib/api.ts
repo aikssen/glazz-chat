@@ -1,3 +1,5 @@
+import { newUUID } from "./uuid";
+
 function runtimeAPIURL() {
   if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
   if (typeof window !== "undefined") {
@@ -38,6 +40,9 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (!["GET", "HEAD", "OPTIONS"].includes(method)) {
     const csrf = cookie("glazz_csrf") || cookie("glazz_guest_csrf");
     if (csrf) headers.set("X-CSRF-Token", decodeURIComponent(csrf));
+    if (["POST", "DELETE"].includes(method) && !headers.has("Idempotency-Key")) {
+      headers.set("Idempotency-Key", `http-${newUUID()}`);
+    }
   }
   const response = await fetch(`${API_URL}${path}`, {
     ...init,

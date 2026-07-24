@@ -81,6 +81,10 @@ func (deps Dependencies) createConversation(response http.ResponseWriter, reques
 		deps.actorError(response, request, err)
 		return
 	}
+	idempotencyKey, ok := requestIdempotencyKey(response, request)
+	if !ok {
+		return
+	}
 	var payload struct {
 		Title   string     `json:"title"`
 		ModelID *uuid.UUID `json:"modelId"`
@@ -92,7 +96,7 @@ func (deps Dependencies) createConversation(response http.ResponseWriter, reques
 		}
 	}
 	conversation, err := deps.Chats.Create(request.Context(), actor, conversations.CreateInput{
-		Title: payload.Title, ModelID: payload.ModelID,
+		Title: payload.Title, ModelID: payload.ModelID, IdempotencyKey: idempotencyKey,
 	})
 	if err != nil {
 		deps.conversationError(response, request, err)
@@ -140,7 +144,12 @@ func (deps Dependencies) getConversation(response http.ResponseWriter, request *
 		return
 	}
 	response.Header().Set("Cache-Control", "private, no-cache")
-	response.Header().Set("ETag", fmt.Sprintf(`W/"%d"`, conversation.UpdatedAt.UnixNano()))
+	etag := fmt.Sprintf(`W/"%d"`, conversation.UpdatedAt.UnixNano())
+	response.Header().Set("ETag", etag)
+	if request.Header.Get("If-None-Match") == etag {
+		response.WriteHeader(http.StatusNotModified)
+		return
+	}
 	httpx.WriteJSON(response, http.StatusOK, conversation)
 }
 
@@ -174,11 +183,32 @@ func (deps Dependencies) deleteConversation(response http.ResponseWriter, reques
 	if !ok {
 		return
 	}
-	if err := deps.Chats.Delete(request.Context(), actor, conversationID); err != nil {
+	idempotencyKey, ok := requestIdempotencyKey(response, request)
+	if !ok {
+		return
+	}
+	if err := deps.Chats.Delete(
+		request.Context(), actor, conversationID, idempotencyKey,
+	); err != nil {
 		deps.conversationError(response, request, err)
 		return
 	}
 	response.WriteHeader(http.StatusNoContent)
+}
+
+func requestIdempotencyKey(
+	response http.ResponseWriter,
+	request *http.Request,
+) (string, bool) {
+	key := strings.TrimSpace(request.Header.Get("Idempotency-Key"))
+	if len(key) < 16 || len(key) > 128 {
+		httpx.WriteError(
+			response, request, http.StatusBadRequest, "invalid_request",
+			"Idempotency-Key is invalid.",
+		)
+		return "", false
+	}
+	return key, true
 }
 
 func (deps Dependencies) listConversationMessages(response http.ResponseWriter, request *http.Request) {

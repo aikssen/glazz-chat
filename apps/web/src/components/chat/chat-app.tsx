@@ -63,6 +63,7 @@ export function ChatApp() {
   const socket = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<number | null>(null);
   const lastSequence = useRef(0);
+  const conversationIDRef = useRef("");
   const pendingCommands = useRef(new Map<string, "chat.generate" | "chat.cancel">());
   const loginDialogRef = useRef<HTMLDivElement>(null);
   const closeLoginDialog = useCallback(() => setLoginDialog(false), []);
@@ -144,6 +145,13 @@ export function ChatApp() {
         void refreshLists();
         return;
       }
+      if (event.type === "connection.resync_required") {
+        void refreshLists();
+        if (conversationIDRef.current) {
+          void loadConversation(conversationIDRef.current);
+        }
+        return;
+      }
       if (event.type === "chat.started") {
         const assistantID = String(event.payload.assistantMessageId);
         const generationID = String(event.payload.generationId);
@@ -181,8 +189,12 @@ export function ChatApp() {
         void refreshLists();
       }
     },
-    [locale, refreshLists],
+    [loadConversation, locale, refreshLists],
   );
+
+  useEffect(() => {
+    conversationIDRef.current = conversationID;
+  }, [conversationID]);
 
   const connect = useCallback(async () => {
     try {
@@ -197,7 +209,9 @@ export function ChatApp() {
         setConnection("connected");
         if (lastSequence.current > 0) {
           next.send(
-            JSON.stringify(clientEvent("connection.resume", { lastSequence: lastSequence.current })),
+            JSON.stringify(
+              clientEvent("connection.resume", { lastSequence: lastSequence.current }),
+            ),
           );
         }
       };

@@ -14,12 +14,17 @@ import (
 )
 
 type memoryTickets struct {
-	values map[string]string
+	values  map[string]string
+	putErr  error
+	takeErr error
 }
 
 func (store *memoryTickets) Put(
 	_ context.Context, namespace, id, value string, _ time.Duration,
 ) error {
+	if store.putErr != nil {
+		return store.putErr
+	}
 	store.values[namespace+id] = value
 	return nil
 }
@@ -27,6 +32,9 @@ func (store *memoryTickets) Put(
 func (store *memoryTickets) Take(
 	_ context.Context, namespace, id string,
 ) (string, error) {
+	if store.takeErr != nil {
+		return "", store.takeErr
+	}
 	key := namespace + id
 	value, ok := store.values[key]
 	if !ok {
@@ -34,6 +42,28 @@ func (store *memoryTickets) Take(
 	}
 	delete(store.values, key)
 	return value, nil
+}
+
+func TestTicketDeniesRedisFailures(t *testing.T) {
+	dependencyErr := errors.New("Redis unavailable")
+	actor := conversations.Actor{Type: conversations.ActorUser, ID: uuid.New()}
+	issuer := NewTickets(
+		&memoryTickets{values: map[string]string{}, putErr: dependencyErr},
+		clock.NewFake(time.Now()), 30*time.Second,
+	)
+	if _, err := issuer.Issue(context.Background(), actor); !errors.Is(err, dependencyErr) {
+		t.Fatalf("issue err = %v, want dependency failure", err)
+	}
+
+	consumer := NewTickets(
+		&memoryTickets{values: map[string]string{}, takeErr: dependencyErr},
+		clock.NewFake(time.Now()), 30*time.Second,
+	)
+	if err := consumer.Consume(
+		context.Background(), "ticket-value-with-at-least-thirty-two-characters", actor,
+	); !errors.Is(err, dependencyErr) {
+		t.Fatalf("consume err = %v, want dependency failure", err)
+	}
 }
 
 func TestTicketIsSingleUseAndActorBound(t *testing.T) {

@@ -27,3 +27,19 @@ func TestGlobalOutputBudgetSettingValidation(t *testing.T) {
 		})
 	}
 }
+
+func TestSummaryModelSettingRequiresUUID(t *testing.T) {
+	t.Parallel()
+	if !validSettingValue(
+		"chat.summary_model_id",
+		json.RawMessage(`"00000000-0000-7000-8000-000000000101"`),
+	) {
+		t.Fatal("valid summary model UUID was rejected")
+	}
+	if validSettingValue(
+		"chat.summary_model_id",
+		json.RawMessage(`"not-a-uuid-but-exactly-36-characters-x"`),
+	) {
+		t.Fatal("invalid summary model UUID was accepted")
+	}
+}

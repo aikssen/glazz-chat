@@ -482,6 +482,7 @@ func validSettingValue(key string, raw json.RawMessage) bool {
 		"quota.global.output_tokens":          {kind: "integer", min: 128, max: 1000000000000},
 		"quota.global.concurrent_generations": {kind: "integer", min: 1, max: 10000},
 		"chat.system_prompt":                  {kind: "string", min: 1, max: 10000},
+		"chat.summary_model_id":               {kind: "string", min: 36, max: 36},
 		"safety.input_categories":             {kind: "string_array", max: 50},
 		"safety.output_categories":            {kind: "string_array", max: 50},
 	}
@@ -508,9 +509,14 @@ func validSettingValue(key string, raw json.RawMessage) bool {
 		return err == nil && parsed >= definition.min && parsed <= definition.max
 	case "string":
 		var value string
-		return json.Unmarshal(raw, &value) == nil &&
+		valid := json.Unmarshal(raw, &value) == nil &&
 			int64(len(strings.TrimSpace(value))) >= definition.min &&
 			int64(len(value)) <= definition.max
+		if valid && key == "chat.summary_model_id" {
+			_, err := uuid.Parse(value)
+			return err == nil
+		}
+		return valid
 	case "string_array":
 		var values []string
 		if json.Unmarshal(raw, &values) != nil || int64(len(values)) > definition.max {

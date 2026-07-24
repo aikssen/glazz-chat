@@ -37,6 +37,10 @@ type Handler struct {
 	processor      CommandProcessor
 	clock          clock.Clock
 	originPatterns []string
+	writeQueueSize int
+	heartbeatEvery time.Duration
+	heartbeatWait  time.Duration
+	writeWait      time.Duration
 }
 
 func NewHandler(
@@ -49,6 +53,8 @@ func NewHandler(
 	return &Handler{
 		tickets: tickets, broker: broker, processor: processor, clock: timeSource,
 		originPatterns: originPatterns(allowedOrigins),
+		writeQueueSize: writeQueueSize, heartbeatEvery: heartbeatInterval,
+		heartbeatWait: heartbeatTimeout, writeWait: writeTimeout,
 	}
 }
 
@@ -80,7 +86,7 @@ func (handler *Handler) Serve(
 	}
 	defer subscription.Close()
 
-	outgoing := make(chan string, writeQueueSize)
+	outgoing := make(chan string, handler.writeQueueSize)
 	failures := make(chan error, 3)
 	lastPong := atomic.Int64{}
 	lastPong.Store(handler.clock.Now().UnixNano())
@@ -90,7 +96,7 @@ func (handler *Handler) Serve(
 	go handler.heartbeatLoop(ctx, actor, lastPong.Load, failures)
 
 	if _, err := handler.broker.Emit(ctx, actor, "connection.ready", requestID(request), map[string]any{
-		"actorType": string(actor.Type), "heartbeatIntervalMs": heartbeatInterval.Milliseconds(),
+		"actorType": string(actor.Type), "heartbeatIntervalMs": handler.heartbeatEvery.Milliseconds(),
 		"replayWindow": replayLimit, "serverTime": handler.clock.Now().UTC(),
 	}); err != nil {
 		_ = connection.Close(websocket.StatusInternalError, "realtime dependency unavailable")
@@ -149,7 +155,19 @@ func (handler *Handler) readLoop(
 			if err != nil {
 				return err
 			}
-			for _, encoded := range replay {
+			if replay.ResyncRequired {
+				if _, err := handler.broker.Emit(
+					ctx, actor, "connection.resync_required", event.RequestID,
+					map[string]any{
+						"reason":    "replay_window_missed",
+						"resources": []string{"conversations", "messages", "usage"},
+					},
+				); err != nil {
+					return err
+				}
+				continue
+			}
+			for _, encoded := range replay.Events {
 				if !enqueue(outgoing, encoded) {
 					return errors.New("realtime write queue is full")
 				}
@@ -195,7 +213,7 @@ func (handler *Handler) writeLoop(
 		case <-ctx.Done():
 			return
 		case encoded := <-outgoing:
-			writeCtx, cancel := context.WithTimeout(ctx, writeTimeout)
+			writeCtx, cancel := context.WithTimeout(ctx, handler.writeWait)
 			err := connection.Write(writeCtx, websocket.MessageText, []byte(encoded))
 			cancel()
 			if err != nil {
@@ -240,14 +258,14 @@ func (handler *Handler) heartbeatLoop(
 	lastPong func() int64,
 	failures chan<- error,
 ) {
-	ticker := time.NewTicker(heartbeatInterval)
+	ticker := time.NewTicker(handler.heartbeatEvery)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			if handler.clock.Now().Sub(time.Unix(0, lastPong())) > heartbeatTimeout {
+			if handler.clock.Now().Sub(time.Unix(0, lastPong())) > handler.heartbeatWait {
 				select {
 				case failures <- errors.New("heartbeat timed out"):
 				default:
@@ -324,6 +342,8 @@ func requestID(request *http.Request) string {
 func realtimeCode(err error) string {
 	value := strings.ToLower(err.Error())
 	switch {
+	case strings.Contains(value, "safety policy"):
+		return "safety_blocked"
 	case strings.Contains(value, "quota"):
 		return "quota_exceeded"
 	case strings.Contains(value, "concurrent"):

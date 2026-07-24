@@ -56,18 +56,20 @@ type AuthSession struct {
 }
 
 type Conversation struct {
-	ID              uuid.UUID          `db:"id"`
-	UserID          *uuid.UUID         `db:"user_id"`
-	GuestSessionID  *uuid.UUID         `db:"guest_session_id"`
-	Title           string             `db:"title"`
-	Status          string             `db:"status"`
-	CreatedAt       pgtype.Timestamptz `db:"created_at"`
-	UpdatedAt       pgtype.Timestamptz `db:"updated_at"`
-	ModelID         uuid.UUID          `db:"model_id"`
-	GenerationState string             `db:"generation_state"`
-	RenamedByUser   bool               `db:"renamed_by_user"`
-	LastMessageAt   pgtype.Timestamptz `db:"last_message_at"`
-	DeletedAt       pgtype.Timestamptz `db:"deleted_at"`
+	ID                     uuid.UUID          `db:"id"`
+	UserID                 *uuid.UUID         `db:"user_id"`
+	GuestSessionID         *uuid.UUID         `db:"guest_session_id"`
+	Title                  string             `db:"title"`
+	Status                 string             `db:"status"`
+	CreatedAt              pgtype.Timestamptz `db:"created_at"`
+	UpdatedAt              pgtype.Timestamptz `db:"updated_at"`
+	ModelID                uuid.UUID          `db:"model_id"`
+	GenerationState        string             `db:"generation_state"`
+	RenamedByUser          bool               `db:"renamed_by_user"`
+	LastMessageAt          pgtype.Timestamptz `db:"last_message_at"`
+	DeletedAt              pgtype.Timestamptz `db:"deleted_at"`
+	CreationIdempotencyKey *string            `db:"creation_idempotency_key"`
+	DeletionIdempotencyKey *string            `db:"deletion_idempotency_key"`
 }
 
 type ConversationSummary struct {

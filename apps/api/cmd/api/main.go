@@ -3,12 +3,15 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/aikssen/glazz-chat/apps/api/internal/admin"
 	"github.com/aikssen/glazz-chat/apps/api/internal/chat"
@@ -146,7 +149,31 @@ func run(logger *slog.Logger) error {
 	).WithSystemPrompt(func(ctx context.Context) (string, error) {
 		snapshot, err := runtimeSettings.Load(ctx)
 		return snapshot.SystemPrompt, err
-	}).WithAvailability(func(ctx context.Context) (bool, error) {
+	}).WithSummaryModel(func(ctx context.Context) (models.Selection, error) {
+		snapshot, err := runtimeSettings.Load(ctx)
+		if err != nil {
+			return models.Selection{}, err
+		}
+		modelID, err := uuid.Parse(snapshot.SummaryModelID)
+		if err != nil {
+			return models.Selection{}, fmt.Errorf("parse summary model ID: %w", err)
+		}
+		return modelService.Select(ctx, modelID, "user")
+	}).WithSafety(
+		chat.NewRuleSafetyPolicy(),
+		func(ctx context.Context) ([]string, []string, error) {
+			snapshot, err := runtimeSettings.Load(ctx)
+			return snapshot.InputSafetyCategories, snapshot.OutputSafetyCategories, err
+		},
+		chat.SafetyReporterFunc(func(_ context.Context, report chat.SafetyReport) error {
+			logger.Warn("chat content blocked",
+				"stage", report.Stage,
+				"category", report.Category,
+				"request_id", report.RequestID,
+			)
+			return nil
+		}),
+	).WithAvailability(func(ctx context.Context) (bool, error) {
 		snapshot, err := runtimeSettings.Load(ctx)
 		return !cfg.Runtime.Maintenance && !snapshot.Maintenance, err
 	})

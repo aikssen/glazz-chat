@@ -17,6 +17,7 @@ type Snapshot struct {
 	GlobalOutputTokenLimit  int64
 	GlobalConcurrentStreams int64
 	SystemPrompt            string
+	SummaryModelID          string
 	InputSafetyCategories   []string
 	OutputSafetyCategories  []string
 }
@@ -61,6 +62,9 @@ func (service *Service) Load(ctx context.Context) (Snapshot, error) {
 		return Snapshot{}, err
 	}
 	if err := decode(values, "chat.system_prompt", &snapshot.SystemPrompt); err != nil {
+		return Snapshot{}, err
+	}
+	if err := decode(values, "chat.summary_model_id", &snapshot.SummaryModelID); err != nil {
 		return Snapshot{}, err
 	}
 	if err := decode(values, "safety.input_categories", &snapshot.InputSafetyCategories); err != nil {

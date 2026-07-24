@@ -65,8 +65,9 @@ type Message struct {
 }
 
 type CreateInput struct {
-	Title   string
-	ModelID *uuid.UUID
+	Title          string
+	ModelID        *uuid.UUID
+	IdempotencyKey string
 }
 
 type UpdateInput struct {
@@ -141,23 +142,33 @@ func (service *Service) Create(
 		return Conversation{}, err
 	}
 	now := timestamp(service.clock.Now())
+	idempotencyKey := optionalString(input.IdempotencyKey)
 	var record store.Conversation
 	if actor.Type == ActorUser {
 		record, err = service.database.Queries().CreateUserConversation(
 			ctx, store.CreateUserConversationParams{
 				ID: id, UserID: &actor.ID, Title: title,
-				ModelID: selection.Model.ID, NowAt: now,
+				ModelID: selection.Model.ID, IdempotencyKey: idempotencyKey, NowAt: now,
 			},
 		)
 	} else {
 		record, err = service.database.Queries().CreateGuestConversation(
 			ctx, store.CreateGuestConversationParams{
 				ID: id, GuestSessionID: &actor.ID, Title: title,
-				ModelID: selection.Model.ID, NowAt: now,
+				ModelID: selection.Model.ID, IdempotencyKey: idempotencyKey, NowAt: now,
 			},
 		)
 	}
 	if uniqueViolation(err) {
+		if idempotencyKey != nil {
+			record, err = service.createdByKey(ctx, actor, *idempotencyKey)
+			if err == nil {
+				return mapConversation(record), nil
+			}
+			if !errors.Is(err, pgx.ErrNoRows) {
+				return Conversation{}, fmt.Errorf("resolve idempotent conversation: %w", err)
+			}
+		}
 		return Conversation{}, ErrConflict
 	}
 	if err != nil {
@@ -301,8 +312,17 @@ func (service *Service) Delete(
 	ctx context.Context,
 	actor Actor,
 	conversationID uuid.UUID,
+	idempotencyKey string,
 ) error {
+	if len(idempotencyKey) < 16 || len(idempotencyKey) > 128 {
+		return ErrInvalid
+	}
 	if _, err := service.owned(ctx, actor, conversationID); err != nil {
+		if errors.Is(err, ErrNotFound) && service.deletedByKey(
+			ctx, actor, conversationID, idempotencyKey,
+		) {
+			return nil
+		}
 		return err
 	}
 	now := timestamp(service.clock.Now())
@@ -311,13 +331,15 @@ func (service *Service) Delete(
 	if actor.Type == ActorGuest {
 		affected, err = service.database.Queries().SoftDeleteGuestConversation(
 			ctx, store.SoftDeleteGuestConversationParams{
-				NowAt: now, ID: conversationID, GuestSessionID: &actor.ID,
+				NowAt: now, IdempotencyKey: &idempotencyKey,
+				ID: conversationID, GuestSessionID: &actor.ID,
 			},
 		)
 	} else {
 		affected, err = service.database.Queries().SoftDeleteUserConversation(
 			ctx, store.SoftDeleteUserConversationParams{
-				NowAt: now, ID: conversationID, UserID: &actor.ID,
+				NowAt: now, IdempotencyKey: &idempotencyKey,
+				ID: conversationID, UserID: &actor.ID,
 			},
 		)
 	}
@@ -328,6 +350,48 @@ func (service *Service) Delete(
 		return ErrConflict
 	}
 	return nil
+}
+
+func (service *Service) createdByKey(
+	ctx context.Context,
+	actor Actor,
+	idempotencyKey string,
+) (store.Conversation, error) {
+	if actor.Type == ActorUser {
+		return service.database.Queries().GetUserConversationByCreationKey(
+			ctx, store.GetUserConversationByCreationKeyParams{
+				UserID: &actor.ID, IdempotencyKey: &idempotencyKey,
+			},
+		)
+	}
+	return service.database.Queries().GetGuestConversationByCreationKey(
+		ctx, store.GetGuestConversationByCreationKeyParams{
+			GuestSessionID: &actor.ID, IdempotencyKey: &idempotencyKey,
+		},
+	)
+}
+
+func (service *Service) deletedByKey(
+	ctx context.Context,
+	actor Actor,
+	conversationID uuid.UUID,
+	idempotencyKey string,
+) bool {
+	var err error
+	if actor.Type == ActorUser {
+		_, err = service.database.Queries().GetDeletedUserConversationByKey(
+			ctx, store.GetDeletedUserConversationByKeyParams{
+				ID: conversationID, UserID: &actor.ID, IdempotencyKey: &idempotencyKey,
+			},
+		)
+	} else {
+		_, err = service.database.Queries().GetDeletedGuestConversationByKey(
+			ctx, store.GetDeletedGuestConversationByKeyParams{
+				ID: conversationID, GuestSessionID: &actor.ID, IdempotencyKey: &idempotencyKey,
+			},
+		)
+	}
+	return err == nil
 }
 
 func (service *Service) Messages(
@@ -465,4 +529,11 @@ func uniqueViolation(err error) bool {
 
 func timestamp(value time.Time) pgtype.Timestamptz {
 	return pgtype.Timestamptz{Time: value.UTC(), Valid: true}
+}
+
+func optionalString(value string) *string {
+	if value == "" {
+		return nil
+	}
+	return &value
 }

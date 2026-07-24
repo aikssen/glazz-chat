@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"context"
 	"strings"
 	"testing"
 )
@@ -25,6 +26,22 @@ func TestValidContent(t *testing.T) {
 				t.Fatalf("validContent() = %v, want %v", got, test.valid)
 			}
 		})
+	}
+}
+
+func TestRuleSafetyPolicyUsesOnlyEnabledCategories(t *testing.T) {
+	t.Parallel()
+	policy := NewRuleSafetyPolicy()
+	content := "api_key = abcdefghijklmnop"
+	decision, err := policy.Check(context.Background(), SafetyInput, content, nil)
+	if err != nil || decision.Blocked {
+		t.Fatalf("disabled decision = %#v, error %v", decision, err)
+	}
+	decision, err = policy.Check(
+		context.Background(), SafetyInput, content, []string{"credentials"},
+	)
+	if err != nil || !decision.Blocked || decision.Category != "credentials" {
+		t.Fatalf("enabled decision = %#v, error %v", decision, err)
 	}
 }
 

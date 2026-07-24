@@ -42,6 +42,7 @@ type RawEvent struct {
 
 type ReplayStore interface {
 	NextSequence(context.Context, string, string, time.Duration) (int64, error)
+	CurrentSequence(context.Context, string, string) (int64, error)
 	AppendReplay(context.Context, string, string, int64, string, int64, time.Duration) error
 	ReplayAfter(context.Context, string, string, int64, int64) ([]string, error)
 	Publish(context.Context, string, string) error
@@ -52,6 +53,11 @@ type Broker struct {
 	store ReplayStore
 	ids   ids.Source
 	clock clock.Clock
+}
+
+type ReplayResult struct {
+	Events         []string
+	ResyncRequired bool
 }
 
 func NewBroker(store ReplayStore, idSource ids.Source, timeSource clock.Clock) *Broker {
@@ -97,10 +103,30 @@ func (broker *Broker) Replay(
 	ctx context.Context,
 	actor conversations.Actor,
 	after int64,
-) ([]string, error) {
-	return broker.store.ReplayAfter(
-		ctx, "actor", actor.TypeString()+":"+actor.ID.String(), after, replayLimit,
-	)
+) (ReplayResult, error) {
+	actorKey := actor.TypeString() + ":" + actor.ID.String()
+	current, err := broker.store.CurrentSequence(ctx, "actor", actorKey)
+	if err != nil {
+		return ReplayResult{}, err
+	}
+	events, err := broker.store.ReplayAfter(ctx, "actor", actorKey, after, replayLimit)
+	if err != nil {
+		return ReplayResult{}, err
+	}
+	result := ReplayResult{Events: events}
+	if after <= 0 || current <= after {
+		return result, nil
+	}
+	if len(events) == 0 {
+		result.ResyncRequired = true
+		return result, nil
+	}
+	var first Event
+	if err := json.Unmarshal([]byte(events[0]), &first); err != nil {
+		return ReplayResult{}, fmt.Errorf("decode first replay event: %w", err)
+	}
+	result.ResyncRequired = first.Sequence > after+1
+	return result, nil
 }
 
 func (broker *Broker) Subscribe(

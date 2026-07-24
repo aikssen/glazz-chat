@@ -40,17 +40,10 @@ services:
     environment: &api-environment
       GLAZZ_ENV: development
       API_PORT: "8080"
-      WEB_URL: ${WEB_URL:-http://localhost:3000}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
-      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-http://localhost:8080/api/v1/auth/google/callback}
       DATABASE_URL: postgres://glazz:glazz@postgres:5432/glazz?sslmode=disable
       REDIS_URL: redis://redis:6379/0
       DATABASE_MIGRATE_ON_STARTUP: "false"
-      COOKIE_SECURE: "false"
       OTEL_SERVICE_NAME: glazz-api
-      OAUTH_TEST_MODE: ${OAUTH_TEST_MODE:-false}
-      OAUTH_TEST_EMAIL: ${OAUTH_TEST_EMAIL:-}
-      BOOTSTRAP_ADMIN_EMAILS: ${BOOTSTRAP_ADMIN_EMAILS:-}
     command: ["/bin/sh", "-c", "/app/migrate up && exec /app/api"]
     ports:
       - "8080:8080"

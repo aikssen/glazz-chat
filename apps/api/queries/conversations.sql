@@ -1,20 +1,32 @@
 -- name: CreateUserConversation :one
 INSERT INTO conversations (
-    id, user_id, title, model_id, created_at, updated_at
+    id, user_id, title, model_id, creation_idempotency_key, created_at, updated_at
 ) VALUES (
     sqlc.arg(id), sqlc.arg(user_id), sqlc.arg(title), sqlc.arg(model_id),
-    sqlc.arg(now_at), sqlc.arg(now_at)
+    sqlc.narg(idempotency_key), sqlc.arg(now_at), sqlc.arg(now_at)
 )
 RETURNING *;
 
 -- name: CreateGuestConversation :one
 INSERT INTO conversations (
-    id, guest_session_id, title, model_id, created_at, updated_at
+    id, guest_session_id, title, model_id, creation_idempotency_key, created_at, updated_at
 ) VALUES (
     sqlc.arg(id), sqlc.arg(guest_session_id), sqlc.arg(title), sqlc.arg(model_id),
-    sqlc.arg(now_at), sqlc.arg(now_at)
+    sqlc.narg(idempotency_key), sqlc.arg(now_at), sqlc.arg(now_at)
 )
 RETURNING *;
+
+-- name: GetUserConversationByCreationKey :one
+SELECT *
+FROM conversations
+WHERE user_id = sqlc.arg(user_id)
+  AND creation_idempotency_key = sqlc.arg(idempotency_key);
+
+-- name: GetGuestConversationByCreationKey :one
+SELECT *
+FROM conversations
+WHERE guest_session_id = sqlc.arg(guest_session_id)
+  AND creation_idempotency_key = sqlc.arg(idempotency_key);
 
 -- name: GetUserConversation :one
 SELECT *
@@ -89,6 +101,7 @@ RETURNING *;
 -- name: SoftDeleteUserConversation :execrows
 UPDATE conversations
 SET deleted_at = sqlc.arg(now_at),
+    deletion_idempotency_key = sqlc.arg(idempotency_key),
     updated_at = sqlc.arg(now_at)
 WHERE id = sqlc.arg(id)
   AND user_id = sqlc.arg(user_id)
@@ -98,11 +111,28 @@ WHERE id = sqlc.arg(id)
 -- name: SoftDeleteGuestConversation :execrows
 UPDATE conversations
 SET deleted_at = sqlc.arg(now_at),
+    deletion_idempotency_key = sqlc.arg(idempotency_key),
     updated_at = sqlc.arg(now_at)
 WHERE id = sqlc.arg(id)
   AND guest_session_id = sqlc.arg(guest_session_id)
   AND deleted_at IS NULL
   AND generation_state = 'idle';
+
+-- name: GetDeletedUserConversationByKey :one
+SELECT *
+FROM conversations
+WHERE id = sqlc.arg(id)
+  AND user_id = sqlc.arg(user_id)
+  AND deleted_at IS NOT NULL
+  AND deletion_idempotency_key = sqlc.arg(idempotency_key);
+
+-- name: GetDeletedGuestConversationByKey :one
+SELECT *
+FROM conversations
+WHERE id = sqlc.arg(id)
+  AND guest_session_id = sqlc.arg(guest_session_id)
+  AND deleted_at IS NOT NULL
+  AND deletion_idempotency_key = sqlc.arg(idempotency_key);
 
 -- name: SetConversationGenerationState :execrows
 UPDATE conversations

@@ -40,18 +40,20 @@ Rules:
 | M0 | Phase 0 | Reviewed contracts and threat model | Complete | Complete | `v0.1.0` |
 | M1 | Phase 1 | Reproducible monorepo foundation | Complete | Complete | No standalone tag; predates M2 rule |
 | M2 | Phases 2-3 | Local platform, identity, guests, and quotas | Complete | Complete | `v0.2.0` |
-| M3 | Phases 4-5 | Provider-neutral streamed chat backend | Core implemented | Open | `v0.3.0` reserved |
+| M3 | Phases 4-5 | Provider-neutral streamed chat backend | Complete | Complete | `v0.3.0` release candidate |
 | M4 | Phases 6-8 | Responsive web application and admin surface | Testable preview | Open | `v0.4.0` reserved |
 | M5 | Phase 9 | Integrated, tested, observable release candidate | Not started | Open | `v0.5.0` reserved |
 | M6 | Phase 10 | Approved provider and production deployment | Not started | Open | `v0.6.0` reserved |
 | Post-MVP | Phase 11 | Explicitly non-release-critical backlog | Not started | Not applicable | Future planning |
 
-Current progress: M3 and M4 have usable implementations but open milestone gates.
-Their granular acceptance evidence is tracked in
-`docs/m3-chat-backend.md` and `docs/m4-web-application.md`. A `[-]` task means its
-implementation exists but at least one acceptance criterion is still pending; it
-does not mean the feature is unavailable. M5 has not formally started. Preflight
-evidence in `docs/m5-release-candidate.md` is reusable but does not complete Phase 9.
+Current progress: M3 implementation and acceptance are complete; publication of
+`v0.3.0` requires a green CI run for its pushed release commit. M4 has a usable
+implementation but open milestone gates. Granular acceptance evidence is tracked
+in `docs/m3-chat-backend.md` and `docs/m4-web-application.md`. A `[-]` task means
+its implementation exists but at least one acceptance criterion is still pending;
+it does not mean the feature is unavailable. M5 has not formally started.
+Preflight evidence in `docs/m5-release-candidate.md` is reusable but does not
+complete Phase 9.
 
 ## Phase 0: API and architecture contract
 
@@ -449,102 +451,103 @@ and its acceptance gates are complete.
 
 **Objective:** Deliver the durable chat lifecycle and versioned WebSocket behavior.
 
-- [-] **CHAT-001: Create conversation/chat schema**
+- [x] **CHAT-001: Create conversation/chat schema**
   - Depends on: PLAT-002, AUTH-001, GUEST-001, MODEL-001
   - Milestone gate: M3-A10
   - Add conversations, messages, generations, summaries, usage ledger, outbox, and
     ownership/state constraints.
   - Acceptance: exactly-one-owner and one-active-generation constraints are tested.
 
-- [-] **CONV-001: Implement conversation repository/service**
+- [x] **CONV-001: Implement conversation repository/service**
   - Depends on: CHAT-001
   - Milestone gate: M3-A06
   - Add create/get/list/search/rename/archive/delete/model-change ownership rules.
   - Acceptance: guest restriction, user IDOR, archived filters, cursor stability, and
     idle-only model change tests pass.
 
-- [-] **CONV-002: Implement conversation HTTP API**
+- [x] **CONV-002: Implement conversation HTTP API**
   - Depends on: CONV-001
   - Milestone gate: M3-A07
   - Expose contract endpoints and message pagination.
   - Acceptance: handler/contract tests cover auth, validation, errors, caching, and
     idempotency.
 
-- [-] **WS-005: Implement one-time WebSocket tickets**
+- [x] **WS-005: Implement one-time WebSocket tickets**
   - Depends on: AUTH-005, GUEST-002, PLAT-004
   - Milestone gate: M3-A08
   - Issue hashed 30-second single-use tickets for users/guests.
   - Acceptance: replay, expiry, actor mismatch, and Redis failure are denied.
 
-- [-] **WS-006: Implement WebSocket connection lifecycle**
+- [x] **WS-006: Implement WebSocket connection lifecycle**
   - Depends on: ADR-001, WS-005, PLAT-007
   - Milestone gate: M3-A09
   - Validate origin/ticket, heartbeat, bounded queues, graceful close, resume buffer,
     and cross-instance pub/sub.
   - Acceptance: lifecycle fixtures and reconnect/load tests pass.
 
-- [-] **CHAT-002: Implement generation state machine**
+- [x] **CHAT-002: Implement generation state machine**
   - Depends on: CHAT-001, MODEL-003, QUOTA-001
   - Milestone gates: M3-A10, M3-A17
   - Reserve quota, persist messages/generation, stream/checkpoint, reconcile usage,
     and finalize terminal state.
   - Acceptance: every allowed/forbidden transition has deterministic tests.
 
-- [-] **CHAT-003: Implement `chat.generate`**
+- [x] **CHAT-003: Implement `chat.generate`**
   - Depends on: CHAT-002, WS-006, MODEL-004
   - Milestone gate: M3-A10
   - Validate content/safety, commit before acknowledgement, stream ordered deltas.
   - Acceptance: duplicate idempotency key produces one provider call and one message
     pair.
 
-- [-] **CHAT-004: Implement cancellation**
+- [x] **CHAT-004: Implement cancellation**
   - Depends on: CHAT-003
   - Milestone gate: M3-A11
   - Propagate cancellation, persist partial state, release leases, reconcile quota.
   - Acceptance: cancellation works before first token, mid-stream, after completion,
     and across reconnect.
 
-- [-] **CHAT-005: Implement retry of latest failed/cancelled generation**
+- [x] **CHAT-005: Implement retry of latest failed/cancelled generation**
   - Depends on: CHAT-004, CONV-002
   - Milestone gate: M3-A12
   - Enforce latest-only, no visible branch, new idempotent generation.
   - Acceptance: completed/non-latest retries are rejected and concurrency is safe.
 
-- [-] **CHAT-006: Implement context builder**
+- [x] **CHAT-006: Implement context builder**
   - Depends on: CHAT-002, MODEL-007
   - Milestone gate: M3-A13
   - Build system prompt + versioned summary + recent messages within model limits.
   - Acceptance: role ordering, excluded partial responses, injection boundaries, and
     token budgets are tested.
 
-- [-] **CHAT-007: Implement conversation summarization**
+- [x] **CHAT-007: Implement conversation summarization**
   - Depends on: CHAT-006, PLAT-009
   - Milestone gate: M3-A14
   - Trigger at 70%, lock per conversation, use configurable cheap model, version
     contiguous coverage.
   - Acceptance: concurrent triggers create one valid summary and retain originals.
 
-- [-] **CHAT-008: Implement title generation**
+- [x] **CHAT-008: Implement title generation**
   - Depends on: CHAT-003
   - Milestone gate: M3-A15
   - Generate a safe short title asynchronously after initial exchange.
   - Acceptance: failures do not affect chat; user-renamed titles are never replaced.
 
-- [-] **CHAT-009: Implement safety policy pipeline**
+- [x] **CHAT-009: Implement safety policy pipeline**
   - Depends on: CHAT-003, SEC-001
   - Milestone gate: M3-A16
   - Add size/format checks, configurable input/output categories, abuse signals, and
     report hooks independent of provider.
   - Acceptance: blocked content uses stable codes and content does not enter logs.
 
-- [-] **USAGE-001: Implement usage API and aggregates**
+- [x] **USAGE-001: Implement usage API and aggregates**
   - Depends on: CHAT-003, QUOTA-001
   - Milestone gate: M3-A17
   - Expose current usage/reset and aggregate non-identifying metrics.
   - Acceptance: reserved/actual/refunded values reconcile under failure.
 
-**Phase 5 exit:** M3 backend supports fake-provider and development-provider chat,
-guest and registered rules, reconnect, cancellation, retry, and summaries.
+**Phase 5 exit:** Complete on 2026-07-24. M3 backend supports fake-provider and
+development-provider chat, guest and registered rules, reconnect, cancellation,
+retry, summaries, configurable safety, and reconciled usage.
 
 ## Phase 6: Administration and privacy backend
 

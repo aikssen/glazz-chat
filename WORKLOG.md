@@ -16,6 +16,59 @@ Rules:
 
 ## 2026-07-24
 
+### Phase 5 preview configuration regression corrected
+
+- Reopened M3 after the LAN preview showed `Load failed`, perpetual reconnect, a
+  disabled composer, and `Google login is not configured`.
+- Traced the regression to Compose `environment` defaults overriding the root
+  `env_file`: the API received localhost-only CORS/redirect URLs and disabled
+  development OAuth even though the remote environment file was updated.
+- Removed duplicated externally managed settings from the Compose environment,
+  configured both LAN and localhost origins, restored deterministic development
+  OAuth for `manual-20260724@glazz.test`, and preserved the existing JWT issuer so
+  prior sessions remain valid.
+- Verified LAN CORS headers, OAuth start/approval/callback, `/me`, registered usage,
+  WebSocket connection, restored conversations, enabled composer, and a real model
+  response with a non-destructive Playwright recovery smoke.
+
+### Phase 5 completed locally
+
+- Accepted M3-A09 through M3-A17 and marked CHAT-001 through CHAT-009, WS-006,
+  and USAGE-001 complete from automated evidence.
+- Added deterministic heartbeat timeout, replay-gap resync, bounded-queue,
+  cross-instance pub/sub, and concurrent reconnect coverage.
+- Proved generation idempotency and state constraints, cancellation before and
+  during streaming, reconnect cancellation, latest-only retry, partial usage
+  reconciliation, and one ledger entry per terminal generation.
+- Added a 70% context builder, configurable summary model, advisory-lock summary
+  versions, Unicode-safe initial titles, and preservation of user-renamed titles.
+- Added configurable provider-independent input/output safety rules and
+  content-free reporting; blocked input is not persisted and blocked output uses
+  the stable `safety_blocked` code.
+- Rebuilt an isolated PostgreSQL schema through migrations `00001`-`00008`, ran
+  migration validation, full `pnpm check`, and all Go integration tests against
+  PostgreSQL and Redis.
+- Synchronized the validated tree to the active remote preview, rebuilt API,
+  worker, and web containers, confirmed healthy dependencies, and passed the
+  opt-in Playwright stream test against the configured live provider.
+- At this checkpoint, Phase 5 was complete locally and M3 remained untagged
+  pending an owner-authorized commit/push and green GitHub CI; no changes had been
+  pushed.
+
+### Phase 5 conversations and realtime checkpoint
+
+- Closed M3-A06/M3-A07 with durable conversation create/delete idempotency,
+  ownership/IDOR enforcement, archived/search filters, stable keyset pagination,
+  idle-state mutation guards, message pagination, ETag revalidation, and HTTP
+  authentication/CSRF/error coverage.
+- Closed M3-A08 by covering Redis failure behavior in addition to ticket expiry,
+  actor binding, single use, and replay denial.
+- Added lost replay-window detection and `connection.resync_required`, client-side
+  resource rehydration, disallowed-origin coverage, bounded-queue coverage, and
+  cross-broker Redis pub/sub evidence for M3-A09.
+- Verified migration `00007` through `down/up/validate`, backend race tests,
+  PostgreSQL integration, realtime integration, and frontend typecheck/lint/tests.
+
 ### Realtime client envelope fix
 
 - Traced the misleading chat quota alert to `invalid_command` events emitted for

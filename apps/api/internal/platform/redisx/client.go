@@ -186,6 +186,20 @@ func (c *Client) NextSequence(
 	return sequence, nil
 }
 
+func (c *Client) CurrentSequence(
+	ctx context.Context,
+	namespace, id string,
+) (int64, error) {
+	sequence, err := c.client.Get(ctx, c.key("sequence", namespace, id)).Int64()
+	if errors.Is(err, redis.Nil) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, fmt.Errorf("read Redis sequence: %w", err)
+	}
+	return sequence, nil
+}
+
 func (c *Client) AppendReplay(
 	ctx context.Context,
 	namespace, id string,

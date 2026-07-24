@@ -10,9 +10,9 @@
 
 ## Status
 
-M3 is in progress and is not tagged. The release tag remains reserved as
-`v0.3.0` until Phase 5 acceptance criteria and CI are green. Phase 4 completed on
-2026-07-24 with M3-A01 through M3-A05 accepted.
+M3 implementation and local acceptance are complete. Phase 4 and Phase 5 completed
+on 2026-07-24 with M3-A01 through M3-A17 accepted. The accepted commit becomes the
+`v0.3.0` release only after it is pushed and GitHub CI is green.
 
 ## Implemented
 
@@ -30,8 +30,9 @@ M3 is in progress and is not tagged. The release tag remains reserved as
 - Durable generation acceptance before command acknowledgement, idempotent
   message-pair creation, streaming checkpoints, terminal state, quota settlement,
   usage ledger, cancellation, and latest-only retry.
-- Context budgeting, versioned summary persistence under an advisory lock, initial
-  title generation, input format/size policy, guest CSRF, and usage reporting.
+- Context budgeting, configurable summary model, versioned summary persistence
+  under an advisory lock, Unicode-safe initial title generation, configurable
+  input/output safety policy, guest CSRF, and usage reporting.
 
 OpenCode Go remains a development-only OpenAI-compatible endpoint. When provider
 configuration is absent, the backend uses the deterministic fake and requires no
@@ -51,6 +52,17 @@ external key.
 - Packaged API/worker startup on the remote Compose stack.
 - Guest smoke flow: readiness, session plus CSRF cookie, model catalog,
   conversation creation, WebSocket ticket, and usage response.
+- Phase 5 integration coverage against isolated PostgreSQL and Redis for
+  conversations, WebSocket lifecycle, generation transitions, cancellation,
+  retry, context, summaries, titles, safety, quota settlement, and usage.
+- Full remote `pnpm check`, migration reset/validate, and
+  `go test -tags=integration ./...` on 2026-07-24.
+- Active preview rebuild with migrations `00007`-`00008`, healthy API/web/worker,
+  and a passing opt-in Playwright stream against the configured development
+  provider.
+- LAN preview regression test covering effective CORS, deterministic development
+  OAuth, registered-session recovery, WebSocket connection, enabled composer, and
+  a live model response after removing Compose overrides of `env_file`.
 
 ## Acceptance ledger
 
@@ -81,48 +93,58 @@ the task entries in `TASKS.md` remain the canonical scope index.
     runtime-configurable global output-token budget before provider admission.
   - Exact currency spend enforcement is a Phase 10 concern because it requires the
     approved production provider's pricing and billable-usage semantics.
-- [ ] **M3-A06: Conversation ownership and pagination**
-  - Add guest restrictions, cross-user IDOR denial, archived filters, stable cursors,
-    message pagination, and idle-only model-change tests.
-- [ ] **M3-A07: Conversation HTTP contract behavior**
-  - Add handler coverage for authentication, CSRF, validation, cache behavior,
-    stable errors, and idempotency.
-- [-] **M3-A08: WebSocket ticket denial matrix**
-  - Evidence complete: actor binding, expiry, single use, and replay denial.
-  - Pending: Redis failure behavior at issuance and consumption.
-- [ ] **M3-A09: WebSocket connection lifecycle**
-  - Add origin denial, heartbeat timeout, bounded slow-client queues, resume,
-    resync fallback, cross-instance pub/sub, reconnect storm, and load coverage.
-- [-] **M3-A10: Generation state machine and idempotency**
-  - Evidence complete: durable acceptance, one provider call, one message pair, and
-    completed usage in `internal/integration/m3_chat_integration_test.go`.
-  - Pending: exhaustive allowed/forbidden transitions and failure reconciliation.
-- [ ] **M3-A11: Cancellation lifecycle**
-  - Cover cancellation before the first token, mid-stream, after completion, and
-    after reconnect; verify partial persistence, lease release, and quota settlement.
-- [ ] **M3-A12: Retry lifecycle**
-  - Cover latest-only enforcement, completed/non-latest rejection, duplicate
-    idempotency, and concurrent retry safety.
-- [ ] **M3-A13: Context builder**
-  - Verify role ordering, partial-response exclusion, injection boundaries, summary
-    placement, and input/output token budgets.
-- [ ] **M3-A14: Summarization**
-  - Verify the 70% trigger, advisory-lock concurrency, contiguous version coverage,
+- [x] **M3-A06: Conversation ownership and pagination**
+  - Evidence: `internal/conversations/service_integration_test.go` covers guest
+    restrictions, cross-user IDOR denial, archived/search filters, stable keyset
+    cursors, message pagination, idle-only model changes, and durable create/delete
+    idempotency.
+- [x] **M3-A07: Conversation HTTP contract behavior**
+  - Evidence: `internal/platform/server/conversations_integration_test.go` covers
+    authentication, guest CSRF, strict validation, stable errors, ETag/304 behavior,
+    cache headers, and idempotent create/delete replay.
+- [x] **M3-A08: WebSocket ticket denial matrix**
+  - Evidence: `internal/realtime/tickets_test.go` and
+    `handler_integration_test.go` cover actor binding, expiry, single use, replay,
+    and Redis failures during issuance and consumption.
+- [x] **M3-A09: WebSocket connection lifecycle**
+  - Evidence: `internal/realtime/handler_integration_test.go` and `broker_test.go`
+    cover origin denial, heartbeat timeout, bounded queues, replay/resync,
+    cross-broker pub/sub, and 24 concurrent reconnects.
+- [x] **M3-A10: Generation state machine and idempotency**
+  - Evidence: `internal/chat/service_integration_test.go` covers durable acceptance,
+    one active generation, duplicate commands, one provider call, terminal
+    transition denial, checkpoints, failure finalization, and one ledger record.
+- [x] **M3-A11: Cancellation lifecycle**
+  - Evidence: the chat integration suite cancels before the first token, mid-stream,
+    after reconnect, and rejects cancellation after terminal state while proving
+    partial persistence, lease release, and quota settlement.
+- [x] **M3-A12: Retry lifecycle**
+  - Evidence: the chat integration suite proves latest-terminal eligibility,
+    completed rejection, parent linkage, duplicate idempotency, one retry provider
+    call, and deterministic concurrent terminal rejection.
+- [x] **M3-A13: Context builder**
+  - Evidence: the chat integration suite proves system/user role boundaries,
+    partial-assistant exclusion, summary placement, recent-message ordering, and the
+    70% context budget.
+- [x] **M3-A14: Summarization**
+  - Evidence: migration `00008_summary_model.sql` and the chat integration suite
+    prove runtime model selection, advisory-lock concurrency, contiguous versions,
     failure isolation, and retention of original messages.
-- [ ] **M3-A15: Title generation**
-  - Verify safe truncation, asynchronous failure isolation, initial-exchange-only
-    behavior, and preservation of user-renamed titles.
-- [ ] **M3-A16: Safety pipeline**
-  - Connect configurable input/output categories and provider-independent report
-    hooks; prove stable blocked-content codes and content-free logs.
-- [ ] **M3-A17: Usage reconciliation and aggregates**
-  - Reconcile reserved, actual, and refunded usage under success, provider failure,
-    cancellation, and retry; prove aggregates are non-identifying.
+- [x] **M3-A15: Title generation**
+  - Evidence: the chat integration suite proves Unicode-safe 60-rune truncation,
+    post-terminal failure isolation, initial-title-only behavior, and preservation
+    of user-renamed titles.
+- [x] **M3-A16: Safety pipeline**
+  - Evidence: `internal/chat/safety.go`, unit tests, and the chat integration suite
+    prove runtime input/output categories, provider-independent reports without
+    content, no persistence for blocked text, and stable `safety_blocked` errors.
+- [x] **M3-A17: Usage reconciliation and aggregates**
+  - Evidence: the chat integration suite proves reserved/actual/refunded
+    reconciliation and exactly one ledger row under success, provider failure,
+    cancellation, and retry; admin aggregates expose no actor fields.
 
-## Remaining before `v0.3.0`
+## `v0.3.0` release gate
 
-- Close every unchecked or partial Phase 5 item in `M3-A06` through `M3-A17`.
-- Reconcile the corresponding Phase 5 task statuses in `TASKS.md` from acceptance
-  evidence rather than implementation availability.
-- Run the full repository presubmit and CI, then commit, push, and create the
-  annotated `v0.3.0` tag only after CI is green.
+- Commit and push the accepted M3 tree.
+- Require a green GitHub CI run for that exact commit.
+- Create and push the annotated `v0.3.0` tag from that commit only after CI passes.

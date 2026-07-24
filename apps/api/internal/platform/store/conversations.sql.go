@@ -14,12 +14,12 @@ import (
 
 const createGuestConversation = `-- name: CreateGuestConversation :one
 INSERT INTO conversations (
-    id, guest_session_id, title, model_id, created_at, updated_at
+    id, guest_session_id, title, model_id, creation_idempotency_key, created_at, updated_at
 ) VALUES (
     $1, $2, $3, $4,
-    $5, $5
+    $5, $6, $6
 )
-RETURNING id, user_id, guest_session_id, title, status, created_at, updated_at, model_id, generation_state, renamed_by_user, last_message_at, deleted_at
+RETURNING id, user_id, guest_session_id, title, status, created_at, updated_at, model_id, generation_state, renamed_by_user, last_message_at, deleted_at, creation_idempotency_key, deletion_idempotency_key
 `
 
 type CreateGuestConversationParams struct {
@@ -27,6 +27,7 @@ type CreateGuestConversationParams struct {
 	GuestSessionID *uuid.UUID         `db:"guest_session_id"`
 	Title          string             `db:"title"`
 	ModelID        uuid.UUID          `db:"model_id"`
+	IdempotencyKey *string            `db:"idempotency_key"`
 	NowAt          pgtype.Timestamptz `db:"now_at"`
 }
 
@@ -36,6 +37,7 @@ func (q *Queries) CreateGuestConversation(ctx context.Context, arg CreateGuestCo
 		arg.GuestSessionID,
 		arg.Title,
 		arg.ModelID,
+		arg.IdempotencyKey,
 		arg.NowAt,
 	)
 	var i Conversation
@@ -52,26 +54,29 @@ func (q *Queries) CreateGuestConversation(ctx context.Context, arg CreateGuestCo
 		&i.RenamedByUser,
 		&i.LastMessageAt,
 		&i.DeletedAt,
+		&i.CreationIdempotencyKey,
+		&i.DeletionIdempotencyKey,
 	)
 	return i, err
 }
 
 const createUserConversation = `-- name: CreateUserConversation :one
 INSERT INTO conversations (
-    id, user_id, title, model_id, created_at, updated_at
+    id, user_id, title, model_id, creation_idempotency_key, created_at, updated_at
 ) VALUES (
     $1, $2, $3, $4,
-    $5, $5
+    $5, $6, $6
 )
-RETURNING id, user_id, guest_session_id, title, status, created_at, updated_at, model_id, generation_state, renamed_by_user, last_message_at, deleted_at
+RETURNING id, user_id, guest_session_id, title, status, created_at, updated_at, model_id, generation_state, renamed_by_user, last_message_at, deleted_at, creation_idempotency_key, deletion_idempotency_key
 `
 
 type CreateUserConversationParams struct {
-	ID      uuid.UUID          `db:"id"`
-	UserID  *uuid.UUID         `db:"user_id"`
-	Title   string             `db:"title"`
-	ModelID uuid.UUID          `db:"model_id"`
-	NowAt   pgtype.Timestamptz `db:"now_at"`
+	ID             uuid.UUID          `db:"id"`
+	UserID         *uuid.UUID         `db:"user_id"`
+	Title          string             `db:"title"`
+	ModelID        uuid.UUID          `db:"model_id"`
+	IdempotencyKey *string            `db:"idempotency_key"`
+	NowAt          pgtype.Timestamptz `db:"now_at"`
 }
 
 func (q *Queries) CreateUserConversation(ctx context.Context, arg CreateUserConversationParams) (Conversation, error) {
@@ -80,6 +85,7 @@ func (q *Queries) CreateUserConversation(ctx context.Context, arg CreateUserConv
 		arg.UserID,
 		arg.Title,
 		arg.ModelID,
+		arg.IdempotencyKey,
 		arg.NowAt,
 	)
 	var i Conversation
@@ -96,12 +102,88 @@ func (q *Queries) CreateUserConversation(ctx context.Context, arg CreateUserConv
 		&i.RenamedByUser,
 		&i.LastMessageAt,
 		&i.DeletedAt,
+		&i.CreationIdempotencyKey,
+		&i.DeletionIdempotencyKey,
+	)
+	return i, err
+}
+
+const getDeletedGuestConversationByKey = `-- name: GetDeletedGuestConversationByKey :one
+SELECT id, user_id, guest_session_id, title, status, created_at, updated_at, model_id, generation_state, renamed_by_user, last_message_at, deleted_at, creation_idempotency_key, deletion_idempotency_key
+FROM conversations
+WHERE id = $1
+  AND guest_session_id = $2
+  AND deleted_at IS NOT NULL
+  AND deletion_idempotency_key = $3
+`
+
+type GetDeletedGuestConversationByKeyParams struct {
+	ID             uuid.UUID  `db:"id"`
+	GuestSessionID *uuid.UUID `db:"guest_session_id"`
+	IdempotencyKey *string    `db:"idempotency_key"`
+}
+
+func (q *Queries) GetDeletedGuestConversationByKey(ctx context.Context, arg GetDeletedGuestConversationByKeyParams) (Conversation, error) {
+	row := q.db.QueryRow(ctx, getDeletedGuestConversationByKey, arg.ID, arg.GuestSessionID, arg.IdempotencyKey)
+	var i Conversation
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.GuestSessionID,
+		&i.Title,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ModelID,
+		&i.GenerationState,
+		&i.RenamedByUser,
+		&i.LastMessageAt,
+		&i.DeletedAt,
+		&i.CreationIdempotencyKey,
+		&i.DeletionIdempotencyKey,
+	)
+	return i, err
+}
+
+const getDeletedUserConversationByKey = `-- name: GetDeletedUserConversationByKey :one
+SELECT id, user_id, guest_session_id, title, status, created_at, updated_at, model_id, generation_state, renamed_by_user, last_message_at, deleted_at, creation_idempotency_key, deletion_idempotency_key
+FROM conversations
+WHERE id = $1
+  AND user_id = $2
+  AND deleted_at IS NOT NULL
+  AND deletion_idempotency_key = $3
+`
+
+type GetDeletedUserConversationByKeyParams struct {
+	ID             uuid.UUID  `db:"id"`
+	UserID         *uuid.UUID `db:"user_id"`
+	IdempotencyKey *string    `db:"idempotency_key"`
+}
+
+func (q *Queries) GetDeletedUserConversationByKey(ctx context.Context, arg GetDeletedUserConversationByKeyParams) (Conversation, error) {
+	row := q.db.QueryRow(ctx, getDeletedUserConversationByKey, arg.ID, arg.UserID, arg.IdempotencyKey)
+	var i Conversation
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.GuestSessionID,
+		&i.Title,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ModelID,
+		&i.GenerationState,
+		&i.RenamedByUser,
+		&i.LastMessageAt,
+		&i.DeletedAt,
+		&i.CreationIdempotencyKey,
+		&i.DeletionIdempotencyKey,
 	)
 	return i, err
 }
 
 const getGuestConversation = `-- name: GetGuestConversation :one
-SELECT id, user_id, guest_session_id, title, status, created_at, updated_at, model_id, generation_state, renamed_by_user, last_message_at, deleted_at
+SELECT id, user_id, guest_session_id, title, status, created_at, updated_at, model_id, generation_state, renamed_by_user, last_message_at, deleted_at, creation_idempotency_key, deletion_idempotency_key
 FROM conversations
 WHERE id = $1
   AND guest_session_id = $2
@@ -129,12 +211,48 @@ func (q *Queries) GetGuestConversation(ctx context.Context, arg GetGuestConversa
 		&i.RenamedByUser,
 		&i.LastMessageAt,
 		&i.DeletedAt,
+		&i.CreationIdempotencyKey,
+		&i.DeletionIdempotencyKey,
+	)
+	return i, err
+}
+
+const getGuestConversationByCreationKey = `-- name: GetGuestConversationByCreationKey :one
+SELECT id, user_id, guest_session_id, title, status, created_at, updated_at, model_id, generation_state, renamed_by_user, last_message_at, deleted_at, creation_idempotency_key, deletion_idempotency_key
+FROM conversations
+WHERE guest_session_id = $1
+  AND creation_idempotency_key = $2
+`
+
+type GetGuestConversationByCreationKeyParams struct {
+	GuestSessionID *uuid.UUID `db:"guest_session_id"`
+	IdempotencyKey *string    `db:"idempotency_key"`
+}
+
+func (q *Queries) GetGuestConversationByCreationKey(ctx context.Context, arg GetGuestConversationByCreationKeyParams) (Conversation, error) {
+	row := q.db.QueryRow(ctx, getGuestConversationByCreationKey, arg.GuestSessionID, arg.IdempotencyKey)
+	var i Conversation
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.GuestSessionID,
+		&i.Title,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ModelID,
+		&i.GenerationState,
+		&i.RenamedByUser,
+		&i.LastMessageAt,
+		&i.DeletedAt,
+		&i.CreationIdempotencyKey,
+		&i.DeletionIdempotencyKey,
 	)
 	return i, err
 }
 
 const getGuestConversationByOwner = `-- name: GetGuestConversationByOwner :one
-SELECT id, user_id, guest_session_id, title, status, created_at, updated_at, model_id, generation_state, renamed_by_user, last_message_at, deleted_at
+SELECT id, user_id, guest_session_id, title, status, created_at, updated_at, model_id, generation_state, renamed_by_user, last_message_at, deleted_at, creation_idempotency_key, deletion_idempotency_key
 FROM conversations
 WHERE guest_session_id = $1
   AND deleted_at IS NULL
@@ -156,12 +274,14 @@ func (q *Queries) GetGuestConversationByOwner(ctx context.Context, guestSessionI
 		&i.RenamedByUser,
 		&i.LastMessageAt,
 		&i.DeletedAt,
+		&i.CreationIdempotencyKey,
+		&i.DeletionIdempotencyKey,
 	)
 	return i, err
 }
 
 const getUserConversation = `-- name: GetUserConversation :one
-SELECT id, user_id, guest_session_id, title, status, created_at, updated_at, model_id, generation_state, renamed_by_user, last_message_at, deleted_at
+SELECT id, user_id, guest_session_id, title, status, created_at, updated_at, model_id, generation_state, renamed_by_user, last_message_at, deleted_at, creation_idempotency_key, deletion_idempotency_key
 FROM conversations
 WHERE id = $1
   AND user_id = $2
@@ -189,12 +309,48 @@ func (q *Queries) GetUserConversation(ctx context.Context, arg GetUserConversati
 		&i.RenamedByUser,
 		&i.LastMessageAt,
 		&i.DeletedAt,
+		&i.CreationIdempotencyKey,
+		&i.DeletionIdempotencyKey,
+	)
+	return i, err
+}
+
+const getUserConversationByCreationKey = `-- name: GetUserConversationByCreationKey :one
+SELECT id, user_id, guest_session_id, title, status, created_at, updated_at, model_id, generation_state, renamed_by_user, last_message_at, deleted_at, creation_idempotency_key, deletion_idempotency_key
+FROM conversations
+WHERE user_id = $1
+  AND creation_idempotency_key = $2
+`
+
+type GetUserConversationByCreationKeyParams struct {
+	UserID         *uuid.UUID `db:"user_id"`
+	IdempotencyKey *string    `db:"idempotency_key"`
+}
+
+func (q *Queries) GetUserConversationByCreationKey(ctx context.Context, arg GetUserConversationByCreationKeyParams) (Conversation, error) {
+	row := q.db.QueryRow(ctx, getUserConversationByCreationKey, arg.UserID, arg.IdempotencyKey)
+	var i Conversation
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.GuestSessionID,
+		&i.Title,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ModelID,
+		&i.GenerationState,
+		&i.RenamedByUser,
+		&i.LastMessageAt,
+		&i.DeletedAt,
+		&i.CreationIdempotencyKey,
+		&i.DeletionIdempotencyKey,
 	)
 	return i, err
 }
 
 const listUserConversations = `-- name: ListUserConversations :many
-SELECT id, user_id, guest_session_id, title, status, created_at, updated_at, model_id, generation_state, renamed_by_user, last_message_at, deleted_at
+SELECT id, user_id, guest_session_id, title, status, created_at, updated_at, model_id, generation_state, renamed_by_user, last_message_at, deleted_at, creation_idempotency_key, deletion_idempotency_key
 FROM conversations
 WHERE user_id = $1
   AND deleted_at IS NULL
@@ -252,6 +408,8 @@ func (q *Queries) ListUserConversations(ctx context.Context, arg ListUserConvers
 			&i.RenamedByUser,
 			&i.LastMessageAt,
 			&i.DeletedAt,
+			&i.CreationIdempotencyKey,
+			&i.DeletionIdempotencyKey,
 		); err != nil {
 			return nil, err
 		}
@@ -312,21 +470,28 @@ func (q *Queries) SetGeneratedConversationTitle(ctx context.Context, arg SetGene
 const softDeleteGuestConversation = `-- name: SoftDeleteGuestConversation :execrows
 UPDATE conversations
 SET deleted_at = $1,
+    deletion_idempotency_key = $2,
     updated_at = $1
-WHERE id = $2
-  AND guest_session_id = $3
+WHERE id = $3
+  AND guest_session_id = $4
   AND deleted_at IS NULL
   AND generation_state = 'idle'
 `
 
 type SoftDeleteGuestConversationParams struct {
 	NowAt          pgtype.Timestamptz `db:"now_at"`
+	IdempotencyKey *string            `db:"idempotency_key"`
 	ID             uuid.UUID          `db:"id"`
 	GuestSessionID *uuid.UUID         `db:"guest_session_id"`
 }
 
 func (q *Queries) SoftDeleteGuestConversation(ctx context.Context, arg SoftDeleteGuestConversationParams) (int64, error) {
-	result, err := q.db.Exec(ctx, softDeleteGuestConversation, arg.NowAt, arg.ID, arg.GuestSessionID)
+	result, err := q.db.Exec(ctx, softDeleteGuestConversation,
+		arg.NowAt,
+		arg.IdempotencyKey,
+		arg.ID,
+		arg.GuestSessionID,
+	)
 	if err != nil {
 		return 0, err
 	}
@@ -336,21 +501,28 @@ func (q *Queries) SoftDeleteGuestConversation(ctx context.Context, arg SoftDelet
 const softDeleteUserConversation = `-- name: SoftDeleteUserConversation :execrows
 UPDATE conversations
 SET deleted_at = $1,
+    deletion_idempotency_key = $2,
     updated_at = $1
-WHERE id = $2
-  AND user_id = $3
+WHERE id = $3
+  AND user_id = $4
   AND deleted_at IS NULL
   AND generation_state = 'idle'
 `
 
 type SoftDeleteUserConversationParams struct {
-	NowAt  pgtype.Timestamptz `db:"now_at"`
-	ID     uuid.UUID          `db:"id"`
-	UserID *uuid.UUID         `db:"user_id"`
+	NowAt          pgtype.Timestamptz `db:"now_at"`
+	IdempotencyKey *string            `db:"idempotency_key"`
+	ID             uuid.UUID          `db:"id"`
+	UserID         *uuid.UUID         `db:"user_id"`
 }
 
 func (q *Queries) SoftDeleteUserConversation(ctx context.Context, arg SoftDeleteUserConversationParams) (int64, error) {
-	result, err := q.db.Exec(ctx, softDeleteUserConversation, arg.NowAt, arg.ID, arg.UserID)
+	result, err := q.db.Exec(ctx, softDeleteUserConversation,
+		arg.NowAt,
+		arg.IdempotencyKey,
+		arg.ID,
+		arg.UserID,
+	)
 	if err != nil {
 		return 0, err
 	}
@@ -369,7 +541,7 @@ WHERE id = $4
       $2::uuid IS NULL
       OR generation_state = 'idle'
   )
-RETURNING id, user_id, guest_session_id, title, status, created_at, updated_at, model_id, generation_state, renamed_by_user, last_message_at, deleted_at
+RETURNING id, user_id, guest_session_id, title, status, created_at, updated_at, model_id, generation_state, renamed_by_user, last_message_at, deleted_at, creation_idempotency_key, deletion_idempotency_key
 `
 
 type UpdateGuestConversationParams struct {
@@ -402,6 +574,8 @@ func (q *Queries) UpdateGuestConversation(ctx context.Context, arg UpdateGuestCo
 		&i.RenamedByUser,
 		&i.LastMessageAt,
 		&i.DeletedAt,
+		&i.CreationIdempotencyKey,
+		&i.DeletionIdempotencyKey,
 	)
 	return i, err
 }
@@ -420,7 +594,7 @@ WHERE id = $5
       $3::uuid IS NULL
       OR generation_state = 'idle'
   )
-RETURNING id, user_id, guest_session_id, title, status, created_at, updated_at, model_id, generation_state, renamed_by_user, last_message_at, deleted_at
+RETURNING id, user_id, guest_session_id, title, status, created_at, updated_at, model_id, generation_state, renamed_by_user, last_message_at, deleted_at, creation_idempotency_key, deletion_idempotency_key
 `
 
 type UpdateUserConversationParams struct {
@@ -455,6 +629,8 @@ func (q *Queries) UpdateUserConversation(ctx context.Context, arg UpdateUserConv
 		&i.RenamedByUser,
 		&i.LastMessageAt,
 		&i.DeletedAt,
+		&i.CreationIdempotencyKey,
+		&i.DeletionIdempotencyKey,
 	)
 	return i, err
 }
