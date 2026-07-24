@@ -695,7 +695,7 @@ export interface components {
         };
         readonly RuntimeSetting: {
             readonly key: string;
-            readonly value: unknown;
+            readonly value: boolean | number | string | readonly string[];
             readonly version: number;
             /** Format: date-time */
             readonly updatedAt: string;
@@ -718,15 +718,23 @@ export interface components {
             /** Format: date-time */
             readonly periodEnd: string;
             readonly generations: number;
+            readonly failedGenerations: number;
             readonly inputTokens: number;
             readonly outputTokens: number;
+            readonly averageLatencyMs: number;
+            readonly p95LatencyMs: number;
+            readonly errors: readonly components["schemas"]["AdminErrorCount"][];
             readonly estimatedCost: number;
             /** @default USD */
             readonly currency: string;
         };
+        readonly AdminErrorCount: {
+            readonly code: string;
+            readonly count: number;
+        };
         readonly AuditEvent: {
             readonly id: components["schemas"]["Id"];
-            readonly actorId: components["schemas"]["Id"];
+            readonly actorId: components["schemas"]["Id"] | null;
             readonly action: string;
             readonly targetType: string;
             readonly targetId: string;
@@ -742,7 +750,7 @@ export interface components {
         readonly ErrorEnvelope: {
             readonly error: {
                 /** @enum {string} */
-                readonly code: "invalid_request" | "unauthenticated" | "forbidden" | "not_found" | "conflict" | "quota_exceeded" | "concurrency_exceeded" | "global_budget_exceeded" | "maintenance" | "dependency_unavailable" | "recent_auth_required" | "refresh_token_reused";
+                readonly code: "invalid_request" | "unauthenticated" | "forbidden" | "not_found" | "conflict" | "quota_exceeded" | "concurrency_exceeded" | "global_budget_exceeded" | "maintenance" | "dependency_unavailable" | "precondition_required" | "recent_auth_required" | "refresh_token_reused";
                 readonly message: string;
                 readonly requestId: string;
                 readonly details?: {
@@ -1577,6 +1585,7 @@ export interface operations {
                     readonly "application/json": components["schemas"]["AdminModel"];
                 };
             };
+            readonly 400: components["responses"]["BadRequest"];
             readonly 409: components["responses"]["Conflict"];
             readonly 428: components["responses"]["RecentAuthRequired"];
         };
@@ -1632,7 +1641,9 @@ export interface operations {
                     readonly "application/json": components["schemas"]["RuntimeSetting"];
                 };
             };
+            readonly 400: components["responses"]["BadRequest"];
             readonly 409: components["responses"]["Conflict"];
+            readonly 428: components["responses"]["RecentAuthRequired"];
         };
     };
     readonly adminListUsers: {
@@ -1691,12 +1702,17 @@ export interface operations {
                     readonly "application/json": components["schemas"]["AdminUser"];
                 };
             };
+            readonly 400: components["responses"]["BadRequest"];
             readonly 409: components["responses"]["Conflict"];
+            readonly 428: components["responses"]["RecentAuthRequired"];
         };
     };
     readonly adminGetUsage: {
         readonly parameters: {
-            readonly query?: never;
+            readonly query?: {
+                readonly from?: string;
+                readonly to?: string;
+            };
             readonly header?: never;
             readonly path?: never;
             readonly cookie?: never;
@@ -1712,6 +1728,8 @@ export interface operations {
                     readonly "application/json": components["schemas"]["AdminUsage"];
                 };
             };
+            readonly 400: components["responses"]["BadRequest"];
+            readonly 403: components["responses"]["Forbidden"];
         };
     };
     readonly adminListAuditEvents: {

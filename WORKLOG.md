@@ -16,6 +16,47 @@ Rules:
 
 ## 2026-07-24
 
+### Configured provider catalog corrected and cleaned
+
+- Compared the configured provider `/models` response with PostgreSQL and found 23
+  current OpenCode Go models, while the database contained 33 leaked test models
+  and 13 leaked test providers.
+- Corrected runtime provider registration so a configured OpenAI-compatible
+  provider no longer reuses the deterministic `fake` provider identity.
+- Extended synchronization to import newly discovered chat models with stable
+  slugs, readable names, conservative limits, user audience, and disabled exposure
+  until an administrator explicitly enables them. The worker now refreshes the
+  configured catalog on startup so a fresh environment maps its default model
+  without a manual administrative action.
+- Corrected integration cleanup ordering and summary-model cleanup so repeated test
+  runs no longer add model or provider records to the shared development database.
+- Removed the 33 test models, 13 test providers, and their test audit records in one
+  transaction after proving they had no conversation or generation references.
+- Synchronized and explicitly enabled all 23 models currently returned by the
+  configured subscription. DeepSeek V4 Flash remains the guest/user default and
+  the only guest-visible model.
+- Verified full presubmit, all PostgreSQL/Redis integration tests, 23 public
+  registered-user models, and a completed LAN browser generation routed through
+  the `configured` provider rather than `fake`.
+
+### Phase 6 administration and privacy backend completed
+
+- Closed ADMIN-001 through ADMIN-004 and accepted M4-A01 through M4-A05.
+- Added Redis-cached typed runtime settings with optimistic versioning, validation,
+  explicit invalidation, and redacted immutable audit records.
+- Made default-model replacement atomic, rejected unsupported or unavailable model
+  exposure, and preserved a valid guest/user default during administrative changes.
+- Serialized administrator role changes, blocked self-demotion and inactive-user
+  promotion, and used the injected clock for recent-auth validation.
+- Expanded administration usage reads with failed-generation counts, average and
+  p95 latency, and grouped error codes without exposing prompts or responses.
+- Added service and HTTP integration tests using isolated PostgreSQL databases and
+  Redis namespaces, including concurrent cross-demotion and real cookie/JWT/CSRF
+  enforcement.
+- Validated OpenAPI and AsyncAPI, frontend lint/typecheck/tests/build, `go vet`,
+  `go test -race ./...`, Go builds, and three full PostgreSQL/Redis integration
+  passes on the remote development server.
+
 ### Phase 5 preview configuration regression corrected
 
 - Reopened M3 after the LAN preview showed `Load failed`, perpetual reconnect, a

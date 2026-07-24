@@ -71,13 +71,22 @@ type Page[T any] struct {
 }
 
 type Usage struct {
-	PeriodStart   time.Time `json:"periodStart"`
-	PeriodEnd     time.Time `json:"periodEnd"`
-	Generations   int64     `json:"generations"`
-	InputTokens   int64     `json:"inputTokens"`
-	OutputTokens  int64     `json:"outputTokens"`
-	EstimatedCost float64   `json:"estimatedCost"`
-	Currency      string    `json:"currency"`
+	PeriodStart       time.Time    `json:"periodStart"`
+	PeriodEnd         time.Time    `json:"periodEnd"`
+	Generations       int64        `json:"generations"`
+	FailedGenerations int64        `json:"failedGenerations"`
+	InputTokens       int64        `json:"inputTokens"`
+	OutputTokens      int64        `json:"outputTokens"`
+	AverageLatencyMs  float64      `json:"averageLatencyMs"`
+	P95LatencyMs      float64      `json:"p95LatencyMs"`
+	Errors            []ErrorCount `json:"errors"`
+	EstimatedCost     float64      `json:"estimatedCost"`
+	Currency          string       `json:"currency"`
+}
+
+type ErrorCount struct {
+	Code  string `json:"code"`
+	Count int64  `json:"count"`
 }
 
 type AuditEvent struct {
@@ -92,13 +101,23 @@ type AuditEvent struct {
 }
 
 type Service struct {
-	database *database.Pool
-	ids      ids.Source
-	clock    clock.Clock
+	database            *database.Pool
+	ids                 ids.Source
+	clock               clock.Clock
+	settingsInvalidator interface {
+		Invalidate(context.Context) error
+	}
 }
 
 func New(pool *database.Pool, idSource ids.Source, timeSource clock.Clock) *Service {
 	return &Service{database: pool, ids: idSource, clock: timeSource}
+}
+
+func (service *Service) WithSettingsInvalidator(invalidator interface {
+	Invalidate(context.Context) error
+}) *Service {
+	service.settingsInvalidator = invalidator
+	return service
 }
 
 func (service *Service) ListSettings(ctx context.Context) ([]Setting, error) {
@@ -129,12 +148,18 @@ func (service *Service) UpdateSetting(
 		return Setting{}, ErrInvalid
 	}
 	var updated store.RuntimeSetting
+	if service.settingsInvalidator != nil {
+		_ = service.settingsInvalidator.Invalidate(ctx)
+	}
 	err := service.database.WithinTransaction(ctx, pgx.TxOptions{}, func(queries *store.Queries) error {
 		before, err := queries.GetRuntimeSetting(ctx, key)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
 		}
 		if err != nil {
+			return err
+		}
+		if err := validateSettingReference(ctx, queries, key, value); err != nil {
 			return err
 		}
 		updated, err = queries.UpdateRuntimeSetting(ctx, store.UpdateRuntimeSettingParams{
@@ -148,13 +173,16 @@ func (service *Service) UpdateSetting(
 			return err
 		}
 		return service.audit(ctx, queries, actorID, "setting.updated", "runtime_setting", key,
-			map[string]any{"value": json.RawMessage(before.Value), "version": before.Version},
-			map[string]any{"value": json.RawMessage(updated.Value), "version": updated.Version},
+			settingAuditValue(key, before.Value, before.Version),
+			settingAuditValue(key, updated.Value, updated.Version),
 			requestID,
 		)
 	})
 	if err != nil {
 		return Setting{}, err
+	}
+	if service.settingsInvalidator != nil {
+		_ = service.settingsInvalidator.Invalidate(ctx)
 	}
 	return mapSetting(updated)
 }
@@ -215,6 +243,27 @@ func (service *Service) UpdateModel(
 		if !validAudience(audience, defaultFor) || order < 0 ||
 			(enabled && (!before.Available || !before.Supported || len(audience) == 0)) {
 			return ErrInvalid
+		}
+		for _, actorType := range defaultFor {
+			replaced, err := queries.ClearOtherModelDefault(ctx, store.ClearOtherModelDefaultParams{
+				ActorType: actorType, NowAt: timestamp(service.clock.Now()), ModelID: modelID,
+			})
+			if err != nil {
+				return err
+			}
+			for _, previous := range replaced {
+				after := previous
+				beforeDefaults := append([]string{}, previous.DefaultFor...)
+				beforeDefaults = append(beforeDefaults, actorType)
+				after.DefaultFor = previous.DefaultFor
+				previous.DefaultFor = beforeDefaults
+				if err := service.audit(
+					ctx, queries, actorID, "model.default_replaced", "model",
+					previous.ID.String(), modelAuditValue(previous), modelAuditValue(after), requestID,
+				); err != nil {
+					return err
+				}
+			}
 		}
 		updated, err = queries.UpdateAdminModel(ctx, store.UpdateAdminModelParams{
 			Enabled: input.Enabled, Audience: optionalList(input.Audience),
@@ -297,12 +346,18 @@ func (service *Service) UpdateUserRole(
 	}
 	var updated store.User
 	err := service.database.WithinTransaction(ctx, pgx.TxOptions{}, func(queries *store.Queries) error {
+		if err := queries.LockAdministratorRoleChanges(ctx); err != nil {
+			return err
+		}
 		before, err := queries.GetAdminUser(ctx, userID)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
 		}
 		if err != nil {
 			return err
+		}
+		if role == "admin" && before.Status != "active" {
+			return ErrConflict
 		}
 		if before.Role == "admin" && role == "user" {
 			if actorID == userID {
@@ -352,11 +407,23 @@ func (service *Service) Usage(
 	if err != nil {
 		return Usage{}, fmt.Errorf("aggregate admin usage: %w", err)
 	}
+	errorRecords, err := service.database.Queries().AggregateAdminErrors(ctx, store.AggregateAdminErrorsParams{
+		PeriodStart: timestamp(start), PeriodEnd: timestamp(end),
+	})
+	if err != nil {
+		return Usage{}, fmt.Errorf("aggregate admin errors: %w", err)
+	}
+	errorCounts := make([]ErrorCount, 0, len(errorRecords))
+	for _, item := range errorRecords {
+		errorCounts = append(errorCounts, ErrorCount{Code: item.Code, Count: item.Count})
+	}
 	return Usage{
 		PeriodStart: start.UTC(), PeriodEnd: end.UTC(), Generations: record.Generations,
-		InputTokens: record.InputTokens, OutputTokens: record.OutputTokens,
-		EstimatedCost: float64(record.EstimatedCostMicrounits) / 1_000_000,
-		Currency:      "USD",
+		FailedGenerations: record.FailedGenerations,
+		InputTokens:       record.InputTokens, OutputTokens: record.OutputTokens,
+		AverageLatencyMs: record.AverageLatencyMs, P95LatencyMs: record.P95LatencyMs,
+		Errors: errorCounts, EstimatedCost: float64(record.EstimatedCostMicrounits) / 1_000_000,
+		Currency: "USD",
 	}, nil
 }
 
@@ -465,6 +532,8 @@ func mapAudit(record store.AdminAuditLog) AuditEvent {
 	}
 	_ = json.Unmarshal(record.BeforeValue, &event.Before)
 	_ = json.Unmarshal(record.AfterValue, &event.After)
+	event.Before = redactAuditValue(event.TargetType, event.TargetID, event.Before)
+	event.After = redactAuditValue(event.TargetType, event.TargetID, event.After)
 	return event
 }
 
@@ -522,15 +591,100 @@ func validSettingValue(key string, raw json.RawMessage) bool {
 		if json.Unmarshal(raw, &values) != nil || int64(len(values)) > definition.max {
 			return false
 		}
+		seen := make(map[string]struct{}, len(values))
 		for _, value := range values {
-			if strings.TrimSpace(value) == "" || len(value) > 80 {
+			if strings.TrimSpace(value) == "" || value != strings.TrimSpace(value) || len(value) > 80 {
 				return false
 			}
+			if _, ok := seen[value]; ok {
+				return false
+			}
+			seen[value] = struct{}{}
 		}
 		return true
 	default:
 		return false
 	}
+}
+
+func validateSettingReference(
+	ctx context.Context,
+	queries *store.Queries,
+	key string,
+	raw json.RawMessage,
+) error {
+	if key != "chat.summary_model_id" {
+		return nil
+	}
+	var value string
+	if json.Unmarshal(raw, &value) != nil {
+		return ErrInvalid
+	}
+	modelID, err := uuid.Parse(value)
+	if err != nil {
+		return ErrInvalid
+	}
+	model, err := queries.GetAdminModel(ctx, modelID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrInvalid
+	}
+	if err != nil {
+		return err
+	}
+	if !model.Enabled || !model.Available || !model.Supported ||
+		!slicesContain(model.Audience, "user") {
+		return ErrInvalid
+	}
+	return nil
+}
+
+func settingAuditValue(key string, value json.RawMessage, version int32) map[string]any {
+	if key == "chat.system_prompt" {
+		return map[string]any{"value": "[REDACTED]", "version": version}
+	}
+	return map[string]any{"value": value, "version": version}
+}
+
+func redactAuditValue(targetType, targetID string, value map[string]any) map[string]any {
+	if value == nil {
+		return nil
+	}
+	if targetType == "runtime_setting" && targetID == "chat.system_prompt" {
+		if _, ok := value["value"]; ok {
+			value["value"] = "[REDACTED]"
+		}
+	}
+	for key, item := range value {
+		normalized := strings.ToLower(strings.ReplaceAll(key, "-", "_"))
+		if sensitiveAuditKey(normalized) {
+			value[key] = "[REDACTED]"
+			continue
+		}
+		if nested, ok := item.(map[string]any); ok {
+			value[key] = redactAuditValue(targetType, targetID, nested)
+		}
+	}
+	return value
+}
+
+func sensitiveAuditKey(key string) bool {
+	for _, fragment := range []string{
+		"authorization", "cookie", "content", "password", "prompt", "secret", "token", "api_key", "apikey",
+	} {
+		if strings.Contains(key, fragment) {
+			return true
+		}
+	}
+	return false
+}
+
+func slicesContain(values []string, expected string) bool {
+	for _, value := range values {
+		if value == expected {
+			return true
+		}
+	}
+	return false
 }
 
 func validAudience(audience []string, defaults []string) bool {

@@ -32,6 +32,15 @@ WHERE id = sqlc.arg(id)
   AND version = sqlc.arg(expected_version)
 RETURNING *;
 
+-- name: ClearOtherModelDefault :many
+UPDATE models
+SET default_for = array_remove(default_for, sqlc.arg(actor_type)::text),
+    version = version + 1,
+    updated_at = sqlc.arg(now_at)
+WHERE id <> sqlc.arg(model_id)
+  AND sqlc.arg(actor_type)::text = ANY(default_for)
+RETURNING *;
+
 -- name: CountSelectableDefaults :one
 SELECT COUNT(*)::bigint
 FROM models
@@ -60,6 +69,9 @@ LIMIT sqlc.arg(page_size);
 -- name: GetAdminUser :one
 SELECT * FROM users WHERE id = sqlc.arg(id) FOR UPDATE;
 
+-- name: LockAdministratorRoleChanges :exec
+SELECT pg_advisory_xact_lock(hashtextextended('glazz.admin-role-changes', 0));
+
 -- name: CountAdministrators :one
 SELECT COUNT(*)::bigint FROM users
 WHERE role = 'admin' AND status = 'active';
@@ -76,12 +88,38 @@ RETURNING *;
 -- name: AggregateAdminUsage :one
 SELECT
     COUNT(*)::bigint AS generations,
-    COALESCE(SUM(input_tokens), 0)::bigint AS input_tokens,
-    COALESCE(SUM(output_tokens), 0)::bigint AS output_tokens,
-    COALESCE(SUM(estimated_cost_microunits), 0)::bigint AS estimated_cost_microunits
+    COUNT(*) FILTER (
+        WHERE generations.status IN ('failed', 'rejected')
+    )::bigint AS failed_generations,
+    COALESCE(SUM(usage_ledger.input_tokens), 0)::bigint AS input_tokens,
+    COALESCE(SUM(usage_ledger.output_tokens), 0)::bigint AS output_tokens,
+    COALESCE(SUM(usage_ledger.estimated_cost_microunits), 0)::bigint AS estimated_cost_microunits,
+    COALESCE(
+        AVG(EXTRACT(EPOCH FROM (generations.completed_at - generations.accepted_at)) * 1000)
+            FILTER (WHERE generations.completed_at IS NOT NULL),
+        0
+    )::double precision AS average_latency_ms,
+    COALESCE(
+        percentile_cont(0.95) WITHIN GROUP (
+            ORDER BY EXTRACT(EPOCH FROM (generations.completed_at - generations.accepted_at)) * 1000
+        ) FILTER (WHERE generations.completed_at IS NOT NULL),
+        0
+    )::double precision AS p95_latency_ms
 FROM usage_ledger
-WHERE occurred_at >= sqlc.arg(period_start)
-  AND occurred_at < sqlc.arg(period_end);
+JOIN generations ON generations.id = usage_ledger.generation_id
+WHERE usage_ledger.occurred_at >= sqlc.arg(period_start)
+  AND usage_ledger.occurred_at < sqlc.arg(period_end);
+
+-- name: AggregateAdminErrors :many
+SELECT
+    COALESCE(NULLIF(error_code, ''), 'unknown')::text AS code,
+    COUNT(*)::bigint AS count
+FROM generations
+WHERE completed_at >= sqlc.arg(period_start)
+  AND completed_at < sqlc.arg(period_end)
+  AND status IN ('failed', 'rejected')
+GROUP BY COALESCE(NULLIF(error_code, ''), 'unknown')
+ORDER BY count DESC, code;
 
 -- name: ListAdminAuditEvents :many
 SELECT * FROM admin_audit_log

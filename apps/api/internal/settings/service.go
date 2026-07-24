@@ -4,33 +4,60 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/database"
 )
 
+const (
+	cacheNamespace = "runtime-settings"
+	cacheID        = "snapshot"
+	cacheTTL       = 10 * time.Second
+)
+
+type Cache interface {
+	Get(ctx context.Context, namespace, id string) (string, error)
+	Put(ctx context.Context, namespace, id, value string, ttl time.Duration) error
+	Delete(ctx context.Context, namespace, id string) error
+}
+
 type Snapshot struct {
-	Maintenance             bool
-	GuestMessageLimit       int64
-	GuestOutputTokenLimit   int64
-	UserMessageLimit        int64
-	UserOutputTokenLimit    int64
-	GlobalOutputTokenLimit  int64
-	GlobalConcurrentStreams int64
-	SystemPrompt            string
-	SummaryModelID          string
-	InputSafetyCategories   []string
-	OutputSafetyCategories  []string
+	Maintenance             bool     `json:"maintenance"`
+	GuestMessageLimit       int64    `json:"guestMessageLimit"`
+	GuestOutputTokenLimit   int64    `json:"guestOutputTokenLimit"`
+	UserMessageLimit        int64    `json:"userMessageLimit"`
+	UserOutputTokenLimit    int64    `json:"userOutputTokenLimit"`
+	GlobalOutputTokenLimit  int64    `json:"globalOutputTokenLimit"`
+	GlobalConcurrentStreams int64    `json:"globalConcurrentStreams"`
+	SystemPrompt            string   `json:"systemPrompt"`
+	SummaryModelID          string   `json:"summaryModelId"`
+	InputSafetyCategories   []string `json:"inputSafetyCategories"`
+	OutputSafetyCategories  []string `json:"outputSafetyCategories"`
 }
 
 type Service struct {
 	database *database.Pool
+	cache    Cache
 }
 
-func New(pool *database.Pool) *Service {
-	return &Service{database: pool}
+func New(pool *database.Pool, caches ...Cache) *Service {
+	service := &Service{database: pool}
+	if len(caches) > 0 {
+		service.cache = caches[0]
+	}
+	return service
 }
 
 func (service *Service) Load(ctx context.Context) (Snapshot, error) {
+	if service.cache != nil {
+		if cached, err := service.cache.Get(ctx, cacheNamespace, cacheID); err == nil {
+			var snapshot Snapshot
+			if json.Unmarshal([]byte(cached), &snapshot) == nil {
+				return snapshot, nil
+			}
+			_ = service.cache.Delete(ctx, cacheNamespace, cacheID)
+		}
+	}
 	records, err := service.database.Queries().ListRuntimeSettings(ctx)
 	if err != nil {
 		return Snapshot{}, fmt.Errorf("list runtime settings: %w", err)
@@ -73,7 +100,22 @@ func (service *Service) Load(ctx context.Context) (Snapshot, error) {
 	if err := decode(values, "safety.output_categories", &snapshot.OutputSafetyCategories); err != nil {
 		return Snapshot{}, err
 	}
+	if service.cache != nil {
+		if encoded, err := json.Marshal(snapshot); err == nil {
+			_ = service.cache.Put(ctx, cacheNamespace, cacheID, string(encoded), cacheTTL)
+		}
+	}
 	return snapshot, nil
+}
+
+func (service *Service) Invalidate(ctx context.Context) error {
+	if service.cache == nil {
+		return nil
+	}
+	if err := service.cache.Delete(ctx, cacheNamespace, cacheID); err != nil {
+		return fmt.Errorf("invalidate runtime settings cache: %w", err)
+	}
+	return nil
 }
 
 func decode[T any](values map[string]json.RawMessage, key string, target *T) error {

@@ -22,6 +22,7 @@ import (
 	"github.com/aikssen/glazz-chat/apps/api/internal/identity/sessions"
 	"github.com/aikssen/glazz-chat/apps/api/internal/identity/users"
 	"github.com/aikssen/glazz-chat/apps/api/internal/models"
+	"github.com/aikssen/glazz-chat/apps/api/internal/platform/clock"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/config"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/database"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/httpx"
@@ -36,26 +37,28 @@ import (
 )
 
 type Dependencies struct {
-	Config      config.Config
-	Database    *database.Pool
-	Redis       *redisx.Client
-	Guests      *guests.Service
-	OAuth       *identityoauth.Service
-	Sessions    *sessions.Service
-	Browser     *browser.Manager
-	Auth        func(http.Handler) http.Handler
-	Telemetry   *telemetry.Runtime
-	Logger      *slog.Logger
-	IDs         ids.Source
-	Models      *models.Service
-	Chats       *conversations.Service
-	ResolveUser func(*http.Request) (browser.Actor, error)
-	Tickets     *realtime.Tickets
-	Realtime    *realtime.Handler
-	ChatEngine  *chat.Service
-	Admin       *admin.Service
-	Privacy     *privacy.Service
-	Settings    *settings.Service
+	Config       config.Config
+	Database     *database.Pool
+	Redis        *redisx.Client
+	Guests       *guests.Service
+	OAuth        *identityoauth.Service
+	Sessions     *sessions.Service
+	Browser      *browser.Manager
+	Auth         func(http.Handler) http.Handler
+	Telemetry    *telemetry.Runtime
+	Logger       *slog.Logger
+	IDs          ids.Source
+	Clock        clock.Clock
+	Models       *models.Service
+	Chats        *conversations.Service
+	ResolveUser  func(*http.Request) (browser.Actor, error)
+	Tickets      *realtime.Tickets
+	Realtime     *realtime.Handler
+	ChatEngine   *chat.Service
+	Admin        *admin.Service
+	Privacy      *privacy.Service
+	Settings     *settings.Service
+	ProviderCode string
 }
 
 func Handler() http.Handler {
@@ -68,6 +71,9 @@ func Handler() http.Handler {
 func New(deps Dependencies) http.Handler {
 	if deps.Logger == nil {
 		deps.Logger = slog.Default()
+	}
+	if deps.Clock == nil {
+		deps.Clock = clock.UTC{}
 	}
 	router := chi.NewRouter()
 	router.Use(httpx.RequestIDs(deps.IDs))

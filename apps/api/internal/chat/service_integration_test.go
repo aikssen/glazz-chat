@@ -548,6 +548,7 @@ type chatFixture struct {
 	conversations *conversations.Service
 	service       *Service
 	fake          *provider.Fake
+	extraModelIDs []uuid.UUID
 }
 
 func newChatFixture(t *testing.T, options provider.FakeOptions) *chatFixture {
@@ -609,6 +610,9 @@ func newChatFixture(t *testing.T, options provider.FakeOptions) *chatFixture {
 		_, _ = pool.Raw().Exec(ctx, `DELETE FROM quota_reservations WHERE actor_id = $1`, userID)
 		_, _ = pool.Raw().Exec(ctx, `DELETE FROM daily_usage WHERE actor_type = 'user' AND actor_id = $1`, userID)
 		_, _ = pool.Raw().Exec(ctx, `DELETE FROM users WHERE id = $1`, userID)
+		for _, modelID := range fixture.extraModelIDs {
+			_, _ = pool.Raw().Exec(ctx, `DELETE FROM models WHERE id = $1`, modelID)
+		}
 		_ = redisClient.Close()
 		pool.Close()
 	})
@@ -640,14 +644,7 @@ func (fixture *chatFixture) smallModel(t *testing.T) models.Selection {
 	); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() {
-		_, _ = fixture.pool.Raw().Exec(
-			fixture.ctx,
-			`UPDATE conversations SET model_id = '00000000-0000-7000-8000-000000000101' WHERE id = $1`,
-			fixture.conversation.ID,
-		)
-		_, _ = fixture.pool.Raw().Exec(fixture.ctx, `DELETE FROM models WHERE id = $1`, modelID)
-	})
+	fixture.extraModelIDs = append(fixture.extraModelIDs, modelID)
 	selection, err := models.New(fixture.pool).Select(fixture.ctx, modelID, "user")
 	if err != nil {
 		t.Fatal(err)

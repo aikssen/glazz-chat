@@ -29,7 +29,7 @@ func TestSynchronizerIsIdempotentAndNeverAutoEnables(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer pool.Close()
+	t.Cleanup(pool.Close)
 
 	providerID := uuid.New()
 	modelID := uuid.New()
@@ -74,7 +74,11 @@ func TestSynchronizerIsIdempotentAndNeverAutoEnables(t *testing.T) {
 			modelID.String(),
 		)
 		_, _ = pool.Raw().Exec(context.Background(), `DELETE FROM providers WHERE id = $1`, providerID)
-		_, _ = pool.Raw().Exec(context.Background(), `DELETE FROM models WHERE id = $1`, modelID)
+		_, _ = pool.Raw().Exec(
+			context.Background(),
+			`DELETE FROM models WHERE id = $1 OR slug IN ('unknown-upstream', 'different-upstream')`,
+			modelID,
+		)
 	})
 
 	synchronizer := NewSynchronizer(pool, ids.NewUUIDv7(), clock.UTC{})
@@ -86,10 +90,11 @@ func TestSynchronizerIsIdempotentAndNeverAutoEnables(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if result.Mapped != 1 || result.Ignored != 1 || result.Changed != 1 {
+	if result.Mapped != 2 || result.Ignored != 0 || result.Changed != 1 {
 		t.Fatalf("first result = %#v", result)
 	}
 	assertModelState(t, pool, ctx, modelID, false, true)
+	assertDiscoveredModel(t, pool, ctx, "unknown-upstream")
 	assertSyncAuditCount(t, pool, ctx, modelID, 1)
 
 	result, err = synchronizer.Sync(ctx, providerCode, availableCatalog, "req-model-sync-repeat")
@@ -102,7 +107,7 @@ func TestSynchronizerIsIdempotentAndNeverAutoEnables(t *testing.T) {
 		{ID: "different-upstream", ChatCompletions: true},
 	}})
 	result, err = synchronizer.Sync(ctx, providerCode, missingCatalog, "req-model-sync-missing")
-	if err != nil || result.Changed != 1 {
+	if err != nil || result.Changed != 2 {
 		t.Fatalf("missing result = %#v, err = %v", result, err)
 	}
 	assertModelState(t, pool, ctx, modelID, false, false)
@@ -113,6 +118,30 @@ func TestSynchronizerIsIdempotentAndNeverAutoEnables(t *testing.T) {
 		t.Fatalf("missing repeat result = %#v, err = %v", result, err)
 	}
 	assertSyncAuditCount(t, pool, ctx, modelID, 2)
+}
+
+func assertDiscoveredModel(
+	t *testing.T,
+	pool *database.Pool,
+	ctx context.Context,
+	slug string,
+) {
+	t.Helper()
+	var name string
+	var enabled, available, supported bool
+	if err := pool.Raw().QueryRow(ctx, `
+		SELECT name, enabled, available, supported
+		FROM models
+		WHERE slug = $1
+	`, slug).Scan(&name, &enabled, &available, &supported); err != nil {
+		t.Fatal(err)
+	}
+	if name == "" || enabled || !available || !supported {
+		t.Fatalf(
+			"discovered model = name %q, enabled %t, available %t, supported %t",
+			name, enabled, available, supported,
+		)
+	}
 }
 
 func assertModelState(

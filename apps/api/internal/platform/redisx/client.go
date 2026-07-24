@@ -59,6 +59,17 @@ func (c *Client) Put(ctx context.Context, namespace, id, value string, ttl time.
 	return c.client.Set(ctx, c.key(namespace, id), value, ttl).Err()
 }
 
+func (c *Client) Get(ctx context.Context, namespace, id string) (string, error) {
+	value, err := c.client.Get(ctx, c.key(namespace, id)).Result()
+	if errors.Is(err, redis.Nil) {
+		return "", ErrNotFound
+	}
+	if err != nil {
+		return "", fmt.Errorf("read Redis value: %w", err)
+	}
+	return value, nil
+}
+
 func (c *Client) Take(ctx context.Context, namespace, id string) (string, error) {
 	value, err := c.client.GetDel(ctx, c.key(namespace, id)).Result()
 	if errors.Is(err, redis.Nil) {

@@ -90,6 +90,10 @@ func run(logger *slog.Logger) error {
 
 	timeSource := clock.UTC{}
 	idSource := ids.NewUUIDv7()
+	providerCode, err := models.ConfigureProvider(rootCtx, pool, cfg.Provider.Kind, timeSource)
+	if err != nil {
+		return err
+	}
 	keyRing, err := tokens.Load(cfg.Auth, timeSource)
 	if err != nil {
 		return err
@@ -101,7 +105,7 @@ func run(logger *slog.Logger) error {
 		pool, idSource, timeSource, cfg.Auth.TermsVersion,
 		cfg.Auth.PrivacyVersion, cfg.Admin.BootstrapEmails,
 	)
-	runtimeSettings := settings.New(pool)
+	runtimeSettings := settings.New(pool, redisClient)
 	guestService := guests.New(
 		pool, idSource, timeSource, cfg.Cookies, 30*24*time.Hour,
 	).WithPolicySource(func(ctx context.Context) (guests.Policy, error) {
@@ -112,7 +116,7 @@ func run(logger *slog.Logger) error {
 		}, err
 	})
 	modelService := models.New(pool)
-	adminService := admin.New(pool, idSource, timeSource)
+	adminService := admin.New(pool, idSource, timeSource).WithSettingsInvalidator(runtimeSettings)
 	privacyService := privacy.New(pool, idSource, timeSource)
 	conversationService := conversations.New(pool, modelService, idSource, timeSource)
 	tickets := realtime.NewTickets(redisClient, timeSource, 30*time.Second)
@@ -133,7 +137,7 @@ func run(logger *slog.Logger) error {
 		policy.GlobalConcurrentLimit = snapshot.GlobalConcurrentStreams
 		return policy, nil
 	})
-	gateways := chat.Gateways{"fake": provider.NewFake(provider.FakeOptions{})}
+	gateways := chat.Gateways{models.FakeProviderCode: provider.NewFake(provider.FakeOptions{})}
 	if cfg.Provider.Kind != "fake" {
 		gateway, err := provider.NewOpenAICompatible(
 			cfg.Provider.BaseURL, cfg.Provider.APIKey, nil, provider.DefaultOptions(),
@@ -141,7 +145,7 @@ func run(logger *slog.Logger) error {
 		if err != nil {
 			return err
 		}
-		gateways["fake"] = provider.NewResilient(gateway, provider.DefaultResilienceOptions())
+		gateways[providerCode] = provider.NewResilient(gateway, provider.DefaultResilienceOptions())
 	}
 	chatService := chat.New(
 		rootCtx, pool, conversationService, modelService, quotaService, broker,
@@ -204,13 +208,14 @@ func run(logger *slog.Logger) error {
 		Config: cfg, Database: pool, Redis: redisClient, Guests: guestService,
 		OAuth: oauthService, Sessions: sessionService, Browser: browserManager,
 		Auth: browser.Authenticate(keyRing, sessionService), Telemetry: telemetryRuntime,
-		Logger: logger, IDs: idSource,
+		Logger: logger, IDs: idSource, Clock: timeSource,
 		Models: modelService, Chats: conversationService,
 		Tickets: tickets, Realtime: realtimeHandler,
-		ChatEngine: chatService,
-		Admin:      adminService,
-		Privacy:    privacyService,
-		Settings:   runtimeSettings,
+		ChatEngine:   chatService,
+		Admin:        adminService,
+		Privacy:      privacyService,
+		Settings:     runtimeSettings,
+		ProviderCode: providerCode,
 		ResolveUser: func(request *http.Request) (browser.Actor, error) {
 			return browser.Resolve(request, keyRing, sessionService)
 		},

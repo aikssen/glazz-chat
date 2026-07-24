@@ -12,15 +12,72 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const aggregateAdminErrors = `-- name: AggregateAdminErrors :many
+SELECT
+    COALESCE(NULLIF(error_code, ''), 'unknown')::text AS code,
+    COUNT(*)::bigint AS count
+FROM generations
+WHERE completed_at >= $1
+  AND completed_at < $2
+  AND status IN ('failed', 'rejected')
+GROUP BY COALESCE(NULLIF(error_code, ''), 'unknown')
+ORDER BY count DESC, code
+`
+
+type AggregateAdminErrorsParams struct {
+	PeriodStart pgtype.Timestamptz `db:"period_start"`
+	PeriodEnd   pgtype.Timestamptz `db:"period_end"`
+}
+
+type AggregateAdminErrorsRow struct {
+	Code  string `db:"code"`
+	Count int64  `db:"count"`
+}
+
+func (q *Queries) AggregateAdminErrors(ctx context.Context, arg AggregateAdminErrorsParams) ([]AggregateAdminErrorsRow, error) {
+	rows, err := q.db.Query(ctx, aggregateAdminErrors, arg.PeriodStart, arg.PeriodEnd)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AggregateAdminErrorsRow{}
+	for rows.Next() {
+		var i AggregateAdminErrorsRow
+		if err := rows.Scan(&i.Code, &i.Count); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const aggregateAdminUsage = `-- name: AggregateAdminUsage :one
 SELECT
     COUNT(*)::bigint AS generations,
-    COALESCE(SUM(input_tokens), 0)::bigint AS input_tokens,
-    COALESCE(SUM(output_tokens), 0)::bigint AS output_tokens,
-    COALESCE(SUM(estimated_cost_microunits), 0)::bigint AS estimated_cost_microunits
+    COUNT(*) FILTER (
+        WHERE generations.status IN ('failed', 'rejected')
+    )::bigint AS failed_generations,
+    COALESCE(SUM(usage_ledger.input_tokens), 0)::bigint AS input_tokens,
+    COALESCE(SUM(usage_ledger.output_tokens), 0)::bigint AS output_tokens,
+    COALESCE(SUM(usage_ledger.estimated_cost_microunits), 0)::bigint AS estimated_cost_microunits,
+    COALESCE(
+        AVG(EXTRACT(EPOCH FROM (generations.completed_at - generations.accepted_at)) * 1000)
+            FILTER (WHERE generations.completed_at IS NOT NULL),
+        0
+    )::double precision AS average_latency_ms,
+    COALESCE(
+        percentile_cont(0.95) WITHIN GROUP (
+            ORDER BY EXTRACT(EPOCH FROM (generations.completed_at - generations.accepted_at)) * 1000
+        ) FILTER (WHERE generations.completed_at IS NOT NULL),
+        0
+    )::double precision AS p95_latency_ms
 FROM usage_ledger
-WHERE occurred_at >= $1
-  AND occurred_at < $2
+JOIN generations ON generations.id = usage_ledger.generation_id
+WHERE usage_ledger.occurred_at >= $1
+  AND usage_ledger.occurred_at < $2
 `
 
 type AggregateAdminUsageParams struct {
@@ -29,10 +86,13 @@ type AggregateAdminUsageParams struct {
 }
 
 type AggregateAdminUsageRow struct {
-	Generations             int64 `db:"generations"`
-	InputTokens             int64 `db:"input_tokens"`
-	OutputTokens            int64 `db:"output_tokens"`
-	EstimatedCostMicrounits int64 `db:"estimated_cost_microunits"`
+	Generations             int64   `db:"generations"`
+	FailedGenerations       int64   `db:"failed_generations"`
+	InputTokens             int64   `db:"input_tokens"`
+	OutputTokens            int64   `db:"output_tokens"`
+	EstimatedCostMicrounits int64   `db:"estimated_cost_microunits"`
+	AverageLatencyMs        float64 `db:"average_latency_ms"`
+	P95LatencyMs            float64 `db:"p95_latency_ms"`
 }
 
 func (q *Queries) AggregateAdminUsage(ctx context.Context, arg AggregateAdminUsageParams) (AggregateAdminUsageRow, error) {
@@ -40,11 +100,67 @@ func (q *Queries) AggregateAdminUsage(ctx context.Context, arg AggregateAdminUsa
 	var i AggregateAdminUsageRow
 	err := row.Scan(
 		&i.Generations,
+		&i.FailedGenerations,
 		&i.InputTokens,
 		&i.OutputTokens,
 		&i.EstimatedCostMicrounits,
+		&i.AverageLatencyMs,
+		&i.P95LatencyMs,
 	)
 	return i, err
+}
+
+const clearOtherModelDefault = `-- name: ClearOtherModelDefault :many
+UPDATE models
+SET default_for = array_remove(default_for, $1::text),
+    version = version + 1,
+    updated_at = $2
+WHERE id <> $3
+  AND $1::text = ANY(default_for)
+RETURNING id, slug, name, description, context_window, max_output_tokens, capabilities, enabled, available, supported, audience, default_for, sort_order, version, created_at, updated_at
+`
+
+type ClearOtherModelDefaultParams struct {
+	ActorType string             `db:"actor_type"`
+	NowAt     pgtype.Timestamptz `db:"now_at"`
+	ModelID   uuid.UUID          `db:"model_id"`
+}
+
+func (q *Queries) ClearOtherModelDefault(ctx context.Context, arg ClearOtherModelDefaultParams) ([]Model, error) {
+	rows, err := q.db.Query(ctx, clearOtherModelDefault, arg.ActorType, arg.NowAt, arg.ModelID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Model{}
+	for rows.Next() {
+		var i Model
+		if err := rows.Scan(
+			&i.ID,
+			&i.Slug,
+			&i.Name,
+			&i.Description,
+			&i.ContextWindow,
+			&i.MaxOutputTokens,
+			&i.Capabilities,
+			&i.Enabled,
+			&i.Available,
+			&i.Supported,
+			&i.Audience,
+			&i.DefaultFor,
+			&i.SortOrder,
+			&i.Version,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const countAdministrators = `-- name: CountAdministrators :one
@@ -327,6 +443,15 @@ func (q *Queries) ListRuntimeSettings(ctx context.Context) ([]RuntimeSetting, er
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockAdministratorRoleChanges = `-- name: LockAdministratorRoleChanges :exec
+SELECT pg_advisory_xact_lock(hashtextextended('glazz.admin-role-changes', 0))
+`
+
+func (q *Queries) LockAdministratorRoleChanges(ctx context.Context) error {
+	_, err := q.db.Exec(ctx, lockAdministratorRoleChanges)
+	return err
 }
 
 const updateAdminModel = `-- name: UpdateAdminModel :one

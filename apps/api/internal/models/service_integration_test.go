@@ -29,7 +29,7 @@ func TestCatalogEnforcesExposureSelectionAndProviderHealth(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer pool.Close()
+	t.Cleanup(pool.Close)
 
 	providerID := uuid.New()
 	modelID := uuid.New()

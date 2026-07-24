@@ -12,6 +12,66 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const createDiscoveredModel = `-- name: CreateDiscoveredModel :one
+INSERT INTO models (
+    id, slug, name, description, context_window, max_output_tokens,
+    capabilities, enabled, available, supported, audience, default_for,
+    sort_order, created_at, updated_at
+) VALUES (
+    $1, $2, $3, $4,
+    $5, $6, $7,
+    false, false, true, ARRAY['user']::text[], '{}'::text[],
+    $8, $9, $9
+)
+RETURNING id, slug, name, description, context_window, max_output_tokens, capabilities, enabled, available, supported, audience, default_for, sort_order, version, created_at, updated_at
+`
+
+type CreateDiscoveredModelParams struct {
+	ID              uuid.UUID          `db:"id"`
+	Slug            string             `db:"slug"`
+	Name            string             `db:"name"`
+	Description     string             `db:"description"`
+	ContextWindow   int32              `db:"context_window"`
+	MaxOutputTokens int32              `db:"max_output_tokens"`
+	Capabilities    []byte             `db:"capabilities"`
+	SortOrder       int32              `db:"sort_order"`
+	NowAt           pgtype.Timestamptz `db:"now_at"`
+}
+
+func (q *Queries) CreateDiscoveredModel(ctx context.Context, arg CreateDiscoveredModelParams) (Model, error) {
+	row := q.db.QueryRow(ctx, createDiscoveredModel,
+		arg.ID,
+		arg.Slug,
+		arg.Name,
+		arg.Description,
+		arg.ContextWindow,
+		arg.MaxOutputTokens,
+		arg.Capabilities,
+		arg.SortOrder,
+		arg.NowAt,
+	)
+	var i Model
+	err := row.Scan(
+		&i.ID,
+		&i.Slug,
+		&i.Name,
+		&i.Description,
+		&i.ContextWindow,
+		&i.MaxOutputTokens,
+		&i.Capabilities,
+		&i.Enabled,
+		&i.Available,
+		&i.Supported,
+		&i.Audience,
+		&i.DefaultFor,
+		&i.SortOrder,
+		&i.Version,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getDefaultModel = `-- name: GetDefaultModel :one
 SELECT id, slug, name, description, context_window, max_output_tokens, capabilities, enabled, available, supported, audience, default_for, sort_order, version, created_at, updated_at
 FROM models
@@ -32,6 +92,34 @@ WHERE models.enabled
 
 func (q *Queries) GetDefaultModel(ctx context.Context, actorType string) (Model, error) {
 	row := q.db.QueryRow(ctx, getDefaultModel, actorType)
+	var i Model
+	err := row.Scan(
+		&i.ID,
+		&i.Slug,
+		&i.Name,
+		&i.Description,
+		&i.ContextWindow,
+		&i.MaxOutputTokens,
+		&i.Capabilities,
+		&i.Enabled,
+		&i.Available,
+		&i.Supported,
+		&i.Audience,
+		&i.DefaultFor,
+		&i.SortOrder,
+		&i.Version,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getModelBySlug = `-- name: GetModelBySlug :one
+SELECT id, slug, name, description, context_window, max_output_tokens, capabilities, enabled, available, supported, audience, default_for, sort_order, version, created_at, updated_at FROM models WHERE slug = $1
+`
+
+func (q *Queries) GetModelBySlug(ctx context.Context, slug string) (Model, error) {
+	row := q.db.QueryRow(ctx, getModelBySlug, slug)
 	var i Model
 	err := row.Scan(
 		&i.ID,
@@ -326,6 +414,26 @@ func (q *Queries) RefreshModelAvailability(ctx context.Context, nowAt pgtype.Tim
 	return result.RowsAffected(), nil
 }
 
+const setProviderEnabledByCode = `-- name: SetProviderEnabledByCode :exec
+UPDATE providers
+SET enabled = $1,
+    version = version + 1,
+    updated_at = $2
+WHERE code = $3
+  AND enabled IS DISTINCT FROM $1
+`
+
+type SetProviderEnabledByCodeParams struct {
+	Enabled bool               `db:"enabled"`
+	NowAt   pgtype.Timestamptz `db:"now_at"`
+	Code    string             `db:"code"`
+}
+
+func (q *Queries) SetProviderEnabledByCode(ctx context.Context, arg SetProviderEnabledByCodeParams) error {
+	_, err := q.db.Exec(ctx, setProviderEnabledByCode, arg.Enabled, arg.NowAt, arg.Code)
+	return err
+}
+
 const upsertProvider = `-- name: UpsertProvider :one
 INSERT INTO providers (
     id, code, display_name, adapter, enabled, health_status, settings, updated_at
@@ -336,6 +444,7 @@ INSERT INTO providers (
 ON CONFLICT (code) DO UPDATE
 SET display_name = EXCLUDED.display_name,
     adapter = EXCLUDED.adapter,
+    enabled = EXCLUDED.enabled,
     health_status = EXCLUDED.health_status,
     settings = EXCLUDED.settings,
     version = providers.version + 1,

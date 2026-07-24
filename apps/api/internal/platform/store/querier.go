@@ -15,11 +15,13 @@ type Querier interface {
 	AddDailyUsage(ctx context.Context, arg AddDailyUsageParams) (DailyUsage, error)
 	AdjustDailyOutputUsage(ctx context.Context, arg AdjustDailyOutputUsageParams) error
 	AdjustGuestOutputUsage(ctx context.Context, arg AdjustGuestOutputUsageParams) error
+	AggregateAdminErrors(ctx context.Context, arg AggregateAdminErrorsParams) ([]AggregateAdminErrorsRow, error)
 	AggregateAdminUsage(ctx context.Context, arg AggregateAdminUsageParams) (AggregateAdminUsageRow, error)
 	AppendAssistantMessage(ctx context.Context, arg AppendAssistantMessageParams) (Message, error)
 	CheckpointGeneration(ctx context.Context, arg CheckpointGenerationParams) (int64, error)
 	ClaimAccountDeletionJobs(ctx context.Context, arg ClaimAccountDeletionJobsParams) ([]AccountDeletionJob, error)
 	ClaimOutboxEvents(ctx context.Context, arg ClaimOutboxEventsParams) ([]OutboxEvent, error)
+	ClearOtherModelDefault(ctx context.Context, arg ClearOtherModelDefaultParams) ([]Model, error)
 	CompleteAccountDeletionJob(ctx context.Context, arg CompleteAccountDeletionJobParams) (int64, error)
 	CompleteOutboxEvent(ctx context.Context, arg CompleteOutboxEventParams) (int64, error)
 	CountActorActiveGenerations(ctx context.Context, arg CountActorActiveGenerationsParams) (int64, error)
@@ -29,6 +31,7 @@ type Querier interface {
 	CreateAccountDeletionJob(ctx context.Context, arg CreateAccountDeletionJobParams) (AccountDeletionJob, error)
 	CreateAuthSession(ctx context.Context, arg CreateAuthSessionParams) (AuthSession, error)
 	CreateConversationSummary(ctx context.Context, arg CreateConversationSummaryParams) (ConversationSummary, error)
+	CreateDiscoveredModel(ctx context.Context, arg CreateDiscoveredModelParams) (Model, error)
 	CreateGeneration(ctx context.Context, arg CreateGenerationParams) (Generation, error)
 	CreateGoogleIdentity(ctx context.Context, arg CreateGoogleIdentityParams) error
 	CreateGuestConversation(ctx context.Context, arg CreateGuestConversationParams) (Conversation, error)
@@ -67,6 +70,7 @@ type Querier interface {
 	GetLatestGeneration(ctx context.Context, conversationID uuid.UUID) (Generation, error)
 	GetLatestSummary(ctx context.Context, conversationID uuid.UUID) (ConversationSummary, error)
 	GetMessage(ctx context.Context, id uuid.UUID) (Message, error)
+	GetModelBySlug(ctx context.Context, slug string) (Model, error)
 	GetOutboxEventByIdempotencyKey(ctx context.Context, idempotencyKey string) (OutboxEvent, error)
 	GetProviderByCode(ctx context.Context, code string) (Provider, error)
 	GetProviderForModel(ctx context.Context, modelID uuid.UUID) (GetProviderForModelRow, error)
@@ -88,6 +92,7 @@ type Querier interface {
 	ListPublicModels(ctx context.Context, actorType string) ([]Model, error)
 	ListRuntimeSettings(ctx context.Context) ([]RuntimeSetting, error)
 	ListUserConversations(ctx context.Context, arg ListUserConversationsParams) ([]Conversation, error)
+	LockAdministratorRoleChanges(ctx context.Context) error
 	LockGlobalGenerationAdmission(ctx context.Context) error
 	LockGuestSession(ctx context.Context, id uuid.UUID) (GuestSession, error)
 	LockQuotaReservation(ctx context.Context, id uuid.UUID) (QuotaReservation, error)
@@ -110,6 +115,7 @@ type Querier interface {
 	RevokeSessionFamily(ctx context.Context, arg RevokeSessionFamilyParams) error
 	SetConversationGenerationState(ctx context.Context, arg SetConversationGenerationStateParams) (int64, error)
 	SetGeneratedConversationTitle(ctx context.Context, arg SetGeneratedConversationTitleParams) (int64, error)
+	SetProviderEnabledByCode(ctx context.Context, arg SetProviderEnabledByCodeParams) error
 	SettleQuotaReservation(ctx context.Context, arg SettleQuotaReservationParams) (int64, error)
 	SoftDeleteGuestConversation(ctx context.Context, arg SoftDeleteGuestConversationParams) (int64, error)
 	SoftDeleteUserConversation(ctx context.Context, arg SoftDeleteUserConversationParams) (int64, error)

@@ -4,6 +4,7 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -195,6 +196,7 @@ const (
 	ErrorEnvelopeErrorCodeInvalidRequest        ErrorEnvelopeErrorCode = "invalid_request"
 	ErrorEnvelopeErrorCodeMaintenance           ErrorEnvelopeErrorCode = "maintenance"
 	ErrorEnvelopeErrorCodeNotFound              ErrorEnvelopeErrorCode = "not_found"
+	ErrorEnvelopeErrorCodePreconditionRequired  ErrorEnvelopeErrorCode = "precondition_required"
 	ErrorEnvelopeErrorCodeQuotaExceeded         ErrorEnvelopeErrorCode = "quota_exceeded"
 	ErrorEnvelopeErrorCodeRecentAuthRequired    ErrorEnvelopeErrorCode = "recent_auth_required"
 	ErrorEnvelopeErrorCodeRefreshTokenReused    ErrorEnvelopeErrorCode = "refresh_token_reused"
@@ -219,6 +221,8 @@ func (e ErrorEnvelopeErrorCode) Valid() bool {
 	case ErrorEnvelopeErrorCodeMaintenance:
 		return true
 	case ErrorEnvelopeErrorCodeNotFound:
+		return true
+	case ErrorEnvelopeErrorCodePreconditionRequired:
 		return true
 	case ErrorEnvelopeErrorCodeQuotaExceeded:
 		return true
@@ -563,6 +567,12 @@ func (e UpdateCurrentUserJSONBodyLocale) Valid() bool {
 	}
 }
 
+// AdminErrorCount defines model for AdminErrorCount.
+type AdminErrorCount struct {
+	Code  string `json:"code"`
+	Count int    `json:"count"`
+}
+
 // AdminModel defines model for AdminModel.
 type AdminModel struct {
 	Audience     []AdminModelAudience `json:"audience"`
@@ -593,13 +603,17 @@ type AdminModelDefaultFor string
 
 // AdminUsage defines model for AdminUsage.
 type AdminUsage struct {
-	Currency      *string   `json:"currency,omitempty"`
-	EstimatedCost float32   `json:"estimatedCost"`
-	Generations   int       `json:"generations"`
-	InputTokens   int       `json:"inputTokens"`
-	OutputTokens  int       `json:"outputTokens"`
-	PeriodEnd     time.Time `json:"periodEnd"`
-	PeriodStart   time.Time `json:"periodStart"`
+	AverageLatencyMs  float32           `json:"averageLatencyMs"`
+	Currency          string            `json:"currency"`
+	Errors            []AdminErrorCount `json:"errors"`
+	EstimatedCost     float32           `json:"estimatedCost"`
+	FailedGenerations int               `json:"failedGenerations"`
+	Generations       int               `json:"generations"`
+	InputTokens       int               `json:"inputTokens"`
+	OutputTokens      int               `json:"outputTokens"`
+	P95LatencyMs      float32           `json:"p95LatencyMs"`
+	PeriodEnd         time.Time         `json:"periodEnd"`
+	PeriodStart       time.Time         `json:"periodStart"`
 }
 
 // AdminUser defines model for AdminUser.
@@ -619,7 +633,7 @@ type AdminUserStatus string
 // AuditEvent defines model for AuditEvent.
 type AuditEvent struct {
 	Action     string                  `json:"action"`
-	ActorId    Id                      `json:"actorId"`
+	ActorId    *Id                     `json:"actorId"`
 	After      *map[string]interface{} `json:"after,omitempty"`
 	Before     *map[string]interface{} `json:"before,omitempty"`
 	Id         Id                      `json:"id"`
@@ -832,10 +846,27 @@ type Role string
 
 // RuntimeSetting defines model for RuntimeSetting.
 type RuntimeSetting struct {
-	Key       string      `json:"key"`
-	UpdatedAt time.Time   `json:"updatedAt"`
-	Value     interface{} `json:"value"`
-	Version   int         `json:"version"`
+	Key       string               `json:"key"`
+	UpdatedAt time.Time            `json:"updatedAt"`
+	Value     RuntimeSetting_Value `json:"value"`
+	Version   int                  `json:"version"`
+}
+
+// RuntimeSettingValue0 defines model for RuntimeSetting.Value.0.
+type RuntimeSettingValue0 = bool
+
+// RuntimeSettingValue1 defines model for RuntimeSetting.Value.1.
+type RuntimeSettingValue1 = int
+
+// RuntimeSettingValue2 defines model for RuntimeSetting.Value.2.
+type RuntimeSettingValue2 = string
+
+// RuntimeSettingValue3 defines model for RuntimeSetting.Value.3.
+type RuntimeSettingValue3 = []string
+
+// RuntimeSetting_Value defines model for RuntimeSetting.Value.
+type RuntimeSetting_Value struct {
+	union json.RawMessage
 }
 
 // UpdateAdminModel defines model for UpdateAdminModel.
@@ -944,6 +975,12 @@ type AdminUpdateSettingJSONBody struct {
 type AdminUpdateSettingParams struct {
 	// IfMatch Quoted current resource version.
 	IfMatch IfMatch `json:"If-Match"`
+}
+
+// AdminGetUsageParams defines parameters for AdminGetUsage.
+type AdminGetUsageParams struct {
+	From *time.Time `form:"from,omitempty" json:"from,omitempty"`
+	To   *time.Time `form:"to,omitempty" json:"to,omitempty"`
 }
 
 // AdminListUsersParams defines parameters for AdminListUsers.
@@ -1064,6 +1101,120 @@ type RequestAccountDeletionJSONRequestBody RequestAccountDeletionJSONBody
 // UpdateCurrentUserJSONRequestBody defines body for UpdateCurrentUser for application/json ContentType.
 type UpdateCurrentUserJSONRequestBody UpdateCurrentUserJSONBody
 
+// AsRuntimeSettingValue0 returns the union data inside the RuntimeSetting_Value as a RuntimeSettingValue0
+func (t RuntimeSetting_Value) AsRuntimeSettingValue0() (RuntimeSettingValue0, error) {
+	var body RuntimeSettingValue0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromRuntimeSettingValue0 overwrites any union data inside the RuntimeSetting_Value as the provided RuntimeSettingValue0
+func (t *RuntimeSetting_Value) FromRuntimeSettingValue0(v RuntimeSettingValue0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeRuntimeSettingValue0 performs a merge with any union data inside the RuntimeSetting_Value, using the provided RuntimeSettingValue0
+func (t *RuntimeSetting_Value) MergeRuntimeSettingValue0(v RuntimeSettingValue0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsRuntimeSettingValue1 returns the union data inside the RuntimeSetting_Value as a RuntimeSettingValue1
+func (t RuntimeSetting_Value) AsRuntimeSettingValue1() (RuntimeSettingValue1, error) {
+	var body RuntimeSettingValue1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromRuntimeSettingValue1 overwrites any union data inside the RuntimeSetting_Value as the provided RuntimeSettingValue1
+func (t *RuntimeSetting_Value) FromRuntimeSettingValue1(v RuntimeSettingValue1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeRuntimeSettingValue1 performs a merge with any union data inside the RuntimeSetting_Value, using the provided RuntimeSettingValue1
+func (t *RuntimeSetting_Value) MergeRuntimeSettingValue1(v RuntimeSettingValue1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsRuntimeSettingValue2 returns the union data inside the RuntimeSetting_Value as a RuntimeSettingValue2
+func (t RuntimeSetting_Value) AsRuntimeSettingValue2() (RuntimeSettingValue2, error) {
+	var body RuntimeSettingValue2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromRuntimeSettingValue2 overwrites any union data inside the RuntimeSetting_Value as the provided RuntimeSettingValue2
+func (t *RuntimeSetting_Value) FromRuntimeSettingValue2(v RuntimeSettingValue2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeRuntimeSettingValue2 performs a merge with any union data inside the RuntimeSetting_Value, using the provided RuntimeSettingValue2
+func (t *RuntimeSetting_Value) MergeRuntimeSettingValue2(v RuntimeSettingValue2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsRuntimeSettingValue3 returns the union data inside the RuntimeSetting_Value as a RuntimeSettingValue3
+func (t RuntimeSetting_Value) AsRuntimeSettingValue3() (RuntimeSettingValue3, error) {
+	var body RuntimeSettingValue3
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromRuntimeSettingValue3 overwrites any union data inside the RuntimeSetting_Value as the provided RuntimeSettingValue3
+func (t *RuntimeSetting_Value) FromRuntimeSettingValue3(v RuntimeSettingValue3) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeRuntimeSettingValue3 performs a merge with any union data inside the RuntimeSetting_Value, using the provided RuntimeSettingValue3
+func (t *RuntimeSetting_Value) MergeRuntimeSettingValue3(v RuntimeSettingValue3) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t RuntimeSetting_Value) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *RuntimeSetting_Value) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// AdminListAuditEvents List administrative audit events
@@ -1086,7 +1237,7 @@ type ServerInterface interface {
 	AdminUpdateSetting(w http.ResponseWriter, r *http.Request, key string, params AdminUpdateSettingParams)
 	// AdminGetUsage Get aggregate service usage
 	// (GET /admin/usage)
-	AdminGetUsage(w http.ResponseWriter, r *http.Request)
+	AdminGetUsage(w http.ResponseWriter, r *http.Request, params AdminGetUsageParams)
 	// AdminListUsers List users for administration
 	// (GET /admin/users)
 	AdminListUsers(w http.ResponseWriter, r *http.Request, params AdminListUsersParams)
@@ -1215,7 +1366,7 @@ func (_ Unimplemented) AdminUpdateSetting(w http.ResponseWriter, r *http.Request
 
 // AdminGetUsage Get aggregate service usage
 // (GET /admin/usage)
-func (_ Unimplemented) AdminGetUsage(w http.ResponseWriter, r *http.Request) {
+func (_ Unimplemented) AdminGetUsage(w http.ResponseWriter, r *http.Request, params AdminGetUsageParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1626,8 +1777,40 @@ func (siw *ServerInterfaceWrapper) AdminUpdateSetting(w http.ResponseWriter, r *
 // AdminGetUsage operation middleware
 func (siw *ServerInterfaceWrapper) AdminGetUsage(w http.ResponseWriter, r *http.Request) {
 
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params AdminGetUsageParams
+
+	// ------------- Optional query parameter "from" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "from", r.URL.Query(), &params.From, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "from"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "from", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "to" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "to", r.URL.Query(), &params.To, runtime.BindQueryParameterOptions{Type: "string", Format: "date-time"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "to"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "to", Err: err})
+		}
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.AdminGetUsage(w, r)
+		siw.Handler.AdminGetUsage(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {

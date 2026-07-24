@@ -10,11 +10,23 @@
 
 M4 is in progress and is not tagged. The release tag remains reserved as
 `v0.4.0` until Phase 6 through Phase 8 acceptance criteria and CI are green.
-M3 also remains untagged while its acceptance hardening is completed.
+Phase 6 is complete. Phases 7 and 8 retain open acceptance items.
 
 The application is available as a testable preview while those acceptance cases
 remain open. In `TASKS.md`, `[-]` means implemented with incomplete acceptance
 coverage, not that the whole feature is still being built.
+
+## Acceptance ledger
+
+| ID | Phase | Acceptance | Status | Evidence |
+| --- | --- | --- | --- | --- |
+| M4-A01 | 6 | Typed settings validate values, reject stale versions, invalidate cache, and audit changes | Accepted | Unit and PostgreSQL/Redis integration tests |
+| M4-A02 | 6 | Model administration rejects invalid exposure and atomically preserves valid defaults | Accepted | PostgreSQL integration tests |
+| M4-A03 | 6 | Role changes require recent auth and preserve an active administrator under concurrency | Accepted | HTTP and concurrent PostgreSQL integration tests |
+| M4-A04 | 6 | Usage exposes aggregate tokens, failures, latency, and error codes; audit reads redact sensitive values | Accepted | SQL aggregation, redaction, and pagination tests |
+| M4-A05 | 6 | Account deletion, purge, and guest cleanup preserve required anonymous aggregates | Accepted | Existing Phase 6 lifecycle integration tests |
+| M4-A06 | 7 | Frontend foundation and design-system acceptance | Open | WEB-002 through WEB-010 acceptance remains |
+| M4-A07 | 8 | Integrated user and administration journeys | Open | Phase 8 E2E acceptance remains |
 
 ## Test now
 
@@ -56,7 +68,7 @@ coverage, not that the whole feature is still being built.
 
 - OpenAPI and AsyncAPI lint plus 14 WebSocket fixture validations.
 - Next.js production build, TypeScript, ESLint, and Prettier checks.
-- Fourteen frontend unit tests, including streaming idempotency, dictionary parity,
+- Eighteen frontend unit tests, including streaming idempotency, dictionary parity,
   theme contrast, and UUID generation on insecure local-network origins.
 - Sixteen Playwright E2E checks across the responsive viewport matrix. They cover
   the guest limit, OAuth consent/denial, exactly-once migration, restored deep links,
@@ -100,10 +112,19 @@ by an obsolete key, actor-aware CSRF falls back to the valid guest session, and 
 client performs one bounded recovery attempt. A browser regression covers the
 deployment-key rotation.
 
+Model-catalog inspection later found that the configured OpenAI-compatible gateway
+was still represented by the deterministic `fake` provider record. Synchronization
+therefore refreshed only the seeded DeepSeek mapping and ignored newly advertised
+models. Repeated integration tests had also left 33 model and 13 provider fixtures
+because cleanup ran after their pools closed or before dependent generations were
+removed. Runtime registration now uses a separate `configured` provider, sync
+imports unknown chat models without auto-enabling future discoveries, and test
+cleanup is ordered and repeatable. The development catalog was transactionally
+cleaned and the 23 models currently advertised by OpenCode Go were explicitly
+enabled for registered users.
+
 ## Remaining before `v0.4.0`
 
-- Finish the M3 acceptance cases listed in `docs/m3-chat-backend.md` and publish
-  `v0.3.0` first.
 - Complete authenticated E2E coverage for ownership denial, generation
   cancellation/retry, and recent-auth recovery. Registered rename/archive/restore/
   delete, both session-revocation paths, browser-locale fallback, and authenticated

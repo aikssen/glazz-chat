@@ -43,11 +43,17 @@ func run(logger *slog.Logger) error {
 	defer pool.Close()
 	idSource := ids.NewUUIDv7()
 	timeSource := clock.UTC{}
+	providerCode, err := models.ConfigureProvider(ctx, pool, cfg.Provider.Kind, timeSource)
+	if err != nil {
+		return err
+	}
 	workerID, err := idSource.New()
 	if err != nil {
 		return err
 	}
-	gateways := map[string]provider.Gateway{"fake": provider.NewFake(provider.FakeOptions{})}
+	gateways := map[string]provider.Gateway{
+		models.FakeProviderCode: provider.NewFake(provider.FakeOptions{}),
+	}
 	if cfg.Provider.Kind != "fake" {
 		gateway, err := provider.NewOpenAICompatible(
 			cfg.Provider.BaseURL, cfg.Provider.APIKey, nil, provider.DefaultOptions(),
@@ -55,9 +61,18 @@ func run(logger *slog.Logger) error {
 		if err != nil {
 			return err
 		}
-		gateways["fake"] = provider.NewResilient(gateway, provider.DefaultResilienceOptions())
+		gateways[providerCode] = provider.NewResilient(gateway, provider.DefaultResilienceOptions())
 	}
 	synchronizer := models.NewSynchronizer(pool, idSource, timeSource)
+	if providerCode != models.FakeProviderCode {
+		if _, err := synchronizer.Sync(
+			ctx, providerCode, gateways[providerCode], "startup-model-sync",
+		); err != nil {
+			logger.ErrorContext(
+				ctx, "startup model sync failed", "error_type", fmt.Sprintf("%T", err),
+			)
+		}
+	}
 	privacyService := privacy.New(pool, idSource, timeSource)
 	runner, err := outbox.New(
 		pool,

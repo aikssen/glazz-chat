@@ -543,6 +543,7 @@ paths:
           content:
             application/json:
               schema: {$ref: "#/components/schemas/AdminModel"}
+        "400": {$ref: "#/components/responses/BadRequest"}
         "409": {$ref: "#/components/responses/Conflict"}
         "428": {$ref: "#/components/responses/RecentAuthRequired"}
   /admin/settings:
@@ -587,7 +588,9 @@ paths:
           content:
             application/json:
               schema: {$ref: "#/components/schemas/RuntimeSetting"}
+        "400": {$ref: "#/components/responses/BadRequest"}
         "409": {$ref: "#/components/responses/Conflict"}
+        "428": {$ref: "#/components/responses/RecentAuthRequired"}
   /admin/users:
     get:
       tags: [Administration]
@@ -635,18 +638,25 @@ paths:
           content:
             application/json:
               schema: {$ref: "#/components/schemas/AdminUser"}
+        "400": {$ref: "#/components/responses/BadRequest"}
         "409": {$ref: "#/components/responses/Conflict"}
+        "428": {$ref: "#/components/responses/RecentAuthRequired"}
   /admin/usage:
     get:
       tags: [Administration]
       summary: Get aggregate service usage
       operationId: adminGetUsage
+      parameters:
+        - {name: from, in: query, schema: {type: string, format: date-time}}
+        - {name: to, in: query, schema: {type: string, format: date-time}}
       responses:
         "200":
           description: Aggregate tokens, latency, errors, and estimated cost.
           content:
             application/json:
               schema: {$ref: "#/components/schemas/AdminUsage"}
+        "400": {$ref: "#/components/responses/BadRequest"}
+        "403": {$ref: "#/components/responses/Forbidden"}
   /admin/audit-log:
     get:
       tags: [Administration]
@@ -959,7 +969,12 @@ components:
       required: [key, value, version, updatedAt]
       properties:
         key: {type: string}
-        value: {}
+        value:
+          oneOf:
+            - {type: boolean}
+            - {type: integer}
+            - {type: string}
+            - {type: array, items: {type: string}}
         version: {type: integer, minimum: 1}
         updatedAt: {type: string, format: date-time}
     AdminUser:
@@ -975,21 +990,48 @@ components:
         createdAt: {type: string, format: date-time}
     AdminUsage:
       type: object
-      required: [periodStart, periodEnd, generations, inputTokens, outputTokens, estimatedCost]
+      required:
+        - periodStart
+        - periodEnd
+        - generations
+        - failedGenerations
+        - inputTokens
+        - outputTokens
+        - averageLatencyMs
+        - p95LatencyMs
+        - errors
+        - estimatedCost
+        - currency
       properties:
         periodStart: {type: string, format: date-time}
         periodEnd: {type: string, format: date-time}
         generations: {type: integer, minimum: 0}
+        failedGenerations: {type: integer, minimum: 0}
         inputTokens: {type: integer, minimum: 0}
         outputTokens: {type: integer, minimum: 0}
+        averageLatencyMs: {type: number, minimum: 0}
+        p95LatencyMs: {type: number, minimum: 0}
+        errors:
+          type: array
+          items: {$ref: "#/components/schemas/AdminErrorCount"}
         estimatedCost: {type: number, minimum: 0}
         currency: {type: string, default: USD}
+    AdminErrorCount:
+      type: object
+      additionalProperties: false
+      required: [code, count]
+      properties:
+        code: {type: string}
+        count: {type: integer, minimum: 1}
     AuditEvent:
       type: object
       required: [id, actorId, action, targetType, targetId, occurredAt]
       properties:
         id: {$ref: "#/components/schemas/Id"}
-        actorId: {$ref: "#/components/schemas/Id"}
+        actorId:
+          oneOf:
+            - {$ref: "#/components/schemas/Id"}
+            - {type: "null"}
         action: {type: string}
         targetType: {type: string}
         targetId: {type: string}
@@ -1019,6 +1061,7 @@ components:
                 - global_budget_exceeded
                 - maintenance
                 - dependency_unavailable
+                - precondition_required
                 - recent_auth_required
                 - refresh_token_reused
             message: {type: string}

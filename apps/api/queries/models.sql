@@ -91,10 +91,35 @@ INSERT INTO providers (
 ON CONFLICT (code) DO UPDATE
 SET display_name = EXCLUDED.display_name,
     adapter = EXCLUDED.adapter,
+    enabled = EXCLUDED.enabled,
     health_status = EXCLUDED.health_status,
     settings = EXCLUDED.settings,
     version = providers.version + 1,
     updated_at = EXCLUDED.updated_at
+RETURNING *;
+
+-- name: SetProviderEnabledByCode :exec
+UPDATE providers
+SET enabled = sqlc.arg(enabled),
+    version = version + 1,
+    updated_at = sqlc.arg(now_at)
+WHERE code = sqlc.arg(code)
+  AND enabled IS DISTINCT FROM sqlc.arg(enabled);
+
+-- name: GetModelBySlug :one
+SELECT * FROM models WHERE slug = sqlc.arg(slug);
+
+-- name: CreateDiscoveredModel :one
+INSERT INTO models (
+    id, slug, name, description, context_window, max_output_tokens,
+    capabilities, enabled, available, supported, audience, default_for,
+    sort_order, created_at, updated_at
+) VALUES (
+    sqlc.arg(id), sqlc.arg(slug), sqlc.arg(name), sqlc.arg(description),
+    sqlc.arg(context_window), sqlc.arg(max_output_tokens), sqlc.arg(capabilities),
+    false, false, true, ARRAY['user']::text[], '{}'::text[],
+    sqlc.arg(sort_order), sqlc.arg(now_at), sqlc.arg(now_at)
+)
 RETURNING *;
 
 -- name: UpsertProviderModel :exec

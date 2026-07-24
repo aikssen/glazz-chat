@@ -2,12 +2,12 @@
 
 ## Document status
 
-- Status: M4 responsive web application and administration in progress
+- Status: M4 in progress; Phase 6 complete, Phases 7-8 acceptance open
 - Product domain: `https://glazz.hlab.sh`
 - Primary audience: General public
 - Interface languages: Spanish and English
 - MVP target: Production-ready web application
-- Last reviewed: 2026-07-23
+- Last reviewed: 2026-07-24
 
 This document defines what Glazz is, why it exists, and what the MVP must deliver.
 Technical implementation details belong in [ARCHITECTURE.md](./ARCHITECTURE.md),

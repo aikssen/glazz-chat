@@ -40,20 +40,19 @@ Rules:
 | M0 | Phase 0 | Reviewed contracts and threat model | Complete | Complete | `v0.1.0` |
 | M1 | Phase 1 | Reproducible monorepo foundation | Complete | Complete | No standalone tag; predates M2 rule |
 | M2 | Phases 2-3 | Local platform, identity, guests, and quotas | Complete | Complete | `v0.2.0` |
-| M3 | Phases 4-5 | Provider-neutral streamed chat backend | Complete | Complete | `v0.3.0` release candidate |
+| M3 | Phases 4-5 | Provider-neutral streamed chat backend | Complete | Complete | `v0.3.0` |
 | M4 | Phases 6-8 | Responsive web application and admin surface | Testable preview | Open | `v0.4.0` reserved |
 | M5 | Phase 9 | Integrated, tested, observable release candidate | Not started | Open | `v0.5.0` reserved |
 | M6 | Phase 10 | Approved provider and production deployment | Not started | Open | `v0.6.0` reserved |
 | Post-MVP | Phase 11 | Explicitly non-release-critical backlog | Not started | Not applicable | Future planning |
 
-Current progress: M3 implementation and acceptance are complete; publication of
-`v0.3.0` requires a green CI run for its pushed release commit. M4 has a usable
-implementation but open milestone gates. Granular acceptance evidence is tracked
-in `docs/m3-chat-backend.md` and `docs/m4-web-application.md`. A `[-]` task means
-its implementation exists but at least one acceptance criterion is still pending;
-it does not mean the feature is unavailable. M5 has not formally started.
-Preflight evidence in `docs/m5-release-candidate.md` is reusable but does not
-complete Phase 9.
+Current progress: M3 is published as `v0.3.0`. Phase 6 is complete; M4 remains open
+because it also owns Phases 7 and 8. Granular acceptance evidence is tracked in
+`docs/m3-chat-backend.md` and `docs/m4-web-application.md`. A `[-]` task means its
+implementation exists but at least one acceptance criterion is still pending; it
+does not mean the feature is unavailable. M5 has not formally started. Preflight
+evidence in `docs/m5-release-candidate.md` is reusable but does not complete Phase
+9.
 
 ## Phase 0: API and architecture contract
 
@@ -555,23 +554,23 @@ retry, summaries, configurable safety, and reconciled usage.
 
 **Milestone acceptance ledger:** `docs/m4-web-application.md`
 
-- [-] **ADMIN-001: Implement typed runtime settings**
+- [x] **ADMIN-001: Implement typed runtime settings**
   - Depends on: MODEL-001, AUTH-007
   - Add versioned reads/updates for models, quotas, prompts, safety, and maintenance.
   - Acceptance: optimistic conflict, validation, cache invalidation, and audit tests.
 
-- [-] **ADMIN-002: Implement model administration**
+- [x] **ADMIN-002: Implement model administration**
   - Depends on: MODEL-006, ADMIN-001
   - Expose sync, enable/disable, defaults, ordering, and limits.
   - Acceptance: cannot enable unsupported/unavailable models or remove the only valid
     default without replacement.
 
-- [-] **ADMIN-003: Implement user role administration**
+- [x] **ADMIN-003: Implement user role administration**
   - Depends on: AUTH-007, ADMIN-001
   - Search users and change roles with recent auth and audit.
   - Acceptance: prevent removal of last admin and self-lockout without handoff.
 
-- [-] **ADMIN-004: Implement usage/error/audit read APIs**
+- [x] **ADMIN-004: Implement usage/error/audit read APIs**
   - Depends on: USAGE-001, PLAT-008, ADMIN-001
   - Return aggregates and redacted audit events.
   - Acceptance: no prompt/response bodies or secrets are queryable.
@@ -591,6 +590,11 @@ retry, summaries, configurable safety, and reconciled usage.
   - Depends on: GUEST-003, PLAT-009
   - Delete non-migrated guest conversation/session data daily.
   - Acceptance: migrated/active locked data is preserved; repeated run is safe.
+
+**Phase 6 exit:** Complete on 2026-07-24. M4 now has versioned and cached runtime
+settings, safe model-default replacement, concurrency-safe role administration,
+aggregate usage/error/latency reads, redacted audit reads, and the previously
+accepted deletion and guest-cleanup lifecycle. M4 remains open for Phases 7 and 8.
 
 ## Phase 7: Frontend foundation and design system
 

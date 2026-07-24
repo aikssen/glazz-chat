@@ -14,6 +14,7 @@ import (
 
 	"github.com/aikssen/glazz-chat/apps/api/internal/admin"
 	"github.com/aikssen/glazz-chat/apps/api/internal/identity/browser"
+	"github.com/aikssen/glazz-chat/apps/api/internal/models"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/httpx"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/store"
 	"github.com/aikssen/glazz-chat/apps/api/internal/privacy"
@@ -47,8 +48,12 @@ func (deps Dependencies) requireRecent(next http.Handler) http.Handler {
 			return
 		}
 		session, err := deps.Database.Queries().GetAuthSession(request.Context(), actor.SessionID)
-		if err != nil || !session.RecentAuthAt.Valid ||
-			time.Since(session.RecentAuthAt.Time) > deps.Config.Auth.RecentAuthTTL {
+		age := time.Duration(-1)
+		if err == nil && session.RecentAuthAt.Valid {
+			age = deps.Clock.Now().Sub(session.RecentAuthAt.Time)
+		}
+		if err != nil || !session.RecentAuthAt.Valid || age < 0 ||
+			age > deps.Config.Auth.RecentAuthTTL {
 			httpx.WriteError(response, request, http.StatusPreconditionRequired, "recent_auth_required", "Recent authentication is required.")
 			return
 		}
@@ -145,10 +150,14 @@ func (deps Dependencies) adminSyncModels(response http.ResponseWriter, request *
 		deps.internalError(response, request, err)
 		return
 	}
-	payload, _ := json.Marshal(map[string]string{"providerCode": "fake"})
+	providerCode := deps.ProviderCode
+	if providerCode == "" {
+		providerCode = models.FakeProviderCode
+	}
+	payload, _ := json.Marshal(map[string]string{"providerCode": providerCode})
 	if err := deps.Database.Queries().EnqueueOutboxEvent(request.Context(), store.EnqueueOutboxEventParams{
 		ID: id, EventType: "models.sync", Payload: payload, IdempotencyKey: key,
-		AvailableAt: pgtype.Timestamptz{Time: time.Now().UTC(), Valid: true},
+		AvailableAt: pgtype.Timestamptz{Time: deps.Clock.Now().UTC(), Valid: true},
 	}); err != nil {
 		deps.internalError(response, request, err)
 		return
@@ -214,7 +223,7 @@ func (deps Dependencies) adminUpdateUserRole(response http.ResponseWriter, reque
 }
 
 func (deps Dependencies) adminUsage(response http.ResponseWriter, request *http.Request) {
-	end := time.Now().UTC()
+	end := deps.Clock.Now().UTC()
 	start := end.Add(-30 * 24 * time.Hour)
 	var err error
 	if raw := request.URL.Query().Get("from"); raw != "" {
