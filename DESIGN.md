@@ -7,8 +7,9 @@
 ## 1. Design thesis
 
 Glazz is a public-facing AI chat, not a marketing page wrapped around a demo. The
-first viewport is the usable conversation surface. Familiar chat structure lowers
-the learning cost; a distinct visual system gives the product its own identity.
+first viewport is the usable conversation surface. Its interaction remains
+immediately understandable, but its spatial model must be recognizably Glazz
+rather than another wide-sidebar chat clone.
 
 The experience should feel:
 
@@ -24,6 +25,8 @@ It should not look like:
 - A collection of floating cards
 - A dark blue developer dashboard
 - A clone of ChatGPT
+- A clone of Claude
+- A terminal or telemetry console
 - A marketing hero followed by the actual application
 
 ## 2. Audience and primary job
@@ -41,23 +44,30 @@ remaining usage, managing sessions, and deleting the account.
 
 ## 3. Visual direction
 
-### 3.1 Concept: Signal Orange
+### 3.1 Concept: Signal Workspace
 
-Glazz uses a bright orange signal for action and live generation, grounded by
-neutral paper/ink surfaces and a restrained teal counterpoint for success and
-connection. Orange is spent on primary actions and the streaming signature, not
-washed across the whole interface.
+Glazz uses cool graphite surfaces, ice-white text, and a restrained electric-cyan
+signal. Cyan identifies focus, navigation position, primary action, and active
+generation; it is never used as a decorative wash.
 
-The intentional design risk is a thin **live signal rail** attached to the active
-assistant response. It grows with streamed content and shifts from orange to teal
-when generation completes. This makes system state spatially stable and recognizable
+The product's signature is a numbered **conversation spine** connecting user turns
+and assistant responses. A synchronized outline in the right context lane acts as
+a minimap for long conversations. This creates a distinctive navigation model
+without making the product feel like a terminal or operational dashboard.
+
+A thin **live signal rail** marks the active assistant response. It remains
+spatially stable during streaming and becomes a static completed-state indicator
 without a typing gimmick, orb, or decorative animation.
 
 ### 3.2 Brand expression
 
 - Product name: `Glazz`
-- Wordmark direction: custom-feeling typographic wordmark based on Outfit, with a
-  compact aperture detail in the `G`; do not ship an improvised logo as final art.
+- Brand mark: reuse the exact `G` geometry shown in the original orange Glazz UI,
+  including its existing contrasting notch. Do not redraw, reinterpret, simplify,
+  or replace it with a generic open `G`.
+- Brand recoloring: ice-white primary geometry and electric-cyan notch. The
+  wordmark remains `Glazz`/`GLAZZ` according to its existing asset.
+- The mark has no glow, gradient, or permanent animation.
 - Voice: concise, neutral, direct, warm without pretending to be a person.
 - Icon family: Lucide, consistent 1.75-2px stroke.
 
@@ -70,37 +80,37 @@ shadcn/ui. Components do not hardcode palette values.
 
 | Token                  | Value     | Use                             |
 | ---------------------- | --------- | ------------------------------- |
-| `--background`         | `#FAFAF8` | Main paper surface              |
-| `--foreground`         | `#191817` | Primary text                    |
+| `--background`         | `#F5FAFB` | Main cool-white canvas          |
+| `--foreground`         | `#0C171A` | Primary text                    |
 | `--surface`            | `#FFFFFF` | Menus, dialogs, composer        |
-| `--surface-subtle`     | `#F2F0EC` | Secondary bands and hover       |
-| `--border`             | `#D9D5CE` | Dividers and controls           |
-| `--muted-foreground`   | `#625E57` | Secondary text                  |
-| `--primary`            | `#C74312` | Primary action, active signal   |
+| `--surface-subtle`     | `#E9F1F3` | Prompt bands and hover          |
+| `--border`             | `#C7D6DA` | Dividers and controls           |
+| `--muted-foreground`   | `#52666D` | Secondary text                  |
+| `--primary`            | `#007F8C` | Primary action and active state |
 | `--primary-foreground` | `#FFFFFF` | Text on primary                 |
-| `--brand-bright`       | `#FF6A2A` | Large accent and streaming rail |
-| `--success`            | `#0F766E` | Connected/completed             |
-| `--warning`            | `#A16207` | Quota warning                   |
-| `--destructive`        | `#B42318` | Destructive actions             |
-| `--ring`               | `#C74312` | Focus ring                      |
+| `--brand-bright`       | `#00AFC0` | Brand notch and streaming rail  |
+| `--success`            | `#447A00` | Confirmed healthy/completed     |
+| `--warning`            | `#8A5A00` | Quota warning                   |
+| `--destructive`        | `#B42332` | Destructive actions             |
+| `--ring`               | `#007F8C` | Focus ring                      |
 
 ### 4.2 Dark theme
 
 | Token                  | Value     | Use                       |
 | ---------------------- | --------- | ------------------------- |
-| `--background`         | `#151412` | Main background           |
-| `--foreground`         | `#F5F3EF` | Primary text              |
-| `--surface`            | `#201E1B` | Menus, dialogs, composer  |
-| `--surface-subtle`     | `#292622` | Secondary bands and hover |
-| `--border`             | `#454039` | Dividers and controls     |
-| `--muted-foreground`   | `#B8B2A8` | Secondary text            |
-| `--primary`            | `#FF7A45` | Primary action            |
-| `--primary-foreground` | `#21120C` | Text on primary           |
-| `--brand-bright`       | `#FF8B5C` | Streaming rail            |
-| `--success`            | `#5EEAD4` | Connected/completed       |
-| `--warning`            | `#F4C95D` | Quota warning             |
-| `--destructive`        | `#FF7B72` | Destructive actions       |
-| `--ring`               | `#FF9B73` | Focus ring                |
+| `--background`         | `#07090A` | Main graphite canvas      |
+| `--foreground`         | `#EAFBFF` | Primary ice-white text    |
+| `--surface`            | `#11171A` | Menus, dialogs, composer  |
+| `--surface-subtle`     | `#182125` | Prompt bands and hover    |
+| `--border`             | `#263238` | Dividers and controls     |
+| `--muted-foreground`   | `#8A9AA1` | Secondary text            |
+| `--primary`            | `#10D7E8` | Primary action and signal |
+| `--primary-foreground` | `#031012` | Text on primary           |
+| `--brand-bright`       | `#10D7E8` | Brand notch/streaming     |
+| `--success`            | `#B7F34A` | Confirmed completion      |
+| `--warning`            | `#F3BE4F` | Quota warning             |
+| `--destructive`        | `#FF5D68` | Destructive actions       |
+| `--ring`               | `#10D7E8` | Focus ring                |
 
 Validate all token combinations against WCAG 2.2 AA. Normal text requires at least
 4.5:1; large text and meaningful UI graphics require at least 3:1. Color is never
@@ -136,8 +146,8 @@ Do not scale type with viewport width.
 - Base spacing unit: 4px
 - Common rhythm: 8, 12, 16, 24, 32, 48px
 - Control height: 40px desktop, minimum 44px touch target
-- Composer radius: 8px
-- Dialog/card radius: 8px maximum
+- Composer radius: 6px
+- Dialog/card radius: 8px maximum; compact controls prefer 4-6px
 - Message content is unframed; user messages may use a subtle surface band
 - Shadows are limited to floating menus, dialogs, and the sticky composer
 - Page sections are not floating cards
@@ -147,41 +157,51 @@ Do not scale type with viewport width.
 ### 5.1 Desktop
 
 ```text
-+----------------------+-----------------------------------------------+
-| Glazz        [new]   | Top bar: model | usage | connection | account|
-| Search conversations |-----------------------------------------------|
-|                      |                                               |
-| Today                |          conversation transcript              |
-| Conversation title   |          readable centered measure            |
-| Conversation title   |                                               |
-|                      |                                               |
-| Archived             |-----------------------------------------------|
-| Settings             | [ attach absent ] Ask Glazz...          [send]|
-+----------------------+-----------------------------------------------+
++------+-----------------------------------------+----------------------+
+|Glazz | Top bar: connection | theme | account                          |
++------+-----------------------------------------+----------------------+
+| [+]  | Conversation title                      | CONVERSATION      [<]|
+| chat |                                         | OUTLINE | DETAILS    |
+| find | 01 -- user prompt                       | 01 Topic             |
+|      |  |   assistant response                 | 02 Active topic      |
+| gear | 02 -- user prompt                       | 03 Topic             |
+|      |  |   assistant response                 |                      |
+|      |-----------------------------------------|                      |
+|      | Ask Glazz...  model  guest usage [send]|                      |
++------+-----------------------------------------+----------------------+
 ```
 
-The sidebar uses the shadcn Sidebar primitive and is resizable only if testing
-shows a real need. Default width is stable. The transcript, not the navigation,
-dominates the viewport.
+The 72px navigation rail is stable and does not resize. Its first action is the
+Lucide `Plus` icon for **New chat**; the top header must not duplicate this action.
+Conversation history is not permanently visible. The search icon opens a
+left-aligned searchable drawer and every unfamiliar icon has a tooltip.
+
+The right context lane contains exactly two views: `Outline` and `Details`.
+`Outline` is the default and dominant view. Its dense, independently scrollable
+minimap links each numbered entry to a transcript turn and highlights the currently
+visible turn. The collapse control is integrated inside the panel header. At
+intermediate widths the lane collapses before reducing the transcript below its
+readable measure.
 
 ### 5.2 Mobile
 
 ```text
 +----------------------------------+
-| [menu] Glazz       [model] [user]|
+| Glazz          [history] [user]  |
 |----------------------------------|
 |                                  |
-|        transcript                |
+| 01 | transcript                  |
 |                                  |
 |                                  |
 |----------------------------------|
-| Ask Glazz...               [send]|
+| model  Ask Glazz...        [send]|
 +----------------------------------+
 ```
 
-The conversation list opens as a sheet. The composer respects the visual viewport,
-safe-area inset, and mobile keyboard. Scroll content includes bottom space so the
-sticky composer never hides the last message.
+New chat remains available as a `Plus` action in the compact mobile navigation.
+Conversation search/history and the context lane open as separate sheets. The
+composer respects the visual viewport, safe-area inset, and mobile keyboard. Scroll
+content includes bottom space so the sticky composer never hides the last message.
 
 ## 6. Core screens
 
@@ -190,7 +210,8 @@ sticky composer never hides the last message.
 - The chat is immediately usable.
 - Empty state contains one short prompt and optional starter suggestions, not a
   feature explanation.
-- Remaining free messages appear near the composer after the first response.
+- Remaining free messages appear once as subdued metadata near the composer after
+  the first response. They are never a meter, panel section, or central visual.
 - At exhaustion, keep the transcript visible and replace send capability with a
   focused Google sign-in gate.
 - Explain that signing in preserves the current conversation.
@@ -198,7 +219,9 @@ sticky composer never hides the last message.
 ### 6.2 Registered chat
 
 - Conversation list groups recent and archived items.
-- Search is a clear command with keyboard access.
+- Search is a clear rail command with keyboard access. It opens a 360-400px drawer,
+  focuses the query field, groups results by date, highlights title matches,
+  supports arrow-key navigation, and closes with `Escape`.
 - Model selector shows only enabled models and a plain-language description.
 - Transcript gives user and assistant content distinct rhythm without surrounding
   every message with a card.
@@ -237,8 +260,8 @@ Admin is a quiet operational surface, not an analytics landing page.
 
 - Insert an assistant response shell after `chat.started`
 - Apply deltas without causing transcript-wide reflow
-- Show the live signal rail in orange while streaming
-- Transition rail to teal and static when complete
+- Show the live signal rail in cyan while streaming
+- Transition the rail to a static completed state without moving layout
 - Do not auto-scroll if the user has intentionally scrolled away
 - Provide a jump-to-latest control when new content is below the viewport
 - Announce start, completion, cancellation, and errors; do not make a screen reader
@@ -270,7 +293,7 @@ Chat failures remain inline where they occurred.
 
 Build from shadcn/ui where appropriate:
 
-- `Sidebar`, `Sheet`, `Dialog`, `AlertDialog`
+- `Sheet`, `Dialog`, `AlertDialog`, `ScrollArea`
 - `DropdownMenu`, `Command`, `Popover`, `Tooltip`
 - `Button`, `Textarea`, `Input`, `Label`
 - `Tabs`, `Select`, `Switch`, `Checkbox`
@@ -279,15 +302,18 @@ Build from shadcn/ui where appropriate:
 
 Product components:
 
-- `ConversationList`
-- `ConversationSearch`
+- `NavigationRail`
+- `ConversationSearchDrawer`
+- `ConversationOutline`
+- `ConversationDetails`
 - `ChatTranscript`
+- `ConversationSpine`
 - `MessageBlock`
 - `CodeBlock`
 - `StreamingSignalRail`
 - `ChatComposer`
 - `ModelSelector`
-- `UsageIndicator`
+- `GuestUsageMetadata`
 - `ConnectionStatus`
 - `GuestLimitGate`
 - `SessionList`
@@ -311,7 +337,8 @@ for unfamiliar icons. Use text or icon-plus-text for consequential actions.
 - Errors use `role="alert"` or appropriate live regions
 - Streaming status uses a polite live region with throttled announcements
 - Dialogs trap focus and return it to their trigger
-- Sidebar/sheet has an accessible name and deterministic focus behavior
+- Navigation rail, search drawer, and context sheet have accessible names and
+  deterministic focus behavior
 - Theme meets contrast requirements independently in light and dark modes
 - Zoom up to 200% does not hide commands or overlap text
 - Safe-area and visual viewport behavior is tested on mobile Safari
@@ -359,11 +386,21 @@ All animation has a reduced-motion alternative.
 - [x] Light and dark tokens pass contrast checks
 - [x] 375/768/1024/1440 screenshots show no overlap or clipped controls
 - [x] Mobile keyboard does not cover composer or last message
-- [x] Long Markdown, tables, code, and unbroken strings remain contained
+- [ ] Long Markdown, tables, code, and unbroken strings remain contained
 - [x] Keyboard, screen reader, 200% zoom, and reduced-motion paths pass
-- [x] Streaming, cancellation, retry, reconnect, quota, and maintenance states are
+- [ ] Streaming, cancellation, retry, reconnect, quota, and maintenance states are
       visually distinct
 - [x] Icon buttons have labels/tooltips and stable 44px targets
 - [x] No nested cards, decorative orbs, emoji icons, or generic purple AI styling
-- [x] Browser console has no unexpected runtime errors or hydration warnings
-- [x] Playwright visual checks cover guest, authenticated, dark, mobile, and admin
+- [ ] Browser console has no unexpected runtime errors or hydration warnings
+- [ ] Playwright visual checks cover guest, authenticated, dark, mobile, and admin
+
+These checks must be revalidated against the Signal Workspace implementation;
+evidence from the superseded orange design does not satisfy them.
+
+Signal Workspace evidence recorded on 2026-07-25:
+
+- 20 production-mode visual baselines across 375, 768, 1024, and 1440px
+- 9 structural E2E checks for rail, search focus, context lane/sheet, and composer model
+- 25 active foundation, accessibility, PWA, and performance checks
+- 29 unit tests plus clean format, TypeScript, ESLint, and production build

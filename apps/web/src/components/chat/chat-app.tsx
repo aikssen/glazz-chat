@@ -1,16 +1,6 @@
 "use client";
 
-import {
-  ChevronDown,
-  CircleAlert,
-  Menu,
-  MessageCircle,
-  Moon,
-  PanelLeftOpen,
-  Sun,
-  Wifi,
-  WifiOff,
-} from "lucide-react";
+import { CircleAlert, Moon, PanelRightOpen, Sun, Wifi, WifiOff } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { usePreferences } from "@/components/theme-provider";
@@ -22,9 +12,13 @@ import { appendDelta, finishAssistant, startAssistant } from "@/lib/streaming-re
 import type { Conversation, CurrentUser, GuestAllowance, Message, Model, Usage } from "@/lib/types";
 import { useDialogFocus } from "@/lib/use-dialog-focus";
 import { newUUID } from "@/lib/uuid";
+import { AccountMenu } from "./account-menu";
 import { ChatComposer } from "./chat-composer";
 import { ChatTranscript } from "./chat-transcript";
+import { ConversationContext } from "./conversation-context";
 import { ConversationSidebar } from "./conversation-sidebar";
+import { GlazzWordmark } from "./glazz-brand";
+import { NavigationRail } from "./navigation-rail";
 
 type Connection = "connecting" | "connected" | "offline";
 const sessionRecoveryKey = "glazz-session-recovery";
@@ -52,7 +46,9 @@ export function ChatApp() {
   const [conversationID, setConversationID] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [sidebar, setSidebar] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [contextOpen, setContextOpen] = useState(false);
+  const [contextTab, setContextTab] = useState<"outline" | "details">("outline");
+  const [activeTurn, setActiveTurn] = useState(1);
   const [search, setSearch] = useState("");
   const [connection, setConnection] = useState<Connection>("connecting");
   const [error, setError] = useState("");
@@ -71,6 +67,7 @@ export function ChatApp() {
   const lastSequence = useRef(0);
   const conversationIDRef = useRef("");
   const pendingCommands = useRef(new Map<string, "chat.generate" | "chat.cancel">());
+  const historyTriggerRef = useRef<HTMLButtonElement>(null);
   const loginDialogRef = useRef<HTMLDivElement>(null);
   const loginTriggerRef = useRef<HTMLElement>(null);
   const closeLoginDialog = useCallback(() => {
@@ -239,6 +236,14 @@ export function ChatApp() {
   useEffect(() => {
     conversationIDRef.current = conversationID;
   }, [conversationID]);
+
+  useEffect(() => {
+    const query = window.matchMedia("(min-width: 1200px)");
+    const frame = window.requestAnimationFrame(() => {
+      if (query.matches) setContextOpen(true);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   useEffect(() => {
     const viewport = window.visualViewport;
@@ -531,6 +536,21 @@ export function ChatApp() {
     }
   }
 
+  async function changeModel(modelId: string) {
+    if (!selected) return;
+    try {
+      const updated = await api<Conversation>(`/api/v1/conversations/${selected.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ modelId }),
+      });
+      setConversations((current) =>
+        current.map((item) => (item.id === updated.id ? updated : item)),
+      );
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Model could not be changed");
+    }
+  }
+
   function login() {
     const returnTo = encodeURIComponent(conversationID ? `/?conversation=${conversationID}` : "/");
     window.location.assign(
@@ -538,11 +558,29 @@ export function ChatApp() {
     );
   }
 
+  async function logout() {
+    try {
+      await api<void>("/api/v1/auth/logout", { method: "POST" });
+      window.location.assign("/");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Logout failed");
+    }
+  }
+
   const selected = conversations.find((item) => item.id === conversationID);
   const usageState = usagePresentation(usage);
   const exhausted = allowance?.exhausted || usageState.exhausted;
   const disabled = maintenance || connection !== "connected" || Boolean(exhausted);
-  const { remainingMessages, warning: usageWarning } = usageState;
+  const selectedModelId = selected?.modelId ?? defaultModel;
+  const selectedModelName =
+    models.find((model) => model.id === selectedModelId)?.name ??
+    (selectedModelUnavailable(selectedModelId, models)
+      ? locale === "es"
+        ? "Modelo no disponible"
+        : "Model unavailable"
+      : locale === "es"
+        ? "Modelo predeterminado"
+        : "Default model");
   const reason = maintenance
     ? locale === "es"
       ? "El servicio está en mantenimiento. Tu borrador se conservará."
@@ -572,10 +610,21 @@ export function ChatApp() {
         : "";
 
   return (
-    <main className={`chat-shell ${sidebarCollapsed ? "chat-shell--collapsed" : ""}`}>
+    <main className={`chat-shell ${contextOpen ? "chat-shell--context" : ""}`}>
       <a className="skip-link" href="#chat-transcript">
         {locale === "es" ? "Saltar a la conversación" : "Skip to conversation"}
       </a>
+      <NavigationRail
+        user={user}
+        onNew={() => void createConversation()}
+        onCurrent={() => {
+          setSidebar(false);
+          document.getElementById("chat-transcript")?.focus();
+        }}
+        onHistory={() => setSidebar(true)}
+        historyTrigger={historyTriggerRef}
+        onLogin={openLoginDialog}
+      />
       <ConversationSidebar
         open={sidebar}
         conversations={conversations}
@@ -583,12 +632,11 @@ export function ChatApp() {
         search={search}
         user={user}
         modalActive={loginDialog}
+        returnFocus={historyTriggerRef}
         onClose={() => {
           setSidebar(false);
-          setSidebarCollapsed(true);
         }}
         onSearch={setSearch}
-        onNew={() => void createConversation()}
         onSelect={(id) => void loadConversation(id)}
         onRename={(conversation) => void renameConversation(conversation)}
         onArchive={(conversation) => void archiveConversation(conversation)}
@@ -600,48 +648,8 @@ export function ChatApp() {
       />
       <section className="chat-main">
         <header className="chat-topbar">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => {
-              setSidebar(true);
-              setSidebarCollapsed(false);
-            }}
-            aria-label={t.menu}
-            title={t.menu}
-          >
-            {sidebarCollapsed ? <PanelLeftOpen /> : <Menu />}
-          </Button>
-          <div className="mobile-wordmark">Glazz</div>
-          <label className="model-select">
-            <span className="sr-only">{t.model}</span>
-            <select
-              value={selected?.modelId ?? defaultModel}
-              disabled={!user || !selected || selected.generationState !== "idle"}
-              onChange={async (event) => {
-                if (!selected) return;
-                const updated = await api<Conversation>(`/api/v1/conversations/${selected.id}`, {
-                  method: "PATCH",
-                  body: JSON.stringify({ modelId: event.target.value }),
-                });
-                setConversations((current) =>
-                  current.map((item) => (item.id === updated.id ? updated : item)),
-                );
-              }}
-            >
-              {selected && selectedModelUnavailable(selected.modelId, models) ? (
-                <option value={selected.modelId} disabled>
-                  {locale === "es" ? "Modelo no disponible" : "Model unavailable"}
-                </option>
-              ) : null}
-              {models.map((model) => (
-                <option key={model.id} value={model.id}>
-                  {model.name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown aria-hidden="true" />
-          </label>
+          <GlazzWordmark />
+          <span className="topbar-spacer" />
           <div
             className={`connection connection--${connection}`}
             role="status"
@@ -650,20 +658,7 @@ export function ChatApp() {
             {connection === "connected" ? <Wifi /> : <WifiOff />}
             <span>{connection === "connected" ? t.connected : t.reconnecting}</span>
           </div>
-          {usage ? (
-            <div
-              className={`usage-pill ${usageWarning ? "usage-pill--warning" : ""}`}
-              title={`${usage.outputTokens.used} / ${usage.outputTokens.limit}`}
-              aria-label={
-                locale === "es"
-                  ? `${remainingMessages} mensajes disponibles`
-                  : `${remainingMessages} messages available`
-              }
-            >
-              <MessageCircle aria-hidden="true" />
-              {remainingMessages}
-            </div>
-          ) : null}
+          <span className="topbar-divider" aria-hidden="true" />
           <Button
             variant="ghost"
             size="icon"
@@ -673,6 +668,13 @@ export function ChatApp() {
           >
             {theme === "dark" ? <Sun /> : <Moon />}
           </Button>
+          {user ? (
+            <AccountMenu user={user} onLogout={logout} />
+          ) : (
+            <Button variant="outline" size="sm" className="topbar-login" onClick={openLoginDialog}>
+              {t.login}
+            </Button>
+          )}
         </header>
         {error ? (
           <div className="global-error" role="alert">
@@ -685,7 +687,14 @@ export function ChatApp() {
           {!ready ? (
             <LoadingTranscript locale={locale} />
           ) : (
-            <ChatTranscript messages={messages} streaming={Boolean(generation)} onRetry={retry} />
+            <ChatTranscript
+              title={selected?.title}
+              messages={messages}
+              streaming={Boolean(generation)}
+              modelName={selectedModelName}
+              onActiveTurn={setActiveTurn}
+              onRetry={retry}
+            />
           )}
         </div>
         <footer className="chat-footer">
@@ -708,18 +717,53 @@ export function ChatApp() {
                 disabled={disabled}
                 streaming={Boolean(generation)}
                 reason={reason}
+                models={models}
+                selectedModelId={selectedModelId}
+                modelDisabled={!user || !selected || selected.generationState !== "idle"}
+                guestMetadata={
+                  !user && allowance && allowance.messagesUsed > 0
+                    ? `${Math.max(allowance.messageLimit - allowance.messagesUsed, 0)} ${t.freeLeft}`
+                    : undefined
+                }
+                onModelChange={(modelId) => void changeModel(modelId)}
                 onSend={send}
                 onStop={stop}
               />
-              {!user && allowance && allowance.messagesUsed > 0 ? (
-                <p className="guest-allowance">
-                  {Math.max(allowance.messageLimit - allowance.messagesUsed, 0)} {t.freeLeft}
-                </p>
-              ) : null}
             </>
           )}
         </footer>
       </section>
+      {!contextOpen ? (
+        <Button
+          variant="outline"
+          size="icon-sm"
+          className="context-reopen"
+          onClick={() => setContextOpen(true)}
+          aria-label={locale === "es" ? "Abrir contexto" : "Open context"}
+          title={locale === "es" ? "Abrir contexto" : "Open context"}
+        >
+          <PanelRightOpen />
+        </Button>
+      ) : null}
+      <ConversationContext
+        open={contextOpen}
+        tab={contextTab}
+        conversation={selected}
+        messages={messages}
+        modelName={selectedModelName}
+        activeTurn={activeTurn}
+        onTab={setContextTab}
+        onClose={() => setContextOpen(false)}
+        onTurn={(turn) => {
+          setActiveTurn(turn);
+          document
+            .getElementById(`turn-${turn}`)
+            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }}
+        onRename={() => selected && void renameConversation(selected)}
+        onArchive={() => selected && void archiveConversation(selected)}
+        onDelete={() => selected && void deleteConversation(selected)}
+      />
       {loginDialog ? (
         <div className="dialog-backdrop" role="presentation">
           <div

@@ -229,7 +229,7 @@ by importing another slice's persistence implementation.
 | --------------- | ---------------------------------------------------------------- |
 | `auth`          | User/session state, Google login entry, logout, reauthentication |
 | `guest`         | Anonymous allowance display and login conversion gate            |
-| `conversations` | Sidebar list, search, rename, archive, delete                    |
+| `conversations` | History drawer, search, outline, rename, archive, delete          |
 | `chat`          | Transcript, composer, streaming state, cancel, retry             |
 | `models`        | Model selector and capability display                            |
 | `settings`      | Theme, language, sessions, account deletion                      |

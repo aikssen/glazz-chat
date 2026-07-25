@@ -1,21 +1,32 @@
 "use client";
 
-import { ArrowUp, Square } from "lucide-react";
+import { ArrowUp, ChevronDown, Square } from "lucide-react";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { usePreferences } from "@/components/theme-provider";
 import { dictionary } from "@/lib/i18n";
+import type { Model } from "@/lib/types";
 
 export function ChatComposer({
   disabled,
   streaming,
   reason,
+  models,
+  selectedModelId,
+  modelDisabled,
+  guestMetadata,
+  onModelChange,
   onSend,
   onStop,
 }: {
   disabled?: boolean;
   streaming: boolean;
   reason?: string;
+  models: Model[];
+  selectedModelId: string;
+  modelDisabled: boolean;
+  guestMetadata?: string;
+  onModelChange: (modelId: string) => void;
   onSend: (content: string) => Promise<boolean>;
   onStop: () => void;
 }) {
@@ -85,6 +96,24 @@ export function ChatComposer({
         >
           {streaming ? <Square className="fill-current" /> : <ArrowUp />}
         </Button>
+        <div className="composer-meta">
+          <label className="composer-model">
+            <span className="sr-only">{t.model}</span>
+            <select
+              value={selectedModelId}
+              disabled={modelDisabled}
+              onChange={(event) => onModelChange(event.target.value)}
+            >
+              {models.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.name}
+                </option>
+              ))}
+            </select>
+            <ChevronDown aria-hidden="true" />
+          </label>
+          {guestMetadata ? <span className="composer-allowance">{guestMetadata}</span> : null}
+        </div>
       </div>
       {reason ? <p className="composer-reason">{reason}</p> : null}
     </div>

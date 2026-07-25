@@ -315,6 +315,13 @@ validates OIDC claims, and arbitrary post-login return URLs are rejected.
 `OAUTH_TEST_MODE=true` enables a deterministic local authorization screen for E2E
 tests. Configuration loading forbids this mode in production.
 
+Google does not accept a raw LAN IP such as `http://192.168.1.10` for a web
+OAuth callback. When the applications run on a remote development server, use
+the deterministic flow for direct LAN access or forward ports `3000` and `8080`
+over SSH and open `http://localhost:3000` for real Google OAuth. The complete,
+mode-specific procedure is in
+[Remote development](docs/runbooks/remote-development.md).
+
 ## Run without Docker
 
 Use this mode when iterating on one application while PostgreSQL and Redis are

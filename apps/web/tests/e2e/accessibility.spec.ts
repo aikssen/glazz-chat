@@ -25,6 +25,9 @@ test("login dialog traps focus, closes with Escape, and restores focus", async (
   await trigger.click();
 
   const dialog = page.locator(".login-dialog");
+  const sidebar = page.locator(".conversation-sidebar");
+  await expect(sidebar).toHaveAttribute("inert", "");
+  await dialog.getByRole("checkbox").first().check();
   await expect
     .poll(() =>
       dialog
@@ -58,9 +61,7 @@ test("skip link and mobile conversation sheet preserve keyboard orientation", as
   await trigger.click();
   const sheet = page.getByRole("dialog", { name: "Conversaciones" });
   await expect(sheet).toBeVisible();
-  await expect(sheet.getByRole("link", { name: "Glazz" })).toBeFocused();
-  await page.keyboard.press("Shift+Tab");
-  await expect(sheet.getByRole("button", { name: "Continuar con Google" })).toBeFocused();
+  await expect(sheet.getByRole("searchbox", { name: "Buscar conversaciones" })).toBeFocused();
   await page.keyboard.press("Escape");
   await expect(sheet).toBeHidden();
   await expect(trigger).toBeFocused();

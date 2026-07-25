@@ -9,6 +9,9 @@ test("web responses enforce the browser security policy", async ({ request }, te
   expect(headers["content-security-policy"]).toContain("default-src 'self'");
   expect(headers["content-security-policy"]).toContain("object-src 'none'");
   expect(headers["content-security-policy"]).toContain("frame-ancestors 'none'");
+  // TLS is enforced by the production edge. This directive breaks supported
+  // HTTP LAN builds by upgrading their own scripts, styles, API, and WebSocket.
+  expect(headers["content-security-policy"]).not.toContain("upgrade-insecure-requests");
   expect(headers["cross-origin-opener-policy"]).toBe("same-origin");
   expect(headers["cross-origin-resource-policy"]).toBe("same-origin");
   expect(headers["permissions-policy"]).toContain("camera=()");

@@ -153,9 +153,7 @@ test("guest sends a message and receives a streamed response", async ({ page }) 
   await expect(page.getByText("Deterministic development response.")).toBeVisible({
     timeout: 10_000,
   });
-  await expect(
-    page.getByRole("paragraph").filter({ hasText: "3 mensajes gratis disponibles" }),
-  ).toBeVisible();
+  await expect(page.locator(".composer-allowance")).toHaveText("3 mensajes gratis disponibles");
 });
 
 test("guest limit becomes a focused login gate", async ({ page }, testInfo) => {

@@ -7,7 +7,6 @@ import {
   LogIn,
   MessageSquare,
   PanelLeftClose,
-  Plus,
   Search,
   Settings,
   ShieldCheck,
@@ -16,12 +15,13 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { type RefObject, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { usePreferences } from "@/components/theme-provider";
 import { dictionary } from "@/lib/i18n";
 import { useDialogFocus } from "@/lib/use-dialog-focus";
 import type { Conversation, CurrentUser } from "@/lib/types";
+import { GlazzWordmark } from "./glazz-brand";
 
 export function ConversationSidebar({
   open,
@@ -30,9 +30,9 @@ export function ConversationSidebar({
   search,
   user,
   modalActive,
+  returnFocus,
   onClose,
   onSearch,
-  onNew,
   onSelect,
   onRename,
   onArchive,
@@ -48,9 +48,9 @@ export function ConversationSidebar({
   search: string;
   user: CurrentUser | null;
   modalActive?: boolean;
+  returnFocus: RefObject<HTMLElement | null>;
   onClose: () => void;
   onSearch: (value: string) => void;
-  onNew: () => void;
   onSelect: (id: string) => void;
   onRename: (conversation: Conversation) => void;
   onArchive: (conversation: Conversation) => void;
@@ -63,11 +63,12 @@ export function ConversationSidebar({
   const { locale } = usePreferences();
   const t = dictionary(locale);
   const sidebarRef = useRef<HTMLElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const [mobile, setMobile] = useState(false);
   const active = conversations.filter((item) => item.status === "active");
   const archived = conversations.filter((item) => item.status === "archived");
   const interactiveModal = open && !modalActive;
-  useDialogFocus(open, sidebarRef, onClose);
+  useDialogFocus(interactiveModal, sidebarRef, onClose, returnFocus, searchRef);
 
   useEffect(() => {
     const query = window.matchMedia("(max-width: 1023px)");
@@ -85,16 +86,13 @@ export function ConversationSidebar({
         className={`conversation-sidebar ${open ? "conversation-sidebar--open" : ""}`}
         role={interactiveModal ? "dialog" : undefined}
         aria-modal={interactiveModal ? "true" : undefined}
-        aria-hidden={mobile && !interactiveModal ? "true" : undefined}
+        aria-hidden={modalActive || (mobile && !interactiveModal) ? "true" : undefined}
         aria-label={locale === "es" ? "Conversaciones" : "Conversations"}
         tabIndex={mobile ? -1 : undefined}
-        inert={mobile && !interactiveModal}
+        inert={modalActive || (mobile && !interactiveModal)}
       >
         <div className="sidebar-brand">
-          <Link href="/" className="wordmark">
-            <span aria-hidden="true">G</span>
-            Glazz
-          </Link>
+          <GlazzWordmark />
           <Button
             variant="ghost"
             size="icon"
@@ -116,17 +114,22 @@ export function ConversationSidebar({
             <PanelLeftClose />
           </Button>
         </div>
-        <Button className="sidebar-new" onClick={onNew}>
-          <Plus data-icon="inline-start" />
-          {t.newChat}
-        </Button>
         <label className="sidebar-search">
           <span className="sr-only">{t.search}</span>
           <Search aria-hidden="true" />
           <input
+            ref={searchRef}
             type="search"
             value={search}
             onChange={(event) => onSearch(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") onClose();
+              if (event.key !== "ArrowDown") return;
+              event.preventDefault();
+              sidebarRef.current
+                ?.querySelector<HTMLButtonElement>(".conversation-item > button")
+                ?.focus();
+            }}
             placeholder={t.search}
           />
         </label>
@@ -198,13 +201,13 @@ export function ConversationSidebar({
                 <Settings />
                 {t.settings}
               </Link>
-              <Link href="/settings" className="sidebar-account">
+              <div className="sidebar-account">
                 <Avatar user={user} />
                 <span>
                   <strong>{user.displayName}</strong>
                   <small>{user.email}</small>
                 </span>
-              </Link>
+              </div>
             </>
           ) : (
             <button className="sidebar-link" onClick={onLogin}>

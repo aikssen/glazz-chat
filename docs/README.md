@@ -17,6 +17,7 @@ documentation for Glazz. The documents are designed for four audiences:
 | Review system boundaries, flows, tradeoffs, and diagrams | [Technical Architecture](./technical-architecture.md)                   |
 | Review the relational model and lifecycle                | [Data Model and ERD](./data-model.md)                                   |
 | Review security controls and the production plan         | [Security and Production Readiness](./security-production-readiness.md) |
+| Review the approved Signal Workspace direction           | [UI Reimagination Guide](./design/glazz-signal-workspace.md)            |
 | Understand local development                             | [Development Foundation](./development.md)                              |
 | Execute work on the shared server                        | [Remote Development Runbook](./runbooks/remote-development.md)          |
 | Review current delivery status                           | [Canonical Task Tracker](../TASKS.md)                                   |

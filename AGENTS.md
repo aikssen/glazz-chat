@@ -292,7 +292,7 @@ Mandatory:
 - Use Lucide icons and accessible labels.
 - Keep cards at 8px radius or less and never nest cards.
 - Keep message content mostly unframed.
-- Use the orange live signal rail only for active generation; teal means complete.
+- Use the cyan live signal rail only for active generation; completion is static.
 - Maintain 44x44px minimum touch targets.
 - Support keyboard, screen reader, 200% zoom, reduced motion, light/dark themes, and
   mobile safe areas.

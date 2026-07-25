@@ -16,6 +16,7 @@ export function useDialogFocus(
   dialog: RefObject<HTMLElement | null>,
   onClose: () => void,
   returnFocus?: RefObject<HTMLElement | null>,
+  initialFocus?: RefObject<HTMLElement | null>,
 ) {
   useLayoutEffect(() => {
     if (!open || !dialog.current) return;
@@ -23,7 +24,7 @@ export function useDialogFocus(
     const focusReturnTarget = returnFocus?.current ?? previous;
     const element = dialog.current;
     const focusable = () => Array.from(element.querySelectorAll<HTMLElement>(focusableSelector));
-    (focusable()[0] ?? element).focus();
+    (initialFocus?.current ?? focusable()[0] ?? element).focus();
 
     function handleKeyDown(event: KeyboardEvent) {
       if (element.inert || element.getAttribute("aria-hidden") === "true") return;
@@ -55,5 +56,5 @@ export function useDialogFocus(
       document.removeEventListener("keydown", handleKeyDown);
       focusReturnTarget?.focus();
     };
-  }, [dialog, onClose, open, returnFocus]);
+  }, [dialog, initialFocus, onClose, open, returnFocus]);
 }
