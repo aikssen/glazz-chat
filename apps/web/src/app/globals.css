@@ -2770,6 +2770,21 @@ select {
   display: none;
 }
 
+@media (min-width: 1200px) {
+  .chat-shell:not(.chat-shell--context-ready):not(.chat-shell--context) {
+    grid-template-columns: 72px minmax(0, 1fr) 304px;
+  }
+
+  .chat-shell:not(.chat-shell--context-ready):not(.chat-shell--context) .context-lane {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .chat-shell:not(.chat-shell--context-ready):not(.chat-shell--context) .context-reopen {
+    display: none;
+  }
+}
+
 @media (max-width: 1199px) {
   .chat-shell,
   .chat-shell--context {

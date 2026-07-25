@@ -78,6 +78,7 @@ Milestone documents are acceptance ledgers. They do not replace `TASKS.md`.
 - [Dependency and Documentation Policy](./dependency-policy.md)
 - [M0 Threat Model](./threat-model/m0-threat-model.md)
 - [Deployment Notes](../deploy/README.md)
+- [Remote development and isolated visual E2E](./runbooks/remote-development.md)
 
 ## Verification reports
 

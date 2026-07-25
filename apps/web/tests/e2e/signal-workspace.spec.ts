@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+test.use({ serviceWorkers: "block" });
+
 test("rail keeps new chat first and history opens a focused search drawer", async ({
   page,
 }, testInfo) => {
@@ -99,7 +101,8 @@ test("the account avatar exposes admin and account actions without duplicating s
         displayName: "Glazz Administrator",
         locale: "es",
         role: "admin",
-        status: "active",
+        plan: "free",
+        permissions: ["admin"],
       }),
     }),
   );

@@ -26,15 +26,21 @@ was found.
 Update baselines only after reviewing the rendered state:
 
 ```bash
-E2E_BASE_URL=http://localhost:13000 \
-E2E_API_URL=http://localhost:18080 \
-E2E_OAUTH=true \
-pnpm --filter @glazz/web exec playwright test \
-  tests/e2e/visual.spec.ts --update-snapshots
+pnpm e2e:visual:update
+pnpm e2e:visual
 ```
 
-A normal run without `--update-snapshots` is the acceptance gate. CI and local
-Linux runners must not silently approve new images.
+Both commands use the committed `deploy/compose.e2e.yaml` override and
+`scripts/run-visual-e2e.sh`. The runner creates a loopback-only, fake-provider,
+disposable stack and removes its containers and PostgreSQL volume on every exit.
+A normal run without update mode is the acceptance gate. CI and local Linux
+runners must not silently approve new images.
+
+The permanent runner was revalidated on 2026-07-25 after the Signal Workspace CI
+follow-up: all 20 comparisons passed, teardown left no E2E containers or volumes,
+and the persistent development API remained ready. The associated
+foundation/performance/workspace subset passed 30 applicable cases across the four
+configured viewports.
 
 ## Contract compatibility
 

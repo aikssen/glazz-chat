@@ -418,6 +418,21 @@ considerations. It does not rewrite the implementation.
 - Include migration, configuration, deployment, and rollback notes in pull requests
   when applicable.
 
+## Isolated visual verification
+
+- Use `pnpm e2e:visual` for the reviewed visual regression gate.
+- Use `pnpm e2e:visual:update` only when an intentional visual change requires new
+  baselines, then run `pnpm e2e:visual` again without update mode.
+- Do not recreate ad hoc Compose override files under `/tmp`; the committed
+  `deploy/compose.e2e.yaml` is the canonical topology.
+- Never set `GLAZZ_E2E_PROJECT=glazz` or point E2E origins at persistent
+  development or production services.
+- When the execution workspace is remote, copy updated snapshots back only through
+  `apps/web/tests/e2e/visual.spec.ts-snapshots/` and inspect the authoritative local
+  diff.
+- Confirm the E2E project has no remaining containers or volumes after the runner
+  exits.
+
 ## Definition of done
 
 A task is done only when:

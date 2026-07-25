@@ -11,9 +11,10 @@ controls. Administrators manage model exposure, runtime limits, users, aggregate
 usage, and an auditable configuration trail.
 
 > **Release status:** M4 is published as `v0.4.0`. M5/Phase 9 has passed its local
-> visual, security, load, failure, privacy, performance, and contract gates.
-> Commit, GitHub CI, and `v0.5.0` publication remain. Glazz is not yet approved for
-> public production traffic.
+> visual, security, load, failure, privacy, performance, and contract gates. The
+> release-candidate implementation is committed and pushed; the CI E2E follow-up
+> passes locally and still requires a GitHub rerun before `v0.5.0` publication.
+> Glazz is not yet approved for public production traffic.
 
 ## Why Glazz exists
 
@@ -376,7 +377,9 @@ The root `.env` is loaded by Go when commands run from the repository root or
 | `pnpm build`              | Build the production web bundle                      |
 | `pnpm check`              | Run the complete fast presubmit suite                |
 | `pnpm test:integration`   | Run Go tests that require PostgreSQL and Redis       |
-| `pnpm e2e`                | Run the Playwright browser suite                     |
+| `pnpm e2e`                | Run Playwright against the configured application    |
+| `pnpm e2e:visual`         | Run visual regression in an isolated disposable stack |
+| `pnpm e2e:visual:update`  | Intentionally regenerate isolated visual baselines   |
 | `pnpm contracts:lint`     | Lint OpenAPI/AsyncAPI and validate realtime fixtures |
 | `pnpm contracts:generate` | Regenerate Go and TypeScript HTTP contract code      |
 | `pnpm db:generate`        | Regenerate typed sqlc queries                        |
@@ -389,6 +392,13 @@ Install the Playwright browser once before the first local E2E run:
 ```bash
 pnpm exec playwright install chromium
 ```
+
+The visual commands use the committed
+[`deploy/compose.e2e.yaml`](./deploy/compose.e2e.yaml) override, a deterministic
+fake provider, loopback-only ports, and a dedicated disposable database. The
+runner cleans its Compose project and volume even after a failed or interrupted
+test. It never reads development provider credentials or modifies the persistent
+development database.
 
 Generated contract and sqlc artifacts are committed. CI regenerates them and fails
 when generated output drifts from its source.

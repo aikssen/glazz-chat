@@ -465,6 +465,13 @@ Docker Compose runs web, API, worker, PostgreSQL, and Redis on one host. Images 
 version pinned. PostgreSQL uses a named volume; Redis persistence is intentionally
 disabled because it stores recoverable state.
 
+Visual regression uses the same service graph through
+`deploy/compose.e2e.yaml`, but under a distinct Compose project with loopback-only
+ports, disposable volumes, deterministic OAuth, and the fake OpenAI-compatible
+provider. `scripts/run-visual-e2e.sh` owns startup, verification, failure log
+collection, and teardown. This keeps repeatable browser validation independent
+from the persistent development database and sessions.
+
 ### Target production topology
 
 - Next.js deployed on a managed web platform such as Vercel.

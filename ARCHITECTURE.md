@@ -629,7 +629,10 @@ Coverage thresholds are not a substitute for behavior-focused critical-path test
 
 Local Docker Compose runs web, API, worker, PostgreSQL, Redis, and optional
 observability services. Application processes support graceful shutdown and
-readiness gates.
+readiness gates. Visual E2E uses the committed `deploy/compose.e2e.yaml` override
+under a separate Compose project, with loopback-only ports, `.env.test.example`, a
+fake provider, and a disposable PostgreSQL volume. The runner owns teardown and
+cannot target the persistent `glazz` development project.
 
 Production:
 

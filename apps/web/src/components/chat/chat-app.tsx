@@ -47,6 +47,7 @@ export function ChatApp() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [sidebar, setSidebar] = useState(false);
   const [contextOpen, setContextOpen] = useState(false);
+  const [contextReady, setContextReady] = useState(false);
   const [contextTab, setContextTab] = useState<"outline" | "details">("outline");
   const [activeTurn, setActiveTurn] = useState(1);
   const [search, setSearch] = useState("");
@@ -241,6 +242,7 @@ export function ChatApp() {
     const query = window.matchMedia("(min-width: 1200px)");
     const frame = window.requestAnimationFrame(() => {
       if (query.matches) setContextOpen(true);
+      setContextReady(true);
     });
     return () => window.cancelAnimationFrame(frame);
   }, []);
@@ -610,7 +612,11 @@ export function ChatApp() {
         : "";
 
   return (
-    <main className={`chat-shell ${contextOpen ? "chat-shell--context" : ""}`}>
+    <main
+      className={`chat-shell ${contextOpen ? "chat-shell--context" : ""} ${
+        contextReady ? "chat-shell--context-ready" : ""
+      }`}
+    >
       <a className="skip-link" href="#chat-transcript">
         {locale === "es" ? "Saltar a la conversación" : "Skip to conversation"}
       </a>

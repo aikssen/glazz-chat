@@ -27,6 +27,8 @@
     "go:build": "cd apps/api && go build ./cmd/...",
     "test:integration": "cd apps/api && go test -tags=integration ./...",
     "e2e": "pnpm --filter @glazz/web e2e",
+    "e2e:visual": "bash scripts/run-visual-e2e.sh check",
+    "e2e:visual:update": "bash scripts/run-visual-e2e.sh update",
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm go:format:check && pnpm go:lint && pnpm go:test && pnpm go:build && pnpm build"
   },
   "devDependencies": {

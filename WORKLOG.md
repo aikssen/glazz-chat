@@ -14,6 +14,31 @@ Rules:
 4. Update canonical status in `TASKS.md` and the relevant milestone document.
 5. Never use unchecked boxes here. Pending work belongs in the canonical tracker.
 
+## 2026-07-25
+
+### Signal Workspace published and isolated visual workflow standardized
+
+- Published Signal Workspace release-candidate commit `ecee24b` to `main`,
+  including the reviewed redesign, responsive navigation/context behavior,
+  accessibility coverage, and 20 updated Linux visual baselines.
+- Replaced repeated `/tmp` Compose overrides with committed
+  `deploy/compose.e2e.yaml` and `scripts/run-visual-e2e.sh`.
+- Added `pnpm e2e:visual` and `pnpm e2e:visual:update`; the runner uses
+  loopback-only ports, `.env.test.example`, deterministic OAuth, a fake provider,
+  a separate `glazz-e2e` project, failure logs, and unconditional volume cleanup.
+- Ran the permanent visual command on the remote execution server: all 20 cases
+  passed, no E2E containers or volumes remained, and the persistent development
+  stack stayed healthy.
+- CI run `30176672297` passed presubmit and security. Its E2E job exposed an
+  ambiguous transcript selector, a service-worker-sensitive administrator mock,
+  and wide-screen CLS of approximately `0.108`; the follow-up preserves the
+  `<0.1` budget by reserving the context lane before hydration.
+- Replayed the affected production-browser subset after the fixes: 30 applicable
+  cases passed across four viewports, including performance, login/admin, and
+  responsive workspace behavior. The permanent visual command then passed all 20
+  comparisons again and removed every E2E container and volume; the persistent
+  API remained ready.
+
 ## 2026-07-24
 
 ### Phase 9 completed locally

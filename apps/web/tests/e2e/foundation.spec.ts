@@ -149,7 +149,11 @@ test("guest sends a message and receives a streamed response", async ({ page }) 
   await expect(send).toBeEnabled({ timeout: 10_000 });
   await send.click();
 
-  await expect(page.getByText("Resume por qué el cielo es azul.")).toBeVisible();
+  await expect(
+    page
+      .getByRole("log", { name: "Transcripción de la conversación" })
+      .getByText("Resume por qué el cielo es azul."),
+  ).toBeVisible();
   await expect(page.getByText("Deterministic development response.")).toBeVisible({
     timeout: 10_000,
   });

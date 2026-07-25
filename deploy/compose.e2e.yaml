@@ -1,0 +1,53 @@
+services:
+  postgres:
+    ports: !override
+      - "127.0.0.1:${GLAZZ_E2E_POSTGRES_PORT:-15432}:5432"
+
+  redis:
+    ports: !override
+      - "127.0.0.1:${GLAZZ_E2E_REDIS_PORT:-16379}:6379"
+
+  api:
+    env_file: !override
+      - path: ../.env.test.example
+        required: true
+    environment:
+      GLAZZ_ENV: test
+      WEB_URL: ${GLAZZ_E2E_WEB_ORIGIN:-http://127.0.0.1:13000}
+      CORS_ALLOWED_ORIGINS: ${GLAZZ_E2E_WEB_ORIGIN:-http://127.0.0.1:13000}
+      GOOGLE_CALLBACK_URL: ${GLAZZ_E2E_API_ORIGIN:-http://127.0.0.1:18080}/api/v1/auth/google/callback
+      JWT_ISSUER: ${GLAZZ_E2E_API_ORIGIN:-http://127.0.0.1:18080}
+      BOOTSTRAP_ADMIN_EMAILS: visual-e2e@glazz.test
+      OAUTH_TEST_MODE: "true"
+      OAUTH_TEST_EMAIL: visual-e2e@glazz.test
+      LLM_PROVIDER_KIND: fake
+      LLM_PROVIDER_BASE_URL: ""
+      LLM_PROVIDER_API_KEY: ""
+    ports: !override
+      - "127.0.0.1:${GLAZZ_E2E_API_PORT:-18080}:8080"
+
+  worker:
+    env_file: !override
+      - path: ../.env.test.example
+        required: true
+    environment:
+      GLAZZ_ENV: test
+      WEB_URL: ${GLAZZ_E2E_WEB_ORIGIN:-http://127.0.0.1:13000}
+      CORS_ALLOWED_ORIGINS: ${GLAZZ_E2E_WEB_ORIGIN:-http://127.0.0.1:13000}
+      GOOGLE_CALLBACK_URL: ${GLAZZ_E2E_API_ORIGIN:-http://127.0.0.1:18080}/api/v1/auth/google/callback
+      JWT_ISSUER: ${GLAZZ_E2E_API_ORIGIN:-http://127.0.0.1:18080}
+      BOOTSTRAP_ADMIN_EMAILS: visual-e2e@glazz.test
+      OAUTH_TEST_MODE: "true"
+      OAUTH_TEST_EMAIL: visual-e2e@glazz.test
+      LLM_PROVIDER_KIND: fake
+      LLM_PROVIDER_BASE_URL: ""
+      LLM_PROVIDER_API_KEY: ""
+
+  web:
+    build:
+      args:
+        NEXT_PUBLIC_API_URL: ${GLAZZ_E2E_API_ORIGIN:-http://127.0.0.1:18080}
+    environment:
+      NEXT_PUBLIC_API_URL: ${GLAZZ_E2E_API_ORIGIN:-http://127.0.0.1:18080}
+    ports: !override
+      - "127.0.0.1:${GLAZZ_E2E_WEB_PORT:-13000}:3000"

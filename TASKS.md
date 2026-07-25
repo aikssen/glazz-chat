@@ -47,7 +47,11 @@ Rules:
 | Post-MVP  | Phase 11     | Explicitly non-release-critical backlog          | Not started    | Not applicable | Future planning                     |
 
 Current progress: M4 is published as `v0.4.0`. Phase 9 and local M5 acceptance are
-complete; the M5 commit, CI run, and `v0.5.0` publication remain release actions.
+complete, and release-candidate commit `ecee24b` is on `main`. CI run
+`30176672297` passed presubmit and security but exposed E2E selector/CLS
+regressions. The follow-up passes the affected 30-case production-browser subset
+and the 20-case visual matrix locally; a green GitHub rerun and `v0.5.0`
+publication remain release actions.
 Granular acceptance evidence is tracked in `docs/m3-chat-backend.md`,
 `docs/m4-web-application.md`, and `docs/m5-release-candidate.md`. A `[-]` task
 means its implementation exists but at least one acceptance criterion is still
@@ -792,8 +796,9 @@ session renewal. GitHub Actions run `30118902670` passed and M4 was published as
 
 **Phase 9 exit:** Complete on 2026-07-24. The M5 release candidate satisfies local
 functional, accessibility, security, privacy, resilience, performance, visual, and
-contract criteria. Publication still requires the requested commit, GitHub CI, and
-annotated `v0.5.0` tag.
+contract criteria. Commit `ecee24b` was pushed on 2026-07-25. Publication still
+requires pushing the locally verified CI follow-up, obtaining a green GitHub run,
+and creating the annotated `v0.5.0` tag.
 
 ## Phase 10: Production infrastructure and release
 
