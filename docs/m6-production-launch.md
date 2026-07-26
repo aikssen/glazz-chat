@@ -8,7 +8,15 @@
 
 ## Status
 
-M6 has not started. Phase 10 remains blocked by the M5 release-candidate gate.
+M5 is published. M6 implementation has not started, but an initial single-node
+capacity baseline is now available as pre-decision evidence. No production host
+or LLM provider has been selected and no M6 task is accepted yet.
+
+## Planning evidence
+
+| Scope                                                                                                      | Evidence                                                                       | Effect on gate                                    |
+| ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------- |
+| Demo machine sizing, image footprint, memory, disk, HTTP, WebSocket, and fake-provider generation capacity | [Production demo capacity baseline](./reports/production-capacity-baseline.md) | Informs `PROD-001` and `PROD-010`; closes neither |
 
 ## Release gate
 
