@@ -4,17 +4,18 @@
 
 - **Milestone:** M5
 - **Owned phase:** Phase 9
-- **Reserved release:** `v0.5.0`
+- **Release:** `v0.5.0`
 
 ## Status
 
-Phase 9 and all local M5 acceptance gates completed on 2026-07-24. Release-candidate
-commit `ecee24b` was pushed to `main` on 2026-07-25. CI run `30176672297` passed
-presubmit and security; E2E exposed an ambiguous transcript selector, a flaky
-service-worker-backed user mock, and wide-screen CLS above budget. The follow-up is
-implemented locally and passes the affected 30-case production-browser subset plus
-all 20 visual comparisons. M5 remains untagged and unpublished until that follow-up
-is pushed and its GitHub CI rerun is green.
+Phase 9 and M5 acceptance are complete. The rewritten release-candidate baseline
+is commit `af7076a`. The earlier pre-publication CI run `30176672297` exposed an
+ambiguous transcript selector, a flaky service-worker-backed user mock, and
+wide-screen CLS above budget; those regressions were corrected and verified.
+The M5 code baseline at `6c5ec18` passed presubmit, E2E, and security in GitHub
+Actions run `30210682163` on 2026-07-26. Final release commit `55aa8cb` passed the
+same required jobs in run `30211515823` and is published as annotated tag
+`v0.5.0`.
 
 M4 was published as `v0.4.0` after its E2E, presubmit, and security jobs completed
 successfully.
@@ -27,7 +28,7 @@ successfully.
 | M5-A02 | QA-002        | Race and goroutine/stream leak testing                   | Accepted | Full integration under `-race`; ten 24-connection reconnect cycles with `goleak`                      |
 | M5-A03 | QA-003        | Frontend component and accessibility suite               | Accepted | 29 unit tests plus axe, keyboard, focus, IME, Markdown, localization, and 200% reflow E2E             |
 | M5-A04 | QA-004        | Deterministic Playwright E2E suite                       | Accepted | Final Phase 9 run: 49 applicable cases passed across four viewports; 63 opt-in/non-applicable skipped |
-| M5-A05 | QA-005        | Complete visual regression matrix                        | Accepted | 20 reviewed Linux baselines; committed isolated runner repeated the matrix with zero diff and cleanup  |
+| M5-A05 | QA-005        | Complete visual regression matrix                        | Accepted | 20 reviewed Linux baselines; committed isolated runner repeated the matrix with zero diff and cleanup |
 | M5-A06 | SEC-002       | Application security review                              | Accepted | No open critical/high; browser headers fixed; medium production items assigned to Phase 10            |
 | M5-A07 | QA-006        | Realtime load and soak                                   | Accepted | 1,280 race-enabled connections; 14.17 ms p95; bounded heap and zero goroutine delta                   |
 | M5-A08 | QA-007        | Dependency failure matrix                                | Accepted | PostgreSQL, Redis, provider, telemetry, worker/outbox, and network behavior verified                  |
@@ -56,10 +57,18 @@ successfully.
 
 ## Release sequence
 
-1. Completed: commit and push the Phase 9 release candidate as `ecee24b`.
-2. Completed locally: correct the E2E regressions from CI run `30176672297` and
-   verify the affected subset plus the visual matrix.
-3. Pending: push the follow-up and require presubmit, E2E, and security jobs to
-   pass.
-4. Create and push annotated `v0.5.0`.
-5. Start Phase 10 only after the published M5 gate.
+1. Completed: preserve the Phase 9 release candidate at rewritten baseline
+   `af7076a`.
+2. Completed: correct the E2E regressions exposed by pre-publication CI run
+   `30176672297` and verify the affected subset plus the visual matrix.
+3. Completed: push the follow-up and pass presubmit, E2E, and security on the M5
+   code baseline at `6c5ec18` in GitHub Actions run `30210682163`.
+4. Completed: create and push annotated `v0.5.0` at `55aa8cb` after green GitHub
+   Actions run `30211515823`.
+5. Start Phase 10 from the published M5 gate.
+
+## Release
+
+- Annotated tag: `v0.5.0`
+- Commit: `55aa8cb`
+- CI: GitHub Actions run `30211515823`, all required jobs successful
