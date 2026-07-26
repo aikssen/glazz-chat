@@ -50,7 +50,7 @@ Validated on 2026-07-23:
 | Tool manager        | mise 2026.7.12                                              |
 | Project toolchain   | Go 1.26.5, Node.js 24.13.0, pnpm 11.17.0                    |
 | Containers          | Docker 29.6.2, Docker Compose 5.3.1                         |
-| Validated revision  | `v0.2.0`, commit `7087a7b863ebac9d552c588b87ae871cdb506207` |
+| Validated revision  | `v0.2.0`, commit `8a8b3fd7158c9f5648a1292b77bc8d0344f57ca6` |
 
 The server rejects direct `root` login. Use the `deploy` account.
 

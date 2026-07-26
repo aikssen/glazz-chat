@@ -10,11 +10,10 @@ history, model selection, usage visibility, session management, and account
 controls. Administrators manage model exposure, runtime limits, users, aggregate
 usage, and an auditable configuration trail.
 
-> **Release status:** M4 is published as `v0.4.0`. M5/Phase 9 has passed its local
-> visual, security, load, failure, privacy, performance, and contract gates. The
-> release-candidate implementation is committed and pushed; the CI E2E follow-up
-> passes locally and still requires a GitHub rerun before `v0.5.0` publication.
-> Glazz is not yet approved for public production traffic.
+> **Release status:** M5/Phase 9 is published as `v0.5.0`: its
+> visual, security, load, failure, privacy, performance, contract, and GitHub CI
+> gates pass. The annotated tag points to `55aa8cb`, which passed GitHub Actions
+> run `30211515823`. Glazz is not yet approved for public production traffic.
 
 ## Why Glazz exists
 
@@ -371,21 +370,21 @@ The root `.env` is loaded by Go when commands run from the repository root or
 
 ## Development commands
 
-| Command                   | Purpose                                              |
-| ------------------------- | ---------------------------------------------------- |
-| `pnpm dev`                | Start Next.js in development mode                    |
-| `pnpm build`              | Build the production web bundle                      |
-| `pnpm check`              | Run the complete fast presubmit suite                |
-| `pnpm test:integration`   | Run Go tests that require PostgreSQL and Redis       |
-| `pnpm e2e`                | Run Playwright against the configured application    |
+| Command                   | Purpose                                               |
+| ------------------------- | ----------------------------------------------------- |
+| `pnpm dev`                | Start Next.js in development mode                     |
+| `pnpm build`              | Build the production web bundle                       |
+| `pnpm check`              | Run the complete fast presubmit suite                 |
+| `pnpm test:integration`   | Run Go tests that require PostgreSQL and Redis        |
+| `pnpm e2e`                | Run Playwright against the configured application     |
 | `pnpm e2e:visual`         | Run visual regression in an isolated disposable stack |
-| `pnpm e2e:visual:update`  | Intentionally regenerate isolated visual baselines   |
-| `pnpm contracts:lint`     | Lint OpenAPI/AsyncAPI and validate realtime fixtures |
-| `pnpm contracts:generate` | Regenerate Go and TypeScript HTTP contract code      |
-| `pnpm db:generate`        | Regenerate typed sqlc queries                        |
-| `pnpm db:migrate`         | Apply forward database migrations                    |
-| `pnpm db:reset`           | Intentionally rebuild a non-production database      |
-| `pnpm format`             | Format web and Go sources                            |
+| `pnpm e2e:visual:update`  | Intentionally regenerate isolated visual baselines    |
+| `pnpm contracts:lint`     | Lint OpenAPI/AsyncAPI and validate realtime fixtures  |
+| `pnpm contracts:generate` | Regenerate Go and TypeScript HTTP contract code       |
+| `pnpm db:generate`        | Regenerate typed sqlc queries                         |
+| `pnpm db:migrate`         | Apply forward database migrations                     |
+| `pnpm db:reset`           | Intentionally rebuild a non-production database       |
+| `pnpm format`             | Format web and Go sources                             |
 
 Install the Playwright browser once before the first local E2E run:
 
@@ -541,7 +540,20 @@ Starting at M2, completed milestones receive minor SemVer tags (`v0.2.0`,
 evidence, while `WORKLOG.md` is append-only chronological evidence. A feature being
 implemented does not imply its milestone is accepted.
 
+The request that started the project, and what it did and did not settle up front, is
+preserved in [Origin Prompt](./docs/origin-prompt.md).
+
+## Contributing
+
+Contributions are welcome within the documented scope. Read
+[CONTRIBUTING.md](./CONTRIBUTING.md) first, and [AGENTS.md](./AGENTS.md), which is
+normative for human contributors and coding agents alike. Report vulnerabilities
+privately through the process in [SECURITY.md](./SECURITY.md), never in a public
+issue.
+
 ## License
 
-No open-source license has been selected. All rights remain with the repository
-owner until a license is added.
+Licensed under the [Apache License 2.0](./LICENSE). See [NOTICE](./NOTICE).
+
+The Glazz name, logo, and visual identity are not covered by the code license; see
+[TRADEMARKS.md](./TRADEMARKS.md).
