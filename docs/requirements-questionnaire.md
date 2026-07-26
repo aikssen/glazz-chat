@@ -32,7 +32,7 @@ Go. That shaped the package layout the repository still has.
 
 ## About the rationale blocks
 
-Twelve decisions carry a **Rationale** block. Those were **recorded later**, on
+Thirteen decisions carry a **Rationale** block. Those were **recorded later**, on
 2026-07-26, while preparing the repository for public release — they are the reasoning
 behind the original answer, written down after the fact, not text from the
 questionnaire as it was filled in. They are marked so nobody has to guess which is
@@ -613,6 +613,13 @@ How long is an anonymous conversation kept if the visitor never signs in?
 cookie may be kept longer without containing conversation text.
 
 **Answer:** _Delete daily._ — an override that made retention stricter than proposed.
+
+> **Rationale** (recorded 2026-07-26): Twenty-four hours is a correct evaluation window
+> for a trial: long enough for someone to decide about a subscription within a rational
+> test, including coming back the next day to resume. It also goes beyond the product
+> question — during development it is exactly right, and it keeps junk data out of the
+> database. The same reasoning carries to production, with the window configurable so
+> business and marketing can adapt it to what they observe.
 
 ### 54. Content safety
 
