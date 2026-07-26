@@ -93,6 +93,12 @@ Phase 9 evidence is derived from executed acceptance gates:
 | Load, dependency failures, privacy, and deletion   | [Phase 9 resilience and privacy verification](./reports/phase9-resilience-privacy.md) |
 | Bundle, Web Vitals, transcript, and code rendering | [Phase 9 web performance audit](./reports/phase9-web-performance.md)                  |
 
+Pre-production planning evidence:
+
+| Scope                                                                                            | Report                                                                         |
+| ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| Single-node demo sizing, image footprint, memory, disk, HTTP, WebSocket, and generation capacity | [Production demo capacity baseline](./reports/production-capacity-baseline.md) |
+
 ## Documentation still required
 
 ### M6 decisions and runbooks
@@ -108,6 +114,9 @@ Phase 9 evidence is derived from executed acceptance gates:
 - data-retention schedule and legally approved Terms/Privacy Policy;
 - production architecture diagram updated with selected vendors, regions, and
   recovery topology.
+
+The capacity baseline above informs hosting selection and the controlled-launch
+load model. It does not select a vendor or complete any M6 production gate.
 
 These are tracked by Phase 10 in `TASKS.md`. They must link their evidence from the
 M6 acceptance ledger when completed.
