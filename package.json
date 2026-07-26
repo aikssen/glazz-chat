@@ -38,6 +38,6 @@
     "ajv-formats": "3.0.1",
     "openapi-typescript": "7.13.0",
     "prettier": "3.8.2",
-    "yaml": "2.8.1"
+    "yaml": "2.9.0"
   }
 }
