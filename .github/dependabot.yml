@@ -45,9 +45,10 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    # Only default-days here: Dependabot rejects the semver-* keys for this
+    # ecosystem, since action releases are not treated as semver.
     cooldown:
       default-days: 3
-      semver-major-days: 7
     commit-message:
       prefix: ci
       include: scope
