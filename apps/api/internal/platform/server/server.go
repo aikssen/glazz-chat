@@ -325,7 +325,7 @@ func (deps Dependencies) testAuthorize(response http.ResponseWriter, request *ht
 			http.StatusFound,
 		)
 	default:
-		escapedState := url.QueryEscape(state)
+		escapedState := html.EscapeString(url.QueryEscape(state))
 		response.Header().Set("Content-Type", "text/html; charset=utf-8")
 		response.WriteHeader(http.StatusOK)
 		_, _ = fmt.Fprintf(response, `<!doctype html>
