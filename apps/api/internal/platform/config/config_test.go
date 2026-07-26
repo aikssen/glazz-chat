@@ -87,6 +87,15 @@ func TestLoadRejectsInvalidValuesWithoutLeakingSecrets(t *testing.T) {
 	}
 }
 
+func TestLoadRejectsInt32Overflow(t *testing.T) {
+	setValidEnvironment(t)
+	t.Setenv("DATABASE_MAX_CONNECTIONS", "2147483648")
+
+	if _, err := Load(); err == nil || !strings.Contains(err.Error(), "DATABASE_MAX_CONNECTIONS") {
+		t.Fatalf("Load() error = %v, want bounded int32 error", err)
+	}
+}
+
 func TestLoadRejectsPartialOAuthConfiguration(t *testing.T) {
 	setValidEnvironment(t)
 	t.Setenv("GOOGLE_CLIENT_ID", "client-id")

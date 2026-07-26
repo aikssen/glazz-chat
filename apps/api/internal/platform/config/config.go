@@ -126,11 +126,11 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	maxConnections, err := integer("DATABASE_MAX_CONNECTIONS", 1, 200)
+	maxConnections, err := integer32("DATABASE_MAX_CONNECTIONS", 1, 200)
 	if err != nil {
 		return Config{}, err
 	}
-	minConnections, err := integer("DATABASE_MIN_CONNECTIONS", 0, maxConnections)
+	minConnections, err := integer32("DATABASE_MIN_CONNECTIONS", 0, maxConnections)
 	if err != nil {
 		return Config{}, err
 	}
@@ -279,7 +279,7 @@ func Load() (Config, error) {
 	if err != nil {
 		return Config{}, err
 	}
-	fakeOutputTokens, err := integer("LLM_FAKE_OUTPUT_TOKENS", 1, 8192)
+	fakeOutputTokens, err := integer32("LLM_FAKE_OUTPUT_TOKENS", 1, 8192)
 	if err != nil {
 		return Config{}, err
 	}
@@ -351,8 +351,8 @@ func Load() (Config, error) {
 		},
 		Database: Database{
 			URL:              databaseURL,
-			MaxConnections:   int32(maxConnections),
-			MinConnections:   int32(minConnections),
+			MaxConnections:   maxConnections,
+			MinConnections:   minConnections,
 			MaxLifetime:      databaseMaxLifetime,
 			MaxIdleTime:      databaseMaxIdleTime,
 			HealthTimeout:    databaseHealthTimeout,
@@ -394,7 +394,7 @@ func Load() (Config, error) {
 			BaseURL:          providerBaseURL,
 			APIKey:           firstValue("LLM_PROVIDER_API_KEY", "API_KEY"),
 			DefaultModel:     defaultModel,
-			FakeOutputTokens: int32(fakeOutputTokens),
+			FakeOutputTokens: fakeOutputTokens,
 		},
 		Admin: Admin{BootstrapEmails: normalizedSet(bootstrapEmails)},
 		Telemetry: Telemetry{
@@ -561,6 +561,18 @@ func integer(key string, minimum, maximum int) (int, error) {
 		return 0, fmt.Errorf("parse %s: must be between %d and %d", key, minimum, maximum)
 	}
 	return value, nil
+}
+
+func integer32(key string, minimum, maximum int32) (int32, error) {
+	raw, err := nonEmptyValue(key)
+	if err != nil {
+		return 0, err
+	}
+	value, err := strconv.ParseInt(raw, 10, 32)
+	if err != nil || value < int64(minimum) || value > int64(maximum) {
+		return 0, fmt.Errorf("parse %s: must be between %d and %d", key, minimum, maximum)
+	}
+	return int32(value), nil
 }
 
 func integer64(key string, minimum, maximum int64) (int64, error) {
