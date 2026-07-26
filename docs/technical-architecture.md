@@ -566,7 +566,7 @@ Tradeoff: cookie authentication requires explicit CSRF and origin policy.
 
 Before public production:
 
-1. publish the locally accepted M5 release candidate;
+1. publish the accepted M5 release candidate as `v0.5.0`;
 2. select hosting and LLM provider through ADRs;
 3. prove database backup and restore;
 4. configure production OAuth, domains, TLS, CSP, CORS, cookies, and proxy trust;

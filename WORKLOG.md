@@ -14,6 +14,21 @@ Rules:
 4. Update canonical status in `TASKS.md` and the relevant milestone document.
 5. Never use unchecked boxes here. Pending work belongs in the canonical tracker.
 
+## 2026-07-26
+
+### Public-history references reconciled and M5 CI accepted
+
+- Reconciled milestone references after the public-history rewrite: `v0.2.0`
+  points to `8a8b3fd`, `v0.4.0` points to `246ce8e`, and the rewritten M5
+  release-candidate baseline is `af7076a`.
+- Fixed the concurrent retry integration test's Redis lease-settlement race in
+  commit `6c5ec18`, preserving the durable terminal-state assertions while
+  tolerating the bounded cleanup window.
+- GitHub Actions run `30210682163` passed presubmit, E2E, and security on
+  `6c5ec18`.
+- Updated the canonical tracker and M5 ledger to record complete M5 acceptance.
+  The annotated `v0.5.0` tag remains the only pending M5 release action.
+
 ## 2026-07-25
 
 ### Signal Workspace published and isolated visual workflow standardized

@@ -8,13 +8,13 @@
 
 ## Status
 
-Phase 9 and all local M5 acceptance gates completed on 2026-07-24. Release-candidate
-commit `ecee24b` was pushed to `main` on 2026-07-25. CI run `30176672297` passed
-presubmit and security; E2E exposed an ambiguous transcript selector, a flaky
-service-worker-backed user mock, and wide-screen CLS above budget. The follow-up is
-implemented locally and passes the affected 30-case production-browser subset plus
-all 20 visual comparisons. M5 remains untagged and unpublished until that follow-up
-is pushed and its GitHub CI rerun is green.
+Phase 9 and M5 acceptance are complete. The rewritten release-candidate baseline
+is commit `af7076a`. The earlier pre-publication CI run `30176672297` exposed an
+ambiguous transcript selector, a flaky service-worker-backed user mock, and
+wide-screen CLS above budget; those regressions were corrected and verified.
+Current `main` at `6c5ec18` passed presubmit, E2E, and security in GitHub Actions
+run `30210682163` on 2026-07-26. M5 remains untagged and unpublished only until
+the annotated `v0.5.0` tag is created.
 
 M4 was published as `v0.4.0` after its E2E, presubmit, and security jobs completed
 successfully.
@@ -56,10 +56,11 @@ successfully.
 
 ## Release sequence
 
-1. Completed: commit and push the Phase 9 release candidate as `ecee24b`.
-2. Completed locally: correct the E2E regressions from CI run `30176672297` and
-   verify the affected subset plus the visual matrix.
-3. Pending: push the follow-up and require presubmit, E2E, and security jobs to
-   pass.
-4. Create and push annotated `v0.5.0`.
+1. Completed: preserve the Phase 9 release candidate at rewritten baseline
+   `af7076a`.
+2. Completed: correct the E2E regressions exposed by pre-publication CI run
+   `30176672297` and verify the affected subset plus the visual matrix.
+3. Completed: push the follow-up and pass presubmit, E2E, and security on current
+   `main` at `6c5ec18` in GitHub Actions run `30210682163`.
+4. Pending: create and push annotated `v0.5.0`.
 5. Start Phase 10 only after the published M5 gate.
