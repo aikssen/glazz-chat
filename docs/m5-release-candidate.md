@@ -4,7 +4,7 @@
 
 - **Milestone:** M5
 - **Owned phase:** Phase 9
-- **Reserved release:** `v0.5.0`
+- **Release:** `v0.5.0`
 
 ## Status
 
@@ -13,8 +13,9 @@ is commit `af7076a`. The earlier pre-publication CI run `30176672297` exposed an
 ambiguous transcript selector, a flaky service-worker-backed user mock, and
 wide-screen CLS above budget; those regressions were corrected and verified.
 The M5 code baseline at `6c5ec18` passed presubmit, E2E, and security in GitHub
-Actions run `30210682163` on 2026-07-26. M5 remains untagged and unpublished only
-until the annotated `v0.5.0` tag is created.
+Actions run `30210682163` on 2026-07-26. Final release commit `55aa8cb` passed the
+same required jobs in run `30211515823` and is published as annotated tag
+`v0.5.0`.
 
 M4 was published as `v0.4.0` after its E2E, presubmit, and security jobs completed
 successfully.
@@ -62,5 +63,12 @@ successfully.
    `30176672297` and verify the affected subset plus the visual matrix.
 3. Completed: push the follow-up and pass presubmit, E2E, and security on the M5
    code baseline at `6c5ec18` in GitHub Actions run `30210682163`.
-4. Pending: create and push annotated `v0.5.0`.
-5. Start Phase 10 only after the published M5 gate.
+4. Completed: create and push annotated `v0.5.0` at `55aa8cb` after green GitHub
+   Actions run `30211515823`.
+5. Start Phase 10 from the published M5 gate.
+
+## Release
+
+- Annotated tag: `v0.5.0`
+- Commit: `55aa8cb`
+- CI: GitHub Actions run `30211515823`, all required jobs successful

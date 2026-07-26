@@ -278,8 +278,7 @@ Implemented and accepted through M4:
 - account/settings/admin journeys;
 - deterministic E2E and live-provider preview smoke.
 
-M5 has accepted the release candidate after green GitHub presubmit, E2E, and
-security checks, and awaits only `v0.5.0` tag publication. M6 remains responsible
-for selecting production hosting/provider, provisioning environments,
-backups/restores, domains, production OAuth, observability ownership, legal
-approval, staged rollout, and the go-live decision.
+M5 is published as `v0.5.0` after green GitHub presubmit, E2E, and security checks.
+M6 remains responsible for selecting production hosting/provider, provisioning
+environments, backups/restores, domains, production OAuth, observability ownership,
+legal approval, staged rollout, and the go-live decision.

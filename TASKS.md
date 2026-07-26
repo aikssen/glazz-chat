@@ -42,15 +42,14 @@ Rules:
 | M2        | Phases 2-3   | Local platform, identity, guests, and quotas     | Complete       | Complete       | `v0.2.0`                            |
 | M3        | Phases 4-5   | Provider-neutral streamed chat backend           | Complete       | Complete       | `v0.3.0`                            |
 | M4        | Phases 6-8   | Responsive web application and admin surface     | Complete       | Complete       | `v0.4.0`                            |
-| M5        | Phase 9      | Integrated, tested, observable release candidate | Complete       | Complete       | `v0.5.0` reserved                   |
+| M5        | Phase 9      | Integrated, tested, observable release candidate | Complete       | Complete       | `v0.5.0`                            |
 | M6        | Phase 10     | Approved provider and production deployment      | Not started    | Open           | `v0.6.0` reserved                   |
 | Post-MVP  | Phase 11     | Explicitly non-release-critical backlog          | Not started    | Not applicable | Future planning                     |
 
-Current progress: M4 is published as `v0.4.0`. Phase 9 and M5 acceptance are
-complete. The rewritten release-candidate baseline is `af7076a`; subsequent fixes
-culminate in the M5 code baseline at `6c5ec18`. GitHub Actions run `30210682163`
-passed presubmit, E2E, and security on that commit. Publishing the annotated
-`v0.5.0` tag is the only remaining M5 release action.
+Current progress: M5 is published as annotated tag `v0.5.0` at `55aa8cb`. GitHub
+Actions run `30211515823` passed presubmit, E2E, and security on that commit. The
+rewritten release-candidate baseline is `af7076a`, and the final M5 code correction
+is `6c5ec18`. Phase 10/M6 is the next release milestone.
 Granular acceptance evidence is tracked in `docs/m3-chat-backend.md`,
 `docs/m4-web-application.md`, and `docs/m5-release-candidate.md`. A `[-]` task
 means its implementation exists but at least one acceptance criterion is still
@@ -797,8 +796,8 @@ session renewal. GitHub Actions run `30118902670` passed and M4 was published as
 functional, accessibility, security, privacy, resilience, performance, visual,
 contract, and GitHub CI criteria. The rewritten release-candidate baseline is
 `af7076a`; the M5 code baseline at `6c5ec18` passed presubmit, E2E, and security
-in GitHub Actions run `30210682163`. Publication requires only the annotated
-`v0.5.0` tag.
+in GitHub Actions run `30210682163`. The final release commit `55aa8cb` passed
+GitHub Actions run `30211515823` and was published as annotated tag `v0.5.0`.
 
 ## Phase 10: Production infrastructure and release
 

@@ -16,6 +16,17 @@ Rules:
 
 ## 2026-07-26
 
+### M5 published as v0.5.0
+
+- Confirmed GitHub Actions run `30211515823` passed presubmit, E2E, and security
+  on release commit `55aa8cb`; CodeQL also passed.
+- Created and pushed annotated tag `v0.5.0` with message
+  `Glazz v0.5.0 - integrated release candidate`.
+- Closed the M5 publication gate. Phase 10/M6 remains the next release milestone;
+  Glazz is not approved for public production traffic.
+
+## 2026-07-26
+
 ### Public-history references reconciled and M5 CI accepted
 
 - Reconciled milestone references after the public-history rewrite: `v0.2.0`
