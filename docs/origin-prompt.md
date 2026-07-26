@@ -57,8 +57,9 @@ Fixed up front:
   `DESIGN.md`, `AGENTS.md` — plus `TASKS.md` as the step-by-step tracker;
 - that every step had to be planned before being built.
 
-Left open, and answered later through a requirements questionnaire before any code
-was written:
+Left open, and answered later through the
+[requirements questionnaire](./requirements-questionnaire.md) before any code was
+written:
 
 - guest limits, their reset behavior, and how a guest conversation migrates on
   sign-in;
@@ -74,7 +75,7 @@ was written:
 | Stage              | Artifact                                                                       |
 | ------------------ | ------------------------------------------------------------------------------ |
 | The request        | this document                                                                  |
-| Requirements       | a questionnaire answered before implementation                                 |
+| Requirements       | [Requirements Questionnaire](./requirements-questionnaire.md)                  |
 | Product scope      | [PROJECT.md](../PROJECT.md)                                                    |
 | Architecture       | [ARCHITECTURE.md](../ARCHITECTURE.md), [docs/adr/](./adr/)                     |
 | Design system      | [DESIGN.md](../DESIGN.md)                                                      |
