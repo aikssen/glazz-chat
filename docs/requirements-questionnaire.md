@@ -39,8 +39,6 @@ questionnaire as it was filled in. They are marked so nobody has to guess which 
 which. Decisions without a rationale block have none recorded; that is not an
 invitation to assume one.
 
-Two rationales are deliberately incomplete and say so.
-
 The original was written in Spanish. This is a translation; no answer was reworded to
 sound better than it was.
 
@@ -566,8 +564,10 @@ initial bootstrap. Administrators can promote or demote users afterwards.
 **Answer:** Accepted the default.
 
 > **Rationale** (recorded 2026-07-26): The project needs to be cloneable and runnable
-> as fast as possible. Development has to stay simple, and an environment variable is
-> the simplest thing that works for a first administrator.
+> as fast as possible, and development has to stay simple. An environment variable also
+> keeps the bootstrap administrator out of the repository: no user's email is carried in
+> version control, the identity stays abstracted, and it can be changed quickly while
+> developing.
 
 ### 51. Initial quota values
 
@@ -597,10 +597,13 @@ reauthentication and explicit confirmation.
 
 **Answer:** Accepted the default.
 
-> **Rationale** (recorded 2026-07-26, incomplete): The 30 days of security logs is a
-> legal consideration rather than a technical one. The reasoning behind the 24-hour
-> asynchronous purge, rather than immediate deletion, and behind keeping aggregate
-> metrics, is not recorded here.
+> **Rationale** (recorded 2026-07-26): Deleting everything instantly is intrusive, and
+> it can interfere with the user's own decision — hence an asynchronous purge with a
+> window rather than an immediate one. The 30 days of security logs is partly a legal
+> consideration, but logs also carry business value: identifying user behaviors and
+> trends, spotting failures, and finding opportunities to improve the product. That is
+> the reason for keeping non-identifiable aggregate metrics after the personal data is
+> gone.
 
 ### 53. Guest retention
 
