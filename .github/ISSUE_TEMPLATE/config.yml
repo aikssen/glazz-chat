@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a vulnerability
+    url: https://github.com/aikssen/glazz-chat/security/advisories/new
+    about: Report security issues privately. Never open a public issue for a vulnerability.
+  - name: Documentation
+    url: https://github.com/aikssen/glazz-chat/blob/main/docs/README.md
+    about: Architecture, product scope, decisions, runbooks, and delivery status.
+  - name: Delivery status
+    url: https://github.com/aikssen/glazz-chat/blob/main/TASKS.md
+    about: Check whether something is already planned or explicitly out of scope.

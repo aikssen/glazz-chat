@@ -1,0 +1,60 @@
+name: Feature request
+description: Propose a change in behavior or scope
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Glazz follows a documented delivery plan. Check `TASKS.md` and `PROJECT.md`
+        first — your idea may already be planned, or deliberately out of scope.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: The problem you are trying to solve, not the solution you have in mind.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+    validations:
+      required: true
+
+  - type: dropdown
+    id: audience
+    attributes:
+      label: Who benefits
+      options:
+        - Guest
+        - Registered user
+        - Administrator
+        - Operator
+        - Contributor
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Expected impact
+      description: |
+        Note anything it touches: the OpenAPI or AsyncAPI contract, the database
+        schema, quotas, authentication, or an accepted architecture decision.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Confirmations
+      options:
+        - label: I checked TASKS.md and this is not already planned or out of scope
+          required: true
+        - label: I checked docs/adr/ and this does not contradict an accepted decision
+          required: true

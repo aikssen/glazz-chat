@@ -1,0 +1,124 @@
+name: Bug report
+description: Something behaves incorrectly
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not use this form for security vulnerabilities. Report those privately
+        through the Security tab.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What happens, in one or two sentences.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Web (Next.js)
+        - API (Go)
+        - Worker (Go)
+        - Realtime / WebSocket
+        - Contracts (OpenAPI / AsyncAPI)
+        - Database / migrations
+        - Deployment / Compose
+        - Documentation
+        - Not sure
+    validations:
+      required: true
+
+  - type: dropdown
+    id: role
+    attributes:
+      label: Role in use
+      options:
+        - Guest
+        - Registered user
+        - Administrator
+        - Not applicable
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+      description: Include error text, HTTP status, or WebSocket close code when relevant.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Tag, or commit SHA when running from main.
+      placeholder: v0.4.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Provider mode
+      description: The value of LLM_PROVIDER_KIND.
+      options:
+        - fake
+        - openai_compatible
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: How you run it, plus browser and operating system for a web issue.
+      value: |
+        - Run mode: Docker Compose / local processes
+        - Browser:
+        - OS:
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Relevant log lines or a failing test. Remove credentials, tokens, cookies,
+        and personal data first. Never paste prompt or response content.
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Confirmations
+      options:
+        - label: I searched existing issues and TASKS.md
+          required: true
+        - label: This is not a security vulnerability
+          required: true
+        - label: I removed secrets and personal data from anything I pasted
+          required: true
