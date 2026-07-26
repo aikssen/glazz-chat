@@ -182,38 +182,46 @@ func TestRetryLifecycleIsIdempotentAndConcurrentSafe(t *testing.T) {
 		start      func()
 		err        error
 	}
-	results := make(chan retryResult, 8)
-	var concurrentWait sync.WaitGroup
-	concurrentWait.Add(8)
-	for index := 0; index < 8; index++ {
-		go func() {
-			defer concurrentWait.Done()
-			generation, retryStart, retryErr := fixture.service.Retry(
-				fixture.ctx, fixture.actor, fixture.conversation.ID, key, "req_retry_concurrent",
-			)
-			results <- retryResult{generation: generation, start: retryStart, err: retryErr}
-		}()
-	}
-	concurrentWait.Wait()
-	close(results)
 	var retried Generation
 	var retryStart func()
-	for result := range results {
-		if errors.Is(result.err, quota.ErrBusy) || errors.Is(result.err, ErrConflict) {
-			continue
+	// The terminal generation is durable before quota settlement releases the
+	// actor's Redis lease, so the first concurrent wave may legitimately be busy.
+	retryDeadline := time.Now().Add(2 * time.Second)
+	for retryStart == nil && time.Now().Before(retryDeadline) {
+		results := make(chan retryResult, 8)
+		var concurrentWait sync.WaitGroup
+		concurrentWait.Add(8)
+		for index := 0; index < 8; index++ {
+			go func() {
+				defer concurrentWait.Done()
+				generation, startRetry, retryErr := fixture.service.Retry(
+					fixture.ctx, fixture.actor, fixture.conversation.ID, key, "req_retry_concurrent",
+				)
+				results <- retryResult{generation: generation, start: startRetry, err: retryErr}
+			}()
 		}
-		if result.err != nil {
-			t.Fatalf("concurrent retry error = %v", result.err)
-		}
-		if retried.ID != uuid.Nil && result.generation.ID != retried.ID {
-			t.Fatalf("concurrent retries created %s and %s", retried.ID, result.generation.ID)
-		}
-		retried = result.generation
-		if result.start != nil {
-			if retryStart != nil {
-				t.Fatal("concurrent retries returned more than one start function")
+		concurrentWait.Wait()
+		close(results)
+		for result := range results {
+			if errors.Is(result.err, quota.ErrBusy) || errors.Is(result.err, ErrConflict) {
+				continue
 			}
-			retryStart = result.start
+			if result.err != nil {
+				t.Fatalf("concurrent retry error = %v", result.err)
+			}
+			if retried.ID != uuid.Nil && result.generation.ID != retried.ID {
+				t.Fatalf("concurrent retries created %s and %s", retried.ID, result.generation.ID)
+			}
+			retried = result.generation
+			if result.start != nil {
+				if retryStart != nil {
+					t.Fatal("concurrent retries returned more than one start function")
+				}
+				retryStart = result.start
+			}
+		}
+		if retryStart == nil {
+			time.Sleep(5 * time.Millisecond)
 		}
 	}
 	if retryStart == nil || retried.ID == original.ID {
