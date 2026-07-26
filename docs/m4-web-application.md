@@ -9,8 +9,9 @@
 ## Status
 
 M4 implementation and acceptance are complete. GitHub Actions run `30118902670`
-passed E2E, presubmit, and security jobs for commit `009efc9`; the milestone is
-published as `v0.4.0`. Phases 6, 7, and 8 are complete.
+passed E2E, presubmit, and security jobs before the public-history rewrite. The
+milestone is published as `v0.4.0` at rewritten commit `246ce8e`. Phases 6, 7,
+and 8 are complete.
 
 The application remains available as a mutable development preview. The immutable
 milestone reference is the `v0.4.0` Git tag.
@@ -150,5 +151,5 @@ excluded, offline status is visible, and initial installation remains stable.
 ## Release
 
 - Annotated tag: `v0.4.0`
-- Commit: `009efc9`
-- CI: GitHub Actions run `30118902670`, all jobs successful
+- Rewritten commit: `246ce8e`
+- Pre-rewrite CI: GitHub Actions run `30118902670`, all jobs successful

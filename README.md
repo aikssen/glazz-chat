@@ -10,11 +10,10 @@ history, model selection, usage visibility, session management, and account
 controls. Administrators manage model exposure, runtime limits, users, aggregate
 usage, and an auditable configuration trail.
 
-> **Release status:** M4 is published as `v0.4.0`. M5/Phase 9 has passed its local
-> visual, security, load, failure, privacy, performance, and contract gates. The
-> release-candidate implementation is committed and pushed; the CI E2E follow-up
-> passes locally and still requires a GitHub rerun before `v0.5.0` publication.
-> Glazz is not yet approved for public production traffic.
+> **Release status:** M5/Phase 9 is published as `v0.5.0`: its
+> visual, security, load, failure, privacy, performance, contract, and GitHub CI
+> gates pass. The annotated tag points to `55aa8cb`, which passed GitHub Actions
+> run `30211515823`. Glazz is not yet approved for public production traffic.
 
 ## Why Glazz exists
 

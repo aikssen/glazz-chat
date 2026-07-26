@@ -1,15 +1,27 @@
 version: 2
+
+# Tuned for a single maintainer. The goals, in order:
+#
+# 1. A vulnerability should reach me quickly. Dependabot *security* updates are
+#    not configured here — they are enabled at the repository level and are not
+#    grouped or delayed by this file, so they still arrive one per advisory.
+# 2. Routine upgrades should not arrive as a stream of individual pull requests.
+#    Every ecosystem is grouped into one pull request per month.
+# 3. Nothing should be proposed while it is still fresh. A 30-day cooldown also
+#    keeps the lockfile clear of pnpm's `minimumReleaseAge` policy (1440 minutes)
+#    by a wide margin, so routine bumps are not red on arrival.
 updates:
   - package-ecosystem: gomod
     directory: /apps/api
     schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
-    # Mirrors the npm cooldown below so a fresh release is not proposed before it
-    # has had time to be noticed.
+      interval: monthly
+    open-pull-requests-limit: 3
     cooldown:
-      default-days: 3
-      semver-major-days: 7
+      default-days: 30
+      semver-major-days: 60
+    groups:
+      go:
+        patterns: ["*"]
     commit-message:
       prefix: chore
       include: scope
@@ -17,18 +29,22 @@ updates:
   - package-ecosystem: npm
     directory: /
     schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
+      interval: monthly
+    open-pull-requests-limit: 3
     versioning-strategy: increase
-    # pnpm 11 enforces `minimumReleaseAge` (1440 minutes by default), and
-    # `pnpm install --frozen-lockfile` fails in CI when the lockfile contains a
-    # version younger than that. Without a cooldown Dependabot proposes releases
-    # hours old, and every one of those pull requests is red on arrival through no
-    # fault of the dependency. Three days clears the policy with margin; majors get
-    # longer to soak.
     cooldown:
-      default-days: 3
-      semver-major-days: 7
+      default-days: 30
+      semver-major-days: 60
+    groups:
+      # Two groups rather than one: a production bump deserves a closer read than
+      # a tooling bump, and keeping them apart means one risky dependency does not
+      # hold up the rest.
+      production:
+        dependency-type: production
+        patterns: ["*"]
+      development:
+        dependency-type: development
+        patterns: ["*"]
     ignore:
       # @types/node must track the pinned Node runtime (24.13.0 in .tool-versions
       # and in every CI job). A newer major types APIs the runtime does not have,
@@ -43,12 +59,15 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
+      interval: monthly
+    open-pull-requests-limit: 3
     # Only default-days here: Dependabot rejects the semver-* keys for this
     # ecosystem, since action releases are not treated as semver.
     cooldown:
-      default-days: 3
+      default-days: 30
+    groups:
+      actions:
+        patterns: ["*"]
     commit-message:
       prefix: ci
       include: scope

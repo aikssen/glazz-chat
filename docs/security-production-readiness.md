@@ -14,10 +14,10 @@ in [`docs/threat-model/m0-threat-model.md`](./threat-model/m0-threat-model.md).
 ## Current posture
 
 - M4 is released as `v0.4.0`.
-- M5/Phase 9 local acceptance is complete, including functional, accessibility,
-  visual, security, load, dependency-failure, privacy, performance, and contract
-  gates.
-- The M5 commit, GitHub CI run, and `v0.5.0` publication remain release actions.
+- M5/Phase 9 acceptance is complete, including functional, accessibility, visual,
+  security, load, dependency-failure, privacy, performance, contract, and GitHub
+  CI gates.
+- M5 is published as annotated tag `v0.5.0`.
 - Production hosting and the production LLM provider are not selected.
 - The current Docker Compose environment is a development/preview topology.
 
@@ -415,8 +415,8 @@ must remain explicit.
 7. **Contract compatibility:** compare implementation, generated types, examples,
    and mobile-future needs.
 
-All M5 evidence is locally accepted. Publication still requires the release commit
-and green GitHub presubmit, E2E, and security jobs.
+All M5 evidence is accepted. The release commit passed GitHub presubmit, E2E, and
+security and is published as annotated tag `v0.5.0`.
 
 ### M6: build and approve production
 
@@ -490,7 +490,7 @@ follow-up.
 
 ## Go-live evidence checklist
 
-- [ ] All M5 acceptance rows are green and `v0.5.0` is published.
+- [x] All M5 acceptance rows are green and `v0.5.0` is published.
 - [ ] Hosting and provider ADRs are approved.
 - [ ] Staging mirrors production security and networking behavior.
 - [ ] Production OAuth and HTTPS callback pass.
