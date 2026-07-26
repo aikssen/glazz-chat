@@ -13,6 +13,7 @@ documentation for Glazz. The documents are designed for four audiences:
 | Goal                                                     | Read                                                                    |
 | -------------------------------------------------------- | ----------------------------------------------------------------------- |
 | Understand the product and run it                        | [Root README](../README.md)                                             |
+| See where this documentation set came from               | [Origin Prompt](./origin-prompt.md)                                     |
 | Review features, roles, and product constraints          | [Product Capabilities](./product-capabilities.md)                       |
 | Review system boundaries, flows, tradeoffs, and diagrams | [Technical Architecture](./technical-architecture.md)                   |
 | Review the relational model and lifecycle                | [Data Model and ERD](./data-model.md)                                   |
