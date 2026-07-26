@@ -415,8 +415,8 @@ must remain explicit.
 7. **Contract compatibility:** compare implementation, generated types, examples,
    and mobile-future needs.
 
-All M5 evidence is accepted. Current `main` passed GitHub presubmit, E2E, and
-security; publication still requires the annotated `v0.5.0` tag.
+All M5 evidence is accepted. The M5 code baseline passed GitHub presubmit, E2E,
+and security; publication still requires the annotated `v0.5.0` tag.
 
 ### M6: build and approve production
 

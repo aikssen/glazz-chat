@@ -48,9 +48,9 @@ Rules:
 
 Current progress: M4 is published as `v0.4.0`. Phase 9 and M5 acceptance are
 complete. The rewritten release-candidate baseline is `af7076a`; subsequent fixes
-are included in current `main` at `6c5ec18`. GitHub Actions run `30210682163`
-passed presubmit, E2E, and security. Publishing the annotated `v0.5.0` tag is the
-only remaining M5 release action.
+culminate in the M5 code baseline at `6c5ec18`. GitHub Actions run `30210682163`
+passed presubmit, E2E, and security on that commit. Publishing the annotated
+`v0.5.0` tag is the only remaining M5 release action.
 Granular acceptance evidence is tracked in `docs/m3-chat-backend.md`,
 `docs/m4-web-application.md`, and `docs/m5-release-candidate.md`. A `[-]` task
 means its implementation exists but at least one acceptance criterion is still
@@ -796,8 +796,8 @@ session renewal. GitHub Actions run `30118902670` passed and M4 was published as
 **Phase 9 exit:** Complete on 2026-07-26. The M5 release candidate satisfies
 functional, accessibility, security, privacy, resilience, performance, visual,
 contract, and GitHub CI criteria. The rewritten release-candidate baseline is
-`af7076a`; current `main` at `6c5ec18` passed presubmit, E2E, and security in
-GitHub Actions run `30210682163`. Publication requires only the annotated
+`af7076a`; the M5 code baseline at `6c5ec18` passed presubmit, E2E, and security
+in GitHub Actions run `30210682163`. Publication requires only the annotated
 `v0.5.0` tag.
 
 ## Phase 10: Production infrastructure and release

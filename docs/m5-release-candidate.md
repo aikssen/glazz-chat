@@ -12,9 +12,9 @@ Phase 9 and M5 acceptance are complete. The rewritten release-candidate baseline
 is commit `af7076a`. The earlier pre-publication CI run `30176672297` exposed an
 ambiguous transcript selector, a flaky service-worker-backed user mock, and
 wide-screen CLS above budget; those regressions were corrected and verified.
-Current `main` at `6c5ec18` passed presubmit, E2E, and security in GitHub Actions
-run `30210682163` on 2026-07-26. M5 remains untagged and unpublished only until
-the annotated `v0.5.0` tag is created.
+The M5 code baseline at `6c5ec18` passed presubmit, E2E, and security in GitHub
+Actions run `30210682163` on 2026-07-26. M5 remains untagged and unpublished only
+until the annotated `v0.5.0` tag is created.
 
 M4 was published as `v0.4.0` after its E2E, presubmit, and security jobs completed
 successfully.
@@ -27,7 +27,7 @@ successfully.
 | M5-A02 | QA-002        | Race and goroutine/stream leak testing                   | Accepted | Full integration under `-race`; ten 24-connection reconnect cycles with `goleak`                      |
 | M5-A03 | QA-003        | Frontend component and accessibility suite               | Accepted | 29 unit tests plus axe, keyboard, focus, IME, Markdown, localization, and 200% reflow E2E             |
 | M5-A04 | QA-004        | Deterministic Playwright E2E suite                       | Accepted | Final Phase 9 run: 49 applicable cases passed across four viewports; 63 opt-in/non-applicable skipped |
-| M5-A05 | QA-005        | Complete visual regression matrix                        | Accepted | 20 reviewed Linux baselines; committed isolated runner repeated the matrix with zero diff and cleanup  |
+| M5-A05 | QA-005        | Complete visual regression matrix                        | Accepted | 20 reviewed Linux baselines; committed isolated runner repeated the matrix with zero diff and cleanup |
 | M5-A06 | SEC-002       | Application security review                              | Accepted | No open critical/high; browser headers fixed; medium production items assigned to Phase 10            |
 | M5-A07 | QA-006        | Realtime load and soak                                   | Accepted | 1,280 race-enabled connections; 14.17 ms p95; bounded heap and zero goroutine delta                   |
 | M5-A08 | QA-007        | Dependency failure matrix                                | Accepted | PostgreSQL, Redis, provider, telemetry, worker/outbox, and network behavior verified                  |
@@ -60,7 +60,7 @@ successfully.
    `af7076a`.
 2. Completed: correct the E2E regressions exposed by pre-publication CI run
    `30176672297` and verify the affected subset plus the visual matrix.
-3. Completed: push the follow-up and pass presubmit, E2E, and security on current
-   `main` at `6c5ec18` in GitHub Actions run `30210682163`.
+3. Completed: push the follow-up and pass presubmit, E2E, and security on the M5
+   code baseline at `6c5ec18` in GitHub Actions run `30210682163`.
 4. Pending: create and push annotated `v0.5.0`.
 5. Start Phase 10 only after the published M5 gate.

@@ -12,9 +12,9 @@ usage, and an auditable configuration trail.
 
 > **Release status:** M4 is published as `v0.4.0`. M5/Phase 9 is accepted: its
 > visual, security, load, failure, privacy, performance, contract, and GitHub CI
-> gates pass. The current `main` verification is GitHub Actions run `30210682163`
-> at commit `6c5ec18`. The annotated `v0.5.0` tag has not been published. Glazz is
-> not yet approved for public production traffic.
+> gates pass. The M5 code baseline at `6c5ec18` passed GitHub Actions run
+> `30210682163`. The annotated `v0.5.0` tag has not been published. Glazz is not
+> yet approved for public production traffic.
 
 ## Why Glazz exists
 
