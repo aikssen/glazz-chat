@@ -57,7 +57,7 @@ The complete development stack starts from the repository root with:
 
 ```bash
 docker compose --env-file deploy/.env \
-  -f deploy/compose.yaml -f deploy/compose.dev.yaml up --build
+  -f deploy/compose.yaml up --build
 ```
 
 Use `pnpm db:migrate` for forward migrations, `pnpm db:reset` for an intentional

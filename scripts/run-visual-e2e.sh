@@ -38,16 +38,14 @@ source "$repo_root/.env.test.example"
 set +a
 
 project="${COMPOSE_PROJECT_NAME:?set COMPOSE_PROJECT_NAME in .env.test.example}"
-web_port="${GLAZZ_E2E_WEB_PORT:?set GLAZZ_E2E_WEB_PORT in .env.test.example}"
-api_port="${GLAZZ_E2E_API_PORT:?set GLAZZ_E2E_API_PORT in .env.test.example}"
+web_port="${WEB_HOST_PORT:?set WEB_HOST_PORT in .env.test.example}"
+api_port="${API_HOST_PORT:?set API_HOST_PORT in .env.test.example}"
 
 if [[ ! "$project" =~ ^[a-z0-9][a-z0-9_-]*$ ]] || [[ "$project" == "glazz" ]]; then
   echo "COMPOSE_PROJECT_NAME must be a safe name other than the development project 'glazz'." >&2
   exit 2
 fi
 
-export GLAZZ_E2E_WEB_PORT="$web_port"
-export GLAZZ_E2E_API_PORT="$api_port"
 export COMPOSE_PROJECT_NAME="$project"
 
 compose=(

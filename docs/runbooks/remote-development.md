@@ -340,7 +340,7 @@ The default command is suitable when the browser connects through an SSH tunnel:
 
 ```bash
 ssh -tt -o BatchMode=yes deploy@dev-server.local \
-  'zsh -lic "cd /srv/glazz/glazz-chat && docker compose --env-file deploy/.env -f deploy/compose.yaml -f deploy/compose.dev.yaml up --build -d"'
+  'zsh -lic "cd /srv/glazz/glazz-chat && docker compose --env-file deploy/.env -f deploy/compose.yaml up --build -d"'
 ```
 
 For direct LAN access, browser-visible and OAuth URLs must use the server address.
@@ -354,7 +354,7 @@ CORS_ALLOWED_ORIGINS=http://dev-server.local:3000,http://localhost:3000
 GOOGLE_CALLBACK_URL=http://dev-server.local:8080/api/v1/auth/google/callback
 
 ssh -tt -o BatchMode=yes deploy@dev-server.local \
-  'zsh -lic "cd /srv/glazz/glazz-chat && docker compose --env-file deploy/.env -f deploy/compose.yaml -f deploy/compose.dev.yaml up --build --force-recreate -d api worker web"'
+  'zsh -lic "cd /srv/glazz/glazz-chat && docker compose --env-file deploy/.env -f deploy/compose.yaml up --build --force-recreate -d api worker web"'
 ```
 
 Do not duplicate externally configurable values under a Compose service's
@@ -410,7 +410,7 @@ Inspect:
 
 ```bash
 ssh -o BatchMode=yes deploy@dev-server.local \
-  'cd /srv/glazz/glazz-chat && docker compose --env-file deploy/.env -f deploy/compose.yaml -f deploy/compose.dev.yaml ps'
+  'cd /srv/glazz/glazz-chat && docker compose --env-file deploy/.env -f deploy/compose.yaml ps'
 ```
 
 Verify the LAN origin explicitly; health alone does not exercise browser CORS:
@@ -471,14 +471,14 @@ Recent logs:
 
 ```bash
 ssh -o BatchMode=yes deploy@dev-server.local \
-  'cd /srv/glazz/glazz-chat && docker compose --env-file deploy/.env -f deploy/compose.yaml -f deploy/compose.dev.yaml logs --tail=200'
+  'cd /srv/glazz/glazz-chat && docker compose --env-file deploy/.env -f deploy/compose.yaml logs --tail=200'
 ```
 
 Stop containers while preserving the PostgreSQL volume:
 
 ```bash
 ssh -o BatchMode=yes deploy@dev-server.local \
-  'cd /srv/glazz/glazz-chat && docker compose --env-file deploy/.env -f deploy/compose.yaml -f deploy/compose.dev.yaml down'
+  'cd /srv/glazz/glazz-chat && docker compose --env-file deploy/.env -f deploy/compose.yaml down'
 ```
 
 Do not add `--volumes` unless the owner explicitly requests destruction of remote
@@ -495,7 +495,7 @@ For Docker Desktop on macOS:
 
 ```bash
 docker compose --env-file deploy/.env \
-  -f deploy/compose.yaml -f deploy/compose.dev.yaml down --remove-orphans
+  -f deploy/compose.yaml down --remove-orphans
 docker image ls
 docker volume ls
 docker desktop stop

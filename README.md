@@ -226,7 +226,7 @@ From the repository root:
 
 ```bash
 docker compose --env-file deploy/.env \
-  -f deploy/compose.yaml -f deploy/compose.dev.yaml up --build
+  -f deploy/compose.yaml up --build
 ```
 
 Compose starts:
@@ -247,7 +247,7 @@ pre-deploy job.
 
 ```bash
 docker compose --env-file deploy/.env \
-  -f deploy/compose.yaml -f deploy/compose.dev.yaml ps
+  -f deploy/compose.yaml ps
 curl --fail http://localhost:8080/api/v1/health/live
 curl --fail http://localhost:8080/api/v1/health/ready
 curl --fail http://localhost:8080/api/v1/config/public
@@ -260,7 +260,7 @@ connection indicator reports that realtime communication is connected.
 
 ```bash
 docker compose --env-file deploy/.env \
-  -f deploy/compose.yaml -f deploy/compose.dev.yaml down
+  -f deploy/compose.yaml down
 ```
 
 PostgreSQL data remains in the `postgres-data` volume. Use
@@ -282,7 +282,7 @@ Restart the API and worker after changing provider configuration:
 
 ```bash
 docker compose --env-file deploy/.env \
-  -f deploy/compose.yaml -f deploy/compose.dev.yaml \
+  -f deploy/compose.yaml \
   up --build --force-recreate api worker
 ```
 
@@ -342,7 +342,7 @@ pnpm install --frozen-lockfile
 
 ```bash
 docker compose --env-file deploy/.env \
-  -f deploy/compose.yaml -f deploy/compose.dev.yaml up -d postgres redis
+  -f deploy/compose.yaml up -d postgres redis
 ```
 
 ### Apply migrations

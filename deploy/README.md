@@ -4,10 +4,8 @@ The deployment files separate topology from environment-specific policy:
 
 | File | Purpose |
 | --- | --- |
-| `compose.yaml` | Shared services, images, builds, and healthchecks |
-| `compose.dev.yaml` | Local host port publishing |
-| `compose.dokploy.yaml` | Stage/production resource limits without host port publishing |
-| `compose.dokploy-demo.yaml` | LAN rehearsal override that publishes only API and web |
+| `compose.yaml` | Complete base stack: services, builds, ports, and healthchecks |
+| `compose.dokploy.yaml` | Base stack plus Dokploy resource limits |
 | `compose.e2e.yaml` | Isolated visual-test override |
 
 Container ports are stable implementation details: PostgreSQL `5432`, Redis
@@ -52,13 +50,12 @@ Create the untracked deployment environment:
 cp deploy/.env.dev.example deploy/.env
 ```
 
-Then run the shared topology with the development override:
+Then run the base stack:
 
 ```bash
 docker compose \
   --env-file deploy/.env \
   -f deploy/compose.yaml \
-  -f deploy/compose.dev.yaml \
   up --build
 ```
 
@@ -68,7 +65,6 @@ Stop it with the same configuration:
 docker compose \
   --env-file deploy/.env \
   -f deploy/compose.yaml \
-  -f deploy/compose.dev.yaml \
   down
 ```
 
@@ -77,9 +73,8 @@ intentional data reset.
 
 ## Dokploy staging and production
 
-Use `compose.dokploy.yaml` for a deployment behind Dokploy domains. It exposes
-ports only to the Compose network; it does not publish database, Redis, API, or
-web ports on the host.
+Use `compose.dokploy.yaml` when Dokploy should enforce the configured memory
+limits. It extends the complete base stack instead of redefining it.
 
 In Dokploy:
 
@@ -99,13 +94,15 @@ API URL.
 
 ## Dokploy LAN rehearsal
 
-`compose.dokploy-demo.yaml` extends the Dokploy topology and publishes only API
-and web for direct LAN access. Use `.env.dev.example` as the complete key list,
-add the resource-limit variables from a stage template, and configure:
+The LAN rehearsal also uses `compose.dokploy.yaml`; the environment determines
+its public addresses and published ports. Use `.env.dev.example` as the complete
+key list, add the resource-limit variables from a stage template, and configure:
 
 ```dotenv
 COMPOSE_PROJECT_NAME=glazz-dokploy-demo
 GLAZZ_COMPOSE_ENV_FILE=.env
+POSTGRES_HOST_PORT=5432
+REDIS_HOST_PORT=6379
 API_HOST_PORT=18080
 WEB_HOST_PORT=13000
 WEB_URL=http://192.168.68.211:13000
@@ -115,8 +112,9 @@ GOOGLE_CALLBACK_URL=http://192.168.68.211:18080/api/v1/auth/google/callback
 JWT_ISSUER=http://192.168.68.211:18080
 ```
 
-Only `API_HOST_PORT` and `WEB_HOST_PORT` control LAN publishing. When either
-changes, update its public origin variables to match.
+PostgreSQL and Redis bind only to host loopback. API and web use their configured
+host ports for LAN access. When either application port changes, update its
+public origin variables to match.
 
 Validate the rehearsal:
 
@@ -157,7 +155,6 @@ Before deploying an environment, verify the rendered model without starting it:
 docker compose \
   --env-file deploy/.env \
   -f deploy/compose.yaml \
-  -f deploy/compose.dev.yaml \
   config
 ```
 
