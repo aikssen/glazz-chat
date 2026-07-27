@@ -1,11 +1,11 @@
 services:
   postgres:
     ports: !override
-      - "${GLAZZ_E2E_BIND_ADDRESS:?set GLAZZ_E2E_BIND_ADDRESS}:${GLAZZ_E2E_POSTGRES_PORT:?set GLAZZ_E2E_POSTGRES_PORT}:${POSTGRES_PORT:?set POSTGRES_PORT}"
+      - 127.0.0.1:${GLAZZ_E2E_POSTGRES_PORT}:5432
 
   redis:
     ports: !override
-      - "${GLAZZ_E2E_BIND_ADDRESS:?set GLAZZ_E2E_BIND_ADDRESS}:${GLAZZ_E2E_REDIS_PORT:?set GLAZZ_E2E_REDIS_PORT}:${REDIS_PORT:?set REDIS_PORT}"
+      - 127.0.0.1:${GLAZZ_E2E_REDIS_PORT}:6379
 
   api:
     env_file: !override
@@ -14,8 +14,8 @@ services:
     environment:
       GLAZZ_ENV: test
       WEB_URL: ${GLAZZ_E2E_WEB_ORIGIN:?set GLAZZ_E2E_WEB_ORIGIN}
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable
-      REDIS_URL: redis://redis:${REDIS_PORT}/0
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      REDIS_URL: redis://redis:6379/0
       CORS_ALLOWED_ORIGINS: ${GLAZZ_E2E_WEB_ORIGIN:?set GLAZZ_E2E_WEB_ORIGIN}
       GOOGLE_CALLBACK_URL: ${GLAZZ_E2E_API_ORIGIN:?set GLAZZ_E2E_API_ORIGIN}/api/v1/auth/google/callback
       JWT_ISSUER: ${GLAZZ_E2E_API_ORIGIN:?set GLAZZ_E2E_API_ORIGIN}
@@ -26,7 +26,7 @@ services:
       LLM_PROVIDER_BASE_URL: ""
       LLM_PROVIDER_API_KEY: ""
     ports: !override
-      - "${GLAZZ_E2E_BIND_ADDRESS:?set GLAZZ_E2E_BIND_ADDRESS}:${GLAZZ_E2E_API_PORT:?set GLAZZ_E2E_API_PORT}:${API_PORT:?set API_PORT}"
+      - 127.0.0.1:${GLAZZ_E2E_API_PORT}:8080
 
   worker:
     env_file: !override
@@ -35,8 +35,8 @@ services:
     environment:
       GLAZZ_ENV: test
       WEB_URL: ${GLAZZ_E2E_WEB_ORIGIN:?set GLAZZ_E2E_WEB_ORIGIN}
-      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable
-      REDIS_URL: redis://redis:${REDIS_PORT}/0
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      REDIS_URL: redis://redis:6379/0
       CORS_ALLOWED_ORIGINS: ${GLAZZ_E2E_WEB_ORIGIN:?set GLAZZ_E2E_WEB_ORIGIN}
       GOOGLE_CALLBACK_URL: ${GLAZZ_E2E_API_ORIGIN:?set GLAZZ_E2E_API_ORIGIN}/api/v1/auth/google/callback
       JWT_ISSUER: ${GLAZZ_E2E_API_ORIGIN:?set GLAZZ_E2E_API_ORIGIN}
@@ -54,4 +54,4 @@ services:
     environment:
       NEXT_PUBLIC_API_URL: ${GLAZZ_E2E_API_ORIGIN:?set GLAZZ_E2E_API_ORIGIN}
     ports: !override
-      - "${GLAZZ_E2E_BIND_ADDRESS:?set GLAZZ_E2E_BIND_ADDRESS}:${GLAZZ_E2E_WEB_PORT:?set GLAZZ_E2E_WEB_PORT}:${WEB_PORT:?set WEB_PORT}"
+      - 127.0.0.1:${GLAZZ_E2E_WEB_PORT}:3000

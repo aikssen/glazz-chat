@@ -16,7 +16,7 @@ services:
       file: compose.dokploy.yaml
       service: api
     ports:
-      - "${API_BIND_ADDRESS:?set API_BIND_ADDRESS}:${API_HOST_PORT:?set API_HOST_PORT}:${API_PORT:?set API_PORT}"
+      - ${API_HOST_PORT}:8080
 
   worker:
     extends:
@@ -28,7 +28,7 @@ services:
       file: compose.dokploy.yaml
       service: web
     ports:
-      - "${WEB_BIND_ADDRESS:?set WEB_BIND_ADDRESS}:${WEB_HOST_PORT:?set WEB_HOST_PORT}:${WEB_PORT:?set WEB_PORT}"
+      - ${WEB_HOST_PORT}:3000
 
 volumes:
   postgres-data:

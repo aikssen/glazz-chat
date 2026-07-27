@@ -4,15 +4,15 @@ The deployment files separate topology from environment-specific policy:
 
 | File | Purpose |
 | --- | --- |
-| `compose.yaml` | Shared services, images, builds, healthchecks, and internal ports |
+| `compose.yaml` | Shared services, images, builds, and healthchecks |
 | `compose.dev.yaml` | Local host port publishing |
 | `compose.dokploy.yaml` | Stage/production resource limits without host port publishing |
 | `compose.dokploy-demo.yaml` | LAN rehearsal override that publishes only API and web |
 | `compose.e2e.yaml` | Isolated visual-test override |
 
-No service port is embedded in Compose or a Dockerfile. Container ports, host
-ports, and bind addresses come from the selected environment file. A port change
-therefore does not require a source change or pull request.
+Container ports are stable implementation details: PostgreSQL `5432`, Redis
+`6379`, API `8080`, and web `3000`. Only published host ports are configurable,
+using the straightforward `${HOST_PORT}:container_port` mapping.
 
 ## Environment contract
 
@@ -90,12 +90,12 @@ In Dokploy:
    variables when several services need the same secret.
 4. Mount the JWT private key as a file at `JWT_PRIVATE_KEY_PATH` for both API and
    worker.
-5. Route the web domain to `WEB_PORT` and the API domain to `API_PORT`.
+5. Route the web domain to container port `3000` and the API domain to `8080`.
 
 Dokploy writes its Compose environment beside the selected Compose file, so
 `GLAZZ_COMPOSE_ENV_FILE=.env` lets API and worker consume it. PostgreSQL receives
-only its explicitly mapped database variables, and web receives only its runtime
-port and public API URL.
+only its explicitly mapped database variables, and web receives only its public
+API URL.
 
 ## Dokploy LAN rehearsal
 
@@ -106,9 +106,7 @@ add the resource-limit variables from a stage template, and configure:
 ```dotenv
 COMPOSE_PROJECT_NAME=glazz-dokploy-demo
 GLAZZ_COMPOSE_ENV_FILE=.env
-API_BIND_ADDRESS=0.0.0.0
 API_HOST_PORT=18080
-WEB_BIND_ADDRESS=0.0.0.0
 WEB_HOST_PORT=13000
 WEB_URL=http://192.168.68.211:13000
 NEXT_PUBLIC_API_URL=http://192.168.68.211:18080
@@ -117,9 +115,8 @@ GOOGLE_CALLBACK_URL=http://192.168.68.211:18080/api/v1/auth/google/callback
 JWT_ISSUER=http://192.168.68.211:18080
 ```
 
-The container ports (`API_PORT`, `WEB_PORT`, `POSTGRES_PORT`, and `REDIS_PORT`)
-and the published LAN ports are independent variables. When changing an API or
-web host port, update its public origin variables to match.
+Only `API_HOST_PORT` and `WEB_HOST_PORT` control LAN publishing. When either
+changes, update its public origin variables to match.
 
 Validate the rehearsal:
 
@@ -131,8 +128,8 @@ curl --fail http://192.168.68.211:13000/
 
 ## Isolated visual E2E stack
 
-The visual runner reads all project names, bind addresses, ports, and origins
-from `.env.test.example`. It uses the fake provider, deterministic OAuth, a
+The visual runner reads its project name, published ports, and origins from
+`.env.test.example`. It uses the fake provider, deterministic OAuth, a
 separate Compose project, loopback-only published ports, and disposable volumes.
 
 Run the reviewed visual gate:

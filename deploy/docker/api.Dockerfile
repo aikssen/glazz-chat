@@ -15,4 +15,5 @@ RUN addgroup -S glazz && adduser -S -G glazz glazz
 WORKDIR /app
 COPY --from=build /out/api /out/worker /out/migrate /app/
 USER glazz
+EXPOSE 8080
 CMD ["/app/api"]

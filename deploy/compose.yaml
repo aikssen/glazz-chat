@@ -7,21 +7,14 @@ x-app-env: &app-env
 services:
   postgres:
     image: postgres:18.4-alpine3.24
-    command: ["postgres", "-p", "${POSTGRES_PORT:?set POSTGRES_PORT}"]
     environment:
       POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
-    expose:
-      - "${POSTGRES_PORT}"
     volumes:
       - postgres-data:/var/lib/postgresql
     healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "pg_isready -h 127.0.0.1 -p \"${POSTGRES_PORT}\" -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\"",
-        ]
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -29,20 +22,11 @@ services:
 
   redis:
     image: redis:8.8.0-alpine3.23
-    command:
-      [
-        "redis-server",
-        "--port",
-        "${REDIS_PORT:?set REDIS_PORT}",
-        "--appendonly",
-        "${REDIS_APPENDONLY:?set REDIS_APPENDONLY}",
-      ]
-    expose:
-      - "${REDIS_PORT}"
+    command: ["redis-server", "--appendonly", "${REDIS_APPENDONLY:?set REDIS_APPENDONLY}"]
     volumes:
       - redis-data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "-p", "${REDIS_PORT}", "ping"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 20
@@ -56,15 +40,13 @@ services:
     environment:
       OTEL_SERVICE_NAME: ${API_OTEL_SERVICE_NAME:?set API_OTEL_SERVICE_NAME}
     command: ["/bin/sh", "-c", "/app/migrate up && exec /app/api"]
-    expose:
-      - "${API_PORT:?set API_PORT}"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- \"http://localhost:$${API_PORT}/api/v1/health/ready\""]
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/v1/health/ready"]
       interval: 5s
       timeout: 3s
       retries: 30
@@ -90,15 +72,12 @@ services:
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?set NEXT_PUBLIC_API_URL}
     environment:
-      PORT: ${WEB_PORT:?set WEB_PORT}
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
-    expose:
-      - "${WEB_PORT}"
     depends_on:
       api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- \"http://127.0.0.1:$${PORT}\""]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000"]
       interval: 5s
       timeout: 3s
       retries: 30
