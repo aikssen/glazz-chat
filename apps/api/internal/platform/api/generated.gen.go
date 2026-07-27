@@ -772,6 +772,8 @@ type Message struct {
 	ConversationId Id            `json:"conversationId"`
 	CreatedAt      time.Time     `json:"createdAt"`
 	Id             Id            `json:"id"`
+	ModelId        *Id           `json:"modelId,omitempty"`
+	ModelName      *string       `json:"modelName,omitempty"`
 	Role           MessageRole   `json:"role"`
 	Sequence       int           `json:"sequence"`
 	Status         MessageStatus `json:"status"`

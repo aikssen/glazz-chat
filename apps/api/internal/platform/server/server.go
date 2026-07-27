@@ -27,6 +27,7 @@ import (
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/database"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/httpx"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/ids"
+	"github.com/aikssen/glazz-chat/apps/api/internal/platform/logging"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/redisx"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/store"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/telemetry"
@@ -485,6 +486,7 @@ func (deps Dependencies) revokeSession(response http.ResponseWriter, request *ht
 func (deps Dependencies) internalError(response http.ResponseWriter, request *http.Request, err error) {
 	deps.Logger.ErrorContext(
 		request.Context(), "request failed", "request_id", httpx.RequestID(request.Context()),
+		"correlation_id", logging.CorrelationID(request.Context()),
 		"error_type", fmt.Sprintf("%T", err),
 	)
 	httpx.WriteError(response, request, http.StatusInternalServerError, "internal_error", "Request could not be processed.")

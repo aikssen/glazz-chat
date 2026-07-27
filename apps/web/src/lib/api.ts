@@ -1,4 +1,5 @@
 import { newUUID } from "./uuid";
+import { log } from "./logger";
 
 function runtimeAPIURL() {
   if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
@@ -34,8 +35,12 @@ function cookie(name: string) {
 }
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const started = performance.now();
   const method = init.method?.toUpperCase() ?? "GET";
+  const route = path.split("?")[0] || "/";
   const headers = new Headers(init.headers);
+  const correlationId = headers.get("X-Correlation-ID") ?? `web-${newUUID()}`;
+  headers.set("X-Correlation-ID", correlationId);
   if (init.body) headers.set("Content-Type", "application/json");
   if (!["GET", "HEAD", "OPTIONS"].includes(method)) {
     const csrf = cookie("glazz_csrf") || cookie("glazz_guest_csrf");
@@ -44,10 +49,31 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
       headers.set("Idempotency-Key", `http-${newUUID()}`);
     }
   }
-  const response = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers,
-    credentials: "include",
+  log("debug", "http request started", { correlation_id: correlationId, method, route });
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...init,
+      headers,
+      credentials: "include",
+    });
+  } catch (cause) {
+    log("error", "http request failed", {
+      correlation_id: correlationId,
+      method,
+      route,
+      duration_ms: Math.round(performance.now() - started),
+      error_type: cause instanceof Error ? cause.name : typeof cause,
+    });
+    throw cause;
+  }
+  const responseCorrelationId = response.headers.get("X-Correlation-ID") ?? correlationId;
+  log(response.ok ? "info" : "warn", "http request completed", {
+    correlation_id: responseCorrelationId,
+    method,
+    route,
+    status: response.status,
+    duration_ms: Math.round(performance.now() - started),
   });
   if (!response.ok) {
     const body = (await response.json().catch(() => null)) as {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/aikssen/glazz-chat/apps/api/internal/chat"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/httpx"
+	"github.com/aikssen/glazz-chat/apps/api/internal/platform/logging"
 	"github.com/aikssen/glazz-chat/apps/api/internal/quota"
 )
 
@@ -29,7 +30,7 @@ func (deps Dependencies) retryGeneration(response http.ResponseWriter, request *
 	}
 	generation, start, err := deps.ChatEngine.Retry(
 		request.Context(), actor, conversationID, request.Header.Get("Idempotency-Key"),
-		httpx.RequestID(request.Context()),
+		logging.CorrelationID(request.Context()),
 	)
 	switch {
 	case errors.Is(err, chat.ErrInvalid):

@@ -30,6 +30,7 @@ type Config struct {
 
 type Runtime struct {
 	Environment     string
+	LogLevel        string
 	APIAddress      string
 	WebURL          string
 	ShutdownTimeout time.Duration
@@ -116,6 +117,14 @@ func Load() (Config, error) {
 	}
 	if environment != "development" && environment != "test" && environment != "production" {
 		return Config{}, errors.New("parse GLAZZ_ENV: must be development, test, or production")
+	}
+	logLevel, err := nonEmptyValue("LOG_LEVEL")
+	if err != nil {
+		return Config{}, err
+	}
+	logLevel = strings.ToLower(logLevel)
+	if logLevel != "debug" && logLevel != "info" && logLevel != "warn" && logLevel != "error" {
+		return Config{}, errors.New("parse LOG_LEVEL: must be debug, info, warn, or error")
 	}
 
 	port, err := integer("API_PORT", 1, 65535)
@@ -340,6 +349,7 @@ func Load() (Config, error) {
 	cfg := Config{
 		Runtime: Runtime{
 			Environment:     environment,
+			LogLevel:        logLevel,
 			APIAddress:      fmt.Sprintf(":%d", port),
 			WebURL:          strings.TrimRight(webURL, "/"),
 			ShutdownTimeout: shutdownTimeout,

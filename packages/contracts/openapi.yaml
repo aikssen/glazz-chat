@@ -898,6 +898,8 @@ components:
         status: {type: string, enum: [pending, complete, cancelled, failed]}
         sequence: {type: integer, minimum: 1}
         createdAt: {type: string, format: date-time}
+        modelId: {$ref: "#/components/schemas/Id"}
+        modelName: {type: string, minLength: 1}
     MessagePage:
       type: object
       required: [items]

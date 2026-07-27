@@ -51,6 +51,7 @@ services:
     build:
       args:
         NEXT_PUBLIC_API_URL: ${GLAZZ_E2E_API_ORIGIN:?set GLAZZ_E2E_API_ORIGIN}
+        NEXT_PUBLIC_LOG_LEVEL: ${LOG_LEVEL:-debug}
     environment:
       NEXT_PUBLIC_API_URL: ${GLAZZ_E2E_API_ORIGIN:?set GLAZZ_E2E_API_ORIGIN}
     ports: !override

@@ -4,6 +4,8 @@ export interface StartedPayload {
   assistantMessageId: string;
   generationId: string;
   conversationId: string;
+  modelId?: string;
+  modelName?: string;
 }
 
 export interface DeltaPayload {
@@ -29,6 +31,8 @@ export function startAssistant(
       sequence: messages.length + 1,
       createdAt: now,
       generationId: payload.generationId,
+      modelId: payload.modelId,
+      modelName: payload.modelName,
     },
   ];
 }

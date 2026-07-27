@@ -16,31 +16,41 @@ import (
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/config"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/database"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/ids"
+	"github.com/aikssen/glazz-chat/apps/api/internal/platform/logging"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/outbox"
 	"github.com/aikssen/glazz-chat/apps/api/internal/privacy"
 	"github.com/aikssen/glazz-chat/apps/api/internal/provider"
 )
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
-	if err := run(logger); err != nil {
+	bootstrap := slog.New(slog.NewJSONHandler(os.Stdout, nil)).With("service", "worker")
+	cfg, err := config.Load()
+	if err != nil {
+		bootstrap.Error("worker configuration failed", "error_type", fmt.Sprintf("%T", err))
+		os.Exit(1)
+	}
+	logger, err := logging.New(os.Stdout, cfg.Runtime.LogLevel, "worker")
+	if err != nil {
+		bootstrap.Error("worker logger configuration failed", "error_type", fmt.Sprintf("%T", err))
+		os.Exit(1)
+	}
+	slog.SetDefault(logger)
+	if err := run(logger, cfg); err != nil {
 		logger.Error("worker stopped", "error_type", fmt.Sprintf("%T", err))
 		os.Exit(1)
 	}
 }
 
-func run(logger *slog.Logger) error {
-	cfg, err := config.Load()
-	if err != nil {
-		return err
-	}
+func run(logger *slog.Logger, cfg config.Config) error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	logger.Debug("worker initialization started", "environment", cfg.Runtime.Environment)
 	pool, err := database.Open(ctx, cfg.Database)
 	if err != nil {
 		return err
 	}
 	defer pool.Close()
+	logger.Debug("worker database connection ready")
 	idSource := ids.NewUUIDv7()
 	timeSource := clock.UTC{}
 	providerCode, err := models.ConfigureProvider(ctx, pool, cfg.Provider.Kind, timeSource)
@@ -65,16 +75,21 @@ func run(logger *slog.Logger) error {
 		if err != nil {
 			return err
 		}
-		gateways[providerCode] = provider.NewResilient(gateway, provider.DefaultResilienceOptions())
+		gateways[providerCode] = provider.NewResilient(
+			gateway, provider.DefaultResilienceOptions(),
+		).WithLogger(logger)
 	}
 	synchronizer := models.NewSynchronizer(pool, idSource, timeSource)
 	if providerCode != models.FakeProviderCode {
+		logger.Info("startup model sync started", "provider_code", providerCode)
 		if _, err := synchronizer.Sync(
 			ctx, providerCode, gateways[providerCode], "startup-model-sync",
 		); err != nil {
 			logger.ErrorContext(
 				ctx, "startup model sync failed", "error_type", fmt.Sprintf("%T", err),
 			)
+		} else {
+			logger.Info("startup model sync completed", "provider_code", providerCode)
 		}
 	}
 	privacyService := privacy.New(pool, idSource, timeSource)
@@ -84,6 +99,10 @@ func run(logger *slog.Logger) error {
 		logger,
 		map[string]outbox.Handler{
 			"models.sync": outbox.HandlerFunc(func(ctx context.Context, event outbox.Event) error {
+				eventLogger := logging.Context(logger, ctx).With(
+					"event_id", event.ID, "event_type", event.Type,
+				)
+				eventLogger.Debug("model sync event decoded")
 				var payload struct {
 					ProviderCode string `json:"providerCode"`
 				}
@@ -94,7 +113,11 @@ func run(logger *slog.Logger) error {
 				if gateway == nil {
 					return errors.New("model sync gateway is not configured")
 				}
+				eventLogger.Info("model sync started", "provider_code", payload.ProviderCode)
 				_, err := synchronizer.Sync(ctx, payload.ProviderCode, gateway, event.ID)
+				if err == nil {
+					eventLogger.Info("model sync completed", "provider_code", payload.ProviderCode)
+				}
 				return err
 			}),
 		},
@@ -112,17 +135,24 @@ func run(logger *slog.Logger) error {
 	maintenance := time.NewTicker(time.Hour)
 	defer maintenance.Stop()
 	runMaintenance := func() {
-		if _, err := privacyService.PurgeDue(ctx, 0, 20); err != nil {
+		logger.DebugContext(ctx, "maintenance cycle started")
+		if purged, err := privacyService.PurgeDue(ctx, 0, 20); err != nil {
 			logger.ErrorContext(ctx, "account purge cycle failed", "error_type", fmt.Sprintf("%T", err))
+		} else {
+			logger.InfoContext(ctx, "account purge cycle completed", "accounts_purged", purged)
 		}
-		if _, err := privacyService.CleanupGuests(ctx); err != nil {
+		if deleted, err := privacyService.CleanupGuests(ctx); err != nil {
 			logger.ErrorContext(ctx, "guest cleanup cycle failed", "error_type", fmt.Sprintf("%T", err))
+		} else {
+			logger.InfoContext(ctx, "guest cleanup cycle completed", "guests_deleted", deleted)
 		}
+		logger.DebugContext(ctx, "maintenance cycle completed")
 	}
 	runMaintenance()
 	for {
 		select {
 		case <-ctx.Done():
+			logger.Info("worker shutdown started")
 			return <-runnerError
 		case err := <-runnerError:
 			return err

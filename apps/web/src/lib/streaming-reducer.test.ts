@@ -7,6 +7,8 @@ describe("streaming reducer", () => {
       assistantMessageId: "assistant-1",
       generationId: "generation-1",
       conversationId: "conversation-1",
+      modelId: "model-1",
+      modelName: "Model One",
     };
     const started = startAssistant([], payload, "2026-07-23T00:00:00Z");
     expect(startAssistant(started, payload)).toBe(started);
@@ -17,6 +19,8 @@ describe("streaming reducer", () => {
       assistantMessageId: "assistant-1",
       generationId: "generation-1",
       conversationId: "conversation-1",
+      modelId: "model-1",
+      modelName: "Model One",
     });
     const first = appendDelta(started, {
       generationId: "generation-1",
@@ -37,6 +41,8 @@ describe("streaming reducer", () => {
       assistantMessageId: "assistant-1",
       generationId: "generation-1",
       conversationId: "conversation-1",
+      modelId: "model-1",
+      modelName: "Model One",
     });
     expect(finishAssistant(started, "generation-1", "complete")[0]?.status).toBe("complete");
   });

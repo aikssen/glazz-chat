@@ -14,6 +14,14 @@ using the straightforward `${HOST_PORT}:container_port` mapping.
 
 ## Environment contract
 
+`LOG_LEVEL` is a normal, non-secret setting shared by the API and worker and
+compiled into the web client as `NEXT_PUBLIC_LOG_LEVEL`. Accepted values are
+`debug`, `info`, `warn`, and `error`; use `debug` for local development and
+`info` or `warn` for a small production demo. Logs never include prompts,
+responses, credentials, cookies, or provider keys. HTTP requests use
+`X-Correlation-ID`, while realtime commands and worker jobs use their request
+or event ID as `correlation_id`.
+
 Compose uses the same environment file in two distinct ways:
 
 - `docker compose --env-file ...` supplies values used while resolving Compose;

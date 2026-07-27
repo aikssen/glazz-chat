@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strings"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/aikssen/glazz-chat/apps/api/internal/conversations"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/clock"
+	"github.com/aikssen/glazz-chat/apps/api/internal/platform/logging"
 )
 
 const (
@@ -42,6 +44,7 @@ type Handler struct {
 	heartbeatEvery time.Duration
 	heartbeatWait  time.Duration
 	writeWait      time.Duration
+	logger         *slog.Logger
 }
 
 func NewHandler(
@@ -56,7 +59,15 @@ func NewHandler(
 		originPatterns: originPatterns(allowedOrigins),
 		writeQueueSize: writeQueueSize, heartbeatEvery: heartbeatInterval,
 		heartbeatWait: heartbeatTimeout, writeWait: writeTimeout,
+		logger: slog.Default().With("component", "realtime"),
 	}
+}
+
+func (handler *Handler) WithLogger(logger *slog.Logger) *Handler {
+	if logger != nil {
+		handler.logger = logger.With("component", "realtime")
+	}
+	return handler
 }
 
 func (handler *Handler) Serve(
@@ -64,8 +75,11 @@ func (handler *Handler) Serve(
 	request *http.Request,
 	actor conversations.Actor,
 ) {
+	logger := logging.Context(handler.logger, request.Context())
+	logger.DebugContext(request.Context(), "websocket connection requested")
 	ticket := request.URL.Query().Get("ticket")
 	if err := handler.tickets.Consume(request.Context(), ticket, actor); err != nil {
+		logger.WarnContext(request.Context(), "websocket ticket rejected")
 		http.Error(response, "WebSocket ticket is invalid.", http.StatusUnauthorized)
 		return
 	}
@@ -73,8 +87,14 @@ func (handler *Handler) Serve(
 		OriginPatterns: handler.originPatterns, CompressionMode: websocket.CompressionDisabled,
 	})
 	if err != nil {
+		logger.WarnContext(request.Context(), "websocket upgrade failed",
+			"error_type", fmt.Sprintf("%T", err),
+		)
 		return
 	}
+	logger.InfoContext(request.Context(), "websocket connection opened",
+		"actor_type", actor.Type,
+	)
 	connection.SetReadLimit(maxCommandBytes)
 	defer connection.CloseNow()
 
@@ -82,6 +102,9 @@ func (handler *Handler) Serve(
 	defer cancel()
 	subscription, err := handler.broker.Subscribe(ctx, actor)
 	if err != nil {
+		logger.ErrorContext(ctx, "websocket subscription failed",
+			"error_type", fmt.Sprintf("%T", err),
+		)
 		_ = connection.Close(websocket.StatusInternalError, "realtime dependency unavailable")
 		return
 	}
@@ -130,6 +153,7 @@ func (handler *Handler) Serve(
 	_ = subscription.Close()
 	connection.CloseNow()
 	loops.Wait()
+	logger.InfoContext(ctx, "websocket connection closed", "actor_type", actor.Type)
 }
 
 func (handler *Handler) readLoop(
@@ -144,9 +168,16 @@ func (handler *Handler) readLoop(
 		if err := wsjson.Read(ctx, connection, &event); err != nil {
 			return err
 		}
+		eventCtx := logging.WithCorrelationID(ctx, event.RequestID)
+		logger := logging.Context(handler.logger, eventCtx).With(
+			"event_type", event.Type,
+			"event_id", event.EventID,
+		)
+		logger.DebugContext(eventCtx, "realtime command received")
 		if err := validateClientEvent(event); err != nil {
+			logger.WarnContext(eventCtx, "realtime command rejected", "reason", "invalid_envelope")
 			if _, emitErr := handler.broker.Emit(
-				ctx, actor, "command.rejected", event.RequestID,
+				eventCtx, actor, "command.rejected", event.RequestID,
 				map[string]any{
 					"commandEventId": event.EventID, "code": "invalid_command",
 					"message": "Command envelope is invalid.",
@@ -159,6 +190,7 @@ func (handler *Handler) readLoop(
 		switch event.Type {
 		case "heartbeat.pong":
 			lastPong.Store(handler.clock.Now().UnixNano())
+			logger.DebugContext(eventCtx, "realtime heartbeat received")
 		case "connection.resume":
 			var payload struct {
 				LastSequence int64 `json:"lastSequence"`
@@ -166,7 +198,7 @@ func (handler *Handler) readLoop(
 			if err := json.Unmarshal(event.Payload, &payload); err != nil || payload.LastSequence < 0 {
 				return errors.New("invalid resume payload")
 			}
-			replay, err := handler.broker.Replay(ctx, actor, payload.LastSequence)
+			replay, err := handler.broker.Replay(eventCtx, actor, payload.LastSequence)
 			if err != nil {
 				return err
 			}
@@ -182,6 +214,9 @@ func (handler *Handler) readLoop(
 				}
 				continue
 			}
+			logger.InfoContext(eventCtx, "realtime connection replayed",
+				"event_count", len(replay.Events),
+			)
 			for _, encoded := range replay.Events {
 				if !enqueue(outgoing, encoded) {
 					return errors.New("realtime write queue is full")
@@ -191,10 +226,14 @@ func (handler *Handler) readLoop(
 			if handler.processor == nil {
 				return errors.New("chat processor is unavailable")
 			}
-			start, err := handler.processor.Prepare(ctx, actor, event)
+			start, err := handler.processor.Prepare(eventCtx, actor, event)
 			if err != nil {
+				logger.WarnContext(eventCtx, "realtime command processing rejected",
+					"error_code", realtimeCode(err),
+					"error_type", fmt.Sprintf("%T", err),
+				)
 				if _, emitErr := handler.broker.Emit(
-					ctx, actor, "command.rejected", event.RequestID,
+					eventCtx, actor, "command.rejected", event.RequestID,
 					map[string]any{
 						"commandEventId": event.EventID, "code": realtimeCode(err),
 						"message": "Command could not be processed.",
@@ -205,7 +244,7 @@ func (handler *Handler) readLoop(
 				continue
 			}
 			if _, err := handler.broker.Emit(
-				ctx, actor, "command.acknowledged", event.RequestID,
+				eventCtx, actor, "command.acknowledged", event.RequestID,
 				map[string]string{"commandEventId": event.EventID},
 			); err != nil {
 				return err
@@ -213,6 +252,7 @@ func (handler *Handler) readLoop(
 			if start != nil {
 				start()
 			}
+			logger.InfoContext(eventCtx, "realtime command acknowledged")
 		}
 	}
 }

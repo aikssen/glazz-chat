@@ -28,6 +28,7 @@ func TestMiddlewareHeadersAndTrustedProxy(t *testing.T) {
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
 	request.RemoteAddr = "10.0.0.5:1234"
 	request.Header.Set("X-Forwarded-For", "203.0.113.9, 10.0.0.5")
+	request.Header.Set("X-Correlation-ID", "web-correlation-1")
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 
@@ -39,6 +40,12 @@ func TestMiddlewareHeadersAndTrustedProxy(t *testing.T) {
 	}
 	if !strings.Contains(response.Body.String(), "203.0.113.9") {
 		t.Fatalf("body = %s", response.Body.String())
+	}
+	if got := response.Header().Get("X-Correlation-ID"); got != "web-correlation-1" {
+		t.Fatalf("X-Correlation-ID = %q", got)
+	}
+	if exposed := response.Header().Get("Access-Control-Expose-Headers"); !strings.Contains(exposed, "X-Correlation-ID") {
+		t.Fatalf("Access-Control-Expose-Headers = %q", exposed)
 	}
 }
 

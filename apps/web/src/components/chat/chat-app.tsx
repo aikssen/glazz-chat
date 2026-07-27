@@ -7,6 +7,7 @@ import { usePreferences } from "@/components/theme-provider";
 import { APIError, API_URL, api, websocketURL } from "@/lib/api";
 import { selectedModelUnavailable, usagePresentation } from "@/lib/chat-presentation";
 import { dictionary } from "@/lib/i18n";
+import { log } from "@/lib/logger";
 import { clientEvent } from "@/lib/realtime-client";
 import { appendDelta, finishAssistant, startAssistant } from "@/lib/streaming-reducer";
 import type { Conversation, CurrentUser, GuestAllowance, Message, Model, Usage } from "@/lib/types";
@@ -146,6 +147,11 @@ export function ChatApp() {
 
   const handleEvent = useCallback(
     (event: ServerEvent) => {
+      log("debug", "realtime event received", {
+        correlation_id: event.requestId,
+        event_type: event.type,
+        sequence: event.sequence,
+      });
       if (event.sequence) lastSequence.current = Math.max(lastSequence.current, event.sequence);
       if (event.type === "heartbeat.ping") {
         const pong = clientEvent("heartbeat.pong", {
@@ -204,6 +210,9 @@ export function ChatApp() {
             assistantMessageId: assistantID,
             generationId: generationID,
             conversationId: targetConversation,
+            modelId: typeof event.payload.modelId === "string" ? event.payload.modelId : undefined,
+            modelName:
+              typeof event.payload.modelName === "string" ? event.payload.modelName : undefined,
           }),
         );
       }
@@ -268,6 +277,7 @@ export function ChatApp() {
   }, []);
 
   const connect = useCallback(async () => {
+    log("debug", "websocket connection started");
     try {
       const ticket = await api<{ ticket: string }>("/api/v1/auth/ws-ticket", {
         method: "POST",
@@ -276,6 +286,7 @@ export function ChatApp() {
       const next = new WebSocket(websocketURL(ticket.ticket));
       socket.current = next;
       next.onopen = () => {
+        log("info", "websocket connection opened");
         window.sessionStorage.removeItem(sessionRecoveryKey);
         setConnection("connected");
         if (lastSequence.current > 0) {
@@ -289,13 +300,20 @@ export function ChatApp() {
       next.onmessage = (message) => {
         try {
           handleEvent(JSON.parse(String(message.data)) as ServerEvent);
-        } catch {
+        } catch (cause) {
+          log("warn", "websocket event rejected", {
+            error_type: cause instanceof Error ? cause.name : typeof cause,
+          });
           setError(
             locale === "es" ? "Se recibió un evento inválido." : "An invalid event was received.",
           );
         }
       };
-      next.onclose = () => {
+      next.onclose = (event) => {
+        log(event.wasClean ? "info" : "warn", "websocket connection closed", {
+          close_code: event.code,
+          clean: event.wasClean,
+        });
         setConnection("offline");
         reconnectTimer.current = window.setTimeout(
           () => setReconnectAttempt((value) => value + 1),
@@ -303,6 +321,9 @@ export function ChatApp() {
         );
       };
     } catch (cause) {
+      log("error", "websocket connection failed", {
+        error_type: cause instanceof Error ? cause.name : typeof cause,
+      });
       if (
         cause instanceof APIError &&
         [401, 403].includes(cause.status) &&
@@ -508,6 +529,11 @@ export function ChatApp() {
         content,
       });
       pendingCommands.current.set(event.eventId, "chat.generate");
+      log("info", "chat generation command sent", {
+        correlation_id: event.requestId,
+        event_id: event.eventId,
+        conversation_id: conversation.id,
+      });
       socket.current?.send(JSON.stringify(event));
       return true;
     } catch (cause) {
@@ -523,6 +549,12 @@ export function ChatApp() {
       generationId: generation.id,
     });
     pendingCommands.current.set(event.eventId, "chat.cancel");
+    log("info", "chat cancellation command sent", {
+      correlation_id: event.requestId,
+      event_id: event.eventId,
+      conversation_id: generation.conversationId,
+      generation_id: generation.id,
+    });
     socket.current?.send(JSON.stringify(event));
   }
 
@@ -697,7 +729,7 @@ export function ChatApp() {
               title={selected?.title}
               messages={messages}
               streaming={Boolean(generation)}
-              modelName={selectedModelName}
+              fallbackModelName={selectedModelName}
               onActiveTurn={setActiveTurn}
               onRetry={retry}
             />

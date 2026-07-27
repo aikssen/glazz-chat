@@ -55,13 +55,15 @@ type Conversation struct {
 }
 
 type Message struct {
-	ID             uuid.UUID `json:"id"`
-	ConversationID uuid.UUID `json:"conversationId"`
-	Role           string    `json:"role"`
-	Content        string    `json:"content"`
-	Status         string    `json:"status"`
-	Sequence       int32     `json:"sequence"`
-	CreatedAt      time.Time `json:"createdAt"`
+	ID             uuid.UUID  `json:"id"`
+	ConversationID uuid.UUID  `json:"conversationId"`
+	Role           string     `json:"role"`
+	Content        string     `json:"content"`
+	Status         string     `json:"status"`
+	Sequence       int32      `json:"sequence"`
+	CreatedAt      time.Time  `json:"createdAt"`
+	ModelID        *uuid.UUID `json:"modelId,omitempty"`
+	ModelName      *string    `json:"modelName,omitempty"`
 }
 
 type CreateInput struct {
@@ -424,7 +426,7 @@ func (service *Service) Messages(
 			page.NextCursor = fmt.Sprintf("%d", records[index-1].Sequence)
 			break
 		}
-		page.Items = append(page.Items, mapMessage(record))
+		page.Items = append(page.Items, mapListedMessage(record))
 	}
 	return page, nil
 }
@@ -512,6 +514,15 @@ func mapMessage(record store.Message) Message {
 		ID: record.ID, ConversationID: record.ConversationID, Role: record.Role,
 		Content: record.Content, Status: record.Status, Sequence: record.Sequence,
 		CreatedAt: record.CreatedAt.Time.UTC(),
+	}
+}
+
+func mapListedMessage(record store.ListConversationMessagesRow) Message {
+	return Message{
+		ID: record.ID, ConversationID: record.ConversationID, Role: record.Role,
+		Content: record.Content, Status: record.Status, Sequence: record.Sequence,
+		CreatedAt: record.CreatedAt.Time.UTC(), ModelID: record.ModelID,
+		ModelName: record.ModelName,
 	}
 }
 
