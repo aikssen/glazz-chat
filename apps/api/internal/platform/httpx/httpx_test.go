@@ -59,6 +59,37 @@ func TestCORSRejectsUnknownOrigin(t *testing.T) {
 	}
 }
 
+func TestCORSPreflightAllowsConditionalMutations(t *testing.T) {
+	handler := CORS([]string{"https://glazz.example"})(
+		http.HandlerFunc(func(response http.ResponseWriter, _ *http.Request) {
+			response.WriteHeader(http.StatusNoContent)
+		}),
+	)
+	request := httptest.NewRequest(http.MethodOptions, "/", nil)
+	request.Header.Set("Origin", "https://glazz.example")
+	request.Header.Set("Access-Control-Request-Method", http.MethodPatch)
+	request.Header.Set(
+		"Access-Control-Request-Headers",
+		"content-type,if-match,x-csrf-token",
+	)
+	response := httptest.NewRecorder()
+
+	handler.ServeHTTP(response, request)
+
+	if response.Code != http.StatusNoContent {
+		t.Fatalf("status = %d", response.Code)
+	}
+	allowedHeaders := response.Header().Get("Access-Control-Allow-Headers")
+	for _, expected := range []string{"Content-Type", "If-Match", "X-CSRF-Token"} {
+		if !strings.Contains(allowedHeaders, expected) {
+			t.Fatalf("Access-Control-Allow-Headers = %q, missing %q", allowedHeaders, expected)
+		}
+	}
+	if got := response.Header().Get("Access-Control-Allow-Methods"); !strings.Contains(got, http.MethodPatch) {
+		t.Fatalf("Access-Control-Allow-Methods = %q", got)
+	}
+}
+
 func TestRecoveryDoesNotEchoPanicValue(t *testing.T) {
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
 	handler := RequestIDs(ids.NewFake(uuid.MustParse("018f0000-0000-7000-8000-000000000001")))(

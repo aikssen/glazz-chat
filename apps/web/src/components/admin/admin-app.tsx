@@ -91,7 +91,11 @@ export function AdminApp() {
         headers: { "If-Match": `"${model.version}"` },
         body: JSON.stringify(patch),
       });
-      setModels((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      if (patch.defaultFor) {
+        await load();
+      } else {
+        setModels((current) => current.map((item) => (item.id === updated.id ? updated : item)));
+      }
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "No fue posible guardar el modelo.";
       await load();
@@ -99,6 +103,17 @@ export function AdminApp() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function makeDefault(model: AdminModel, actorType: "guest" | "user") {
+    if (!model.enabled || model.defaultFor.includes(actorType)) return;
+    const audience = model.audience.includes(actorType)
+      ? model.audience
+      : [...model.audience, actorType];
+    await updateModel(model, {
+      audience,
+      defaultFor: [...model.defaultFor, actorType],
+    });
   }
 
   async function updateSetting(setting: RuntimeSetting, value: unknown) {
@@ -238,20 +253,79 @@ export function AdminApp() {
                       />
                     </td>
                     <td>{model.audience.join(", ") || "—"}</td>
-                    <td>{model.defaultFor.join(", ") || "—"}</td>
                     <td>
-                      <label className="switch-control">
-                        <input
-                          type="checkbox"
-                          checked={model.enabled}
-                          disabled={busy || !model.available || !model.supported}
-                          onChange={(event) =>
-                            void updateModel(model, { enabled: event.target.checked })
+                      <div className="model-default-controls">
+                        {(["guest", "user"] as const).map((actorType) => {
+                          const selected = model.defaultFor.includes(actorType);
+                          const actorLabel =
+                            actorType === "guest"
+                              ? es
+                                ? "Invitados"
+                                : "Guests"
+                              : es
+                                ? "Usuarios"
+                                : "Users";
+                          return (
+                            <button
+                              key={actorType}
+                              type="button"
+                              className="model-default-button"
+                              aria-pressed={selected}
+                              disabled={
+                                busy ||
+                                !model.enabled ||
+                                !model.available ||
+                                !model.supported ||
+                                selected
+                              }
+                              title={
+                                !model.enabled
+                                  ? es
+                                    ? "Expón el modelo antes de seleccionarlo."
+                                    : "Expose the model before selecting it."
+                                  : undefined
+                              }
+                              onClick={() => void makeDefault(model, actorType)}
+                            >
+                              {actorLabel}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="model-exposure-control">
+                        <label
+                          className="switch-control"
+                          title={
+                            model.defaultFor.length > 0
+                              ? es
+                                ? "Selecciona otro modelo predeterminado antes de desactivarlo."
+                                : "Select another default model before disabling this one."
+                              : undefined
                           }
-                        />
-                        <span />
-                        <b className="sr-only">Exponer {model.name}</b>
-                      </label>
+                        >
+                          <input
+                            type="checkbox"
+                            checked={model.enabled}
+                            disabled={
+                              busy ||
+                              (!model.enabled && (!model.available || !model.supported)) ||
+                              model.defaultFor.length > 0
+                            }
+                            onChange={(event) =>
+                              void updateModel(model, { enabled: event.target.checked })
+                            }
+                          />
+                          <span />
+                          <b className="sr-only">Exponer {model.name}</b>
+                        </label>
+                        {model.defaultFor.length > 0 ? (
+                          <small>
+                            {es ? "Cambia el predeterminado primero" : "Change the default first"}
+                          </small>
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                 ))}
