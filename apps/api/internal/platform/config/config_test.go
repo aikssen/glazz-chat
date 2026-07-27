@@ -17,6 +17,9 @@ func TestLoadExplicitEnvironment(t *testing.T) {
 	if cfg.Runtime.Environment != "development" || cfg.Runtime.APIAddress != ":8080" {
 		t.Fatalf("unexpected runtime config: %+v", cfg.Runtime)
 	}
+	if cfg.Runtime.LogLevel != "debug" {
+		t.Fatalf("Runtime.LogLevel = %q", cfg.Runtime.LogLevel)
+	}
 	if cfg.Database.URL != "postgres://glazz:glazz@localhost:5432/glazz?sslmode=disable" {
 		t.Fatal("Database.URL was not loaded from the environment")
 	}
@@ -62,6 +65,7 @@ func TestLoadRejectsInvalidValuesWithoutLeakingSecrets(t *testing.T) {
 	}{
 		{name: "port", key: "API_PORT", value: "70000"},
 		{name: "environment", key: "GLAZZ_ENV", value: "staging"},
+		{name: "log level", key: "LOG_LEVEL", value: "verbose"},
 		{name: "database", key: "DATABASE_URL", value: "secret-database-value"},
 		{name: "redis", key: "REDIS_URL", value: "secret-redis-value"},
 		{name: "cookie key", key: "COOKIE_SIGNING_KEY", value: "secret-cookie-value"},
@@ -139,6 +143,7 @@ func setValidEnvironment(t *testing.T) {
 	clearEnvironment(t)
 	values := map[string]string{
 		"GLAZZ_ENV":                   "development",
+		"LOG_LEVEL":                   "debug",
 		"API_PORT":                    "8080",
 		"WEB_URL":                     "http://localhost:3000",
 		"DATABASE_URL":                "postgres://glazz:glazz@localhost:5432/glazz?sslmode=disable",
@@ -194,7 +199,7 @@ func setValidEnvironment(t *testing.T) {
 func clearEnvironment(t *testing.T) {
 	t.Helper()
 	keys := []string{
-		"GLAZZ_ENV_FILE", "GLAZZ_ENV", "API_PORT", "WEB_URL", "DATABASE_URL",
+		"GLAZZ_ENV_FILE", "GLAZZ_ENV", "LOG_LEVEL", "API_PORT", "WEB_URL", "DATABASE_URL",
 		"DATABASE_MAX_CONNECTIONS", "DATABASE_MIN_CONNECTIONS", "DATABASE_MAX_LIFETIME",
 		"DATABASE_MAX_IDLE_TIME", "DATABASE_HEALTH_TIMEOUT", "DATABASE_MIGRATE_ON_STARTUP",
 		"REDIS_URL", "REDIS_PREFIX", "REDIS_HEALTH_TIMEOUT", "SHUTDOWN_TIMEOUT",

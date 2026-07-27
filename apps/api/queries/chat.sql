@@ -16,14 +16,26 @@ RETURNING *;
 SELECT * FROM messages WHERE id = sqlc.arg(id);
 
 -- name: ListConversationMessages :many
-SELECT *
+SELECT
+    messages.id,
+    messages.conversation_id,
+    messages.role,
+    messages.content,
+    messages.status,
+    messages.sequence,
+    messages.created_at,
+    messages.updated_at,
+    generations.model_id,
+    models.name AS model_name
 FROM messages
-WHERE conversation_id = sqlc.arg(conversation_id)
+LEFT JOIN generations ON generations.assistant_message_id = messages.id
+LEFT JOIN models ON models.id = generations.model_id
+WHERE messages.conversation_id = sqlc.arg(conversation_id)
   AND (
       sqlc.narg(before_sequence)::integer IS NULL
-      OR sequence < sqlc.narg(before_sequence)::integer
+      OR messages.sequence < sqlc.narg(before_sequence)::integer
   )
-ORDER BY sequence DESC, id DESC
+ORDER BY messages.sequence DESC, messages.id DESC
 LIMIT sqlc.arg(page_size);
 
 -- name: ListContextMessages :many

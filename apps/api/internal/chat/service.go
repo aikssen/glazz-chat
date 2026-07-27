@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -21,6 +22,7 @@ import (
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/clock"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/database"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/ids"
+	"github.com/aikssen/glazz-chat/apps/api/internal/platform/logging"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/store"
 	"github.com/aikssen/glazz-chat/apps/api/internal/provider"
 	"github.com/aikssen/glazz-chat/apps/api/internal/quota"
@@ -64,10 +66,18 @@ type Service struct {
 	safety        SafetyPolicy
 	safetySource  SafetyCategorySource
 	safetyReports SafetyReporter
+	logger        *slog.Logger
 }
 
 func (service *Service) WithAvailability(source func(context.Context) (bool, error)) *Service {
 	service.available = source
+	return service
+}
+
+func (service *Service) WithLogger(logger *slog.Logger) *Service {
+	if logger != nil {
+		service.logger = logger.With("component", "chat")
+	}
 	return service
 }
 
@@ -119,6 +129,7 @@ func New(
 		quota: quotaService, broker: broker, gateways: gateways, ids: idSource,
 		clock: timeSource, cancellations: make(map[uuid.UUID]context.CancelFunc),
 		pendingCancel: make(map[uuid.UUID]struct{}),
+		logger:        slog.Default().With("component", "chat"),
 	}
 }
 
@@ -127,6 +138,11 @@ func (service *Service) Prepare(
 	actor conversations.Actor,
 	event realtime.RawEvent,
 ) (func(), error) {
+	logger := service.logger.With(
+		"correlation_id", event.RequestID,
+		"command_type", event.Type,
+	)
+	logger.DebugContext(ctx, "chat command received")
 	switch event.Type {
 	case "chat.generate":
 		if err := service.checkAvailable(ctx); err != nil {
@@ -137,8 +153,14 @@ func (service *Service) Prepare(
 			return nil, err
 		}
 		if duplicate {
+			logger.InfoContext(ctx, "duplicate chat command ignored")
 			return nil, nil
 		}
+		logger.InfoContext(ctx, "chat generation accepted",
+			"generation_id", accepted.generation.ID,
+			"conversation_id", accepted.generation.ConversationID,
+			"model_id", accepted.selection.Model.ID,
+		)
 		return func() { go service.stream(accepted) }, nil
 	case "chat.cancel":
 		var payload struct {
@@ -159,6 +181,10 @@ func (service *Service) Prepare(
 		if generation.Status != "accepted" && generation.Status != "streaming" {
 			return nil, ErrConflict
 		}
+		logger.InfoContext(ctx, "chat cancellation accepted",
+			"generation_id", payload.GenerationID,
+			"conversation_id", payload.ConversationID,
+		)
 		return func() { service.cancel(payload.GenerationID) }, nil
 	default:
 		return nil, ErrInvalid
@@ -171,6 +197,9 @@ func (service *Service) Retry(
 	conversationID uuid.UUID,
 	idempotencyKey, requestID string,
 ) (Generation, func(), error) {
+	ctx = logging.WithCorrelationID(ctx, requestID)
+	logger := logging.Context(service.logger, ctx).With("conversation_id", conversationID)
+	logger.DebugContext(ctx, "chat retry requested")
 	if conversationID == uuid.Nil || len(idempotencyKey) < 16 || len(idempotencyKey) > 128 {
 		return Generation{}, nil, ErrInvalid
 	}
@@ -186,6 +215,9 @@ func (service *Service) Retry(
 			ConversationID: conversationID, IdempotencyKey: idempotencyKey,
 		},
 	); err == nil {
+		logger.InfoContext(ctx, "duplicate chat retry resolved",
+			"generation_id", existing.ID,
+		)
 		return generationView(existing), nil, nil
 	} else if !errors.Is(err, pgx.ErrNoRows) {
 		return Generation{}, nil, err
@@ -280,6 +312,10 @@ func (service *Service) Retry(
 		actor: actor, selection: selection, reservation: reservation,
 		generation: generation, messages: contextMessages, requestID: requestID,
 	}
+	logger.InfoContext(ctx, "chat retry accepted",
+		"generation_id", generation.ID,
+		"model_id", selection.Model.ID,
+	)
 	return generationView(generation), func() { go service.stream(accepted) }, nil
 }
 
@@ -400,6 +436,14 @@ func (service *Service) accept(
 
 func (service *Service) stream(accepted acceptedGeneration) {
 	ctx, cancel := context.WithCancel(service.root)
+	ctx = logging.WithCorrelationID(ctx, accepted.requestID)
+	logger := logging.Context(service.logger, ctx).With(
+		"generation_id", accepted.generation.ID,
+		"conversation_id", accepted.generation.ConversationID,
+		"model_id", accepted.selection.Model.ID,
+		"provider_code", accepted.selection.ProviderCode,
+	)
+	logger.InfoContext(ctx, "chat stream started")
 	service.mu.Lock()
 	service.cancellations[accepted.generation.ID] = cancel
 	_, cancelPending := service.pendingCancel[accepted.generation.ID]
@@ -420,9 +464,13 @@ func (service *Service) stream(accepted acceptedGeneration) {
 	if _, err := queries.MarkGenerationStreaming(ctx, store.MarkGenerationStreamingParams{
 		NowAt: now, ID: accepted.generation.ID,
 	}); err != nil {
+		logger.ErrorContext(ctx, "mark chat generation streaming failed",
+			"error_type", fmt.Sprintf("%T", err),
+		)
 		service.fail(accepted, err, "", provider.Usage{})
 		return
 	}
+	logger.DebugContext(ctx, "chat generation marked streaming")
 	_, _ = queries.SetConversationGenerationState(ctx, store.SetConversationGenerationStateParams{
 		State: "streaming", NowAt: now, ID: accepted.generation.ConversationID,
 	})
@@ -431,6 +479,8 @@ func (service *Service) stream(accepted acceptedGeneration) {
 		"generationId":       accepted.generation.ID,
 		"userMessageId":      accepted.generation.UserMessageID,
 		"assistantMessageId": accepted.generation.AssistantMessageID,
+		"modelId":            accepted.selection.Model.ID,
+		"modelName":          accepted.selection.Model.Name,
 	})
 	gateway := service.gateways[accepted.selection.ProviderCode]
 	stream, err := gateway.Stream(ctx, provider.Request{
@@ -438,9 +488,13 @@ func (service *Service) stream(accepted acceptedGeneration) {
 		MaxOutputTokens: int(accepted.reservation.Reserved), Temperature: 0.2,
 	})
 	if err != nil {
+		logger.WarnContext(ctx, "provider stream request failed",
+			"error_type", fmt.Sprintf("%T", err),
+		)
 		service.fail(accepted, err, "", provider.Usage{})
 		return
 	}
+	logger.DebugContext(ctx, "provider stream connected")
 	defer stream.Close()
 	var content strings.Builder
 	var usage provider.Usage
@@ -472,6 +526,9 @@ func (service *Service) stream(accepted acceptedGeneration) {
 			}
 			offset := content.Len()
 			content.WriteString(chunk.Text)
+			logger.DebugContext(ctx, "chat stream chunk received",
+				"stream_offset", content.Len(),
+			)
 			now = timestamp(service.clock.Now())
 			if _, err := queries.AppendAssistantMessage(ctx, store.AppendAssistantMessageParams{
 				Delta: chunk.Text, NowAt: now, ID: accepted.generation.AssistantMessageID,
@@ -494,6 +551,7 @@ func (service *Service) stream(accepted acceptedGeneration) {
 			break
 		}
 		if errors.Is(nextErr, context.Canceled) {
+			logger.InfoContext(ctx, "chat stream cancelled")
 			service.finish(accepted, "cancelled", "cancelled", content.String(), usage, providerRequestID, false)
 			return
 		}
@@ -518,6 +576,11 @@ func (service *Service) blockSafety(
 	providerRequestID string,
 ) {
 	ctx := context.WithoutCancel(service.root)
+	ctx = logging.WithCorrelationID(ctx, accepted.requestID)
+	logging.Context(service.logger, ctx).WarnContext(ctx, "chat response blocked",
+		"generation_id", accepted.generation.ID,
+		"conversation_id", accepted.generation.ConversationID,
+	)
 	if usage.OutputTokens == 0 && content != "" {
 		usage.OutputTokens = estimateTokens(content)
 	}
@@ -560,6 +623,7 @@ func (service *Service) finish(
 	retryable bool,
 ) {
 	ctx := context.WithoutCancel(service.root)
+	ctx = logging.WithCorrelationID(ctx, accepted.requestID)
 	if ctx.Err() != nil {
 		ctx = context.Background()
 	}
@@ -605,6 +669,14 @@ func (service *Service) finish(
 		payload["partialContentRetained"] = content != ""
 	}
 	_, _ = service.broker.Emit(ctx, accepted.actor, eventType, accepted.requestID, payload)
+	logging.Context(service.logger, ctx).InfoContext(ctx, "chat generation finalized",
+		"generation_id", accepted.generation.ID,
+		"conversation_id", accepted.generation.ConversationID,
+		"status", status,
+		"finish_reason", reason,
+		"input_tokens", usage.InputTokens,
+		"output_tokens", usage.OutputTokens,
+	)
 	if status == "completed" {
 		service.generateTitle(ctx, accepted, content)
 	}
@@ -619,6 +691,7 @@ func (service *Service) fail(
 	normalized := provider.Normalize(cause)
 	retryable := normalized.Retryable
 	ctx := context.WithoutCancel(service.root)
+	ctx = logging.WithCorrelationID(ctx, accepted.requestID)
 	if ctx.Err() != nil {
 		ctx = context.Background()
 	}
@@ -653,6 +726,19 @@ func (service *Service) fail(
 		"message":   "The model provider could not complete the response.",
 		"retryable": retryable, "partialContentRetained": message.Content != "",
 	})
+	logger := logging.Context(service.logger, ctx)
+	attributes := []any{
+		"generation_id", accepted.generation.ID,
+		"conversation_id", accepted.generation.ConversationID,
+		"error_code", code,
+		"error_type", fmt.Sprintf("%T", cause),
+		"retryable", retryable,
+	}
+	if retryable {
+		logger.WarnContext(ctx, "chat generation failed", attributes...)
+	} else {
+		logger.ErrorContext(ctx, "chat generation failed", attributes...)
+	}
 }
 
 func (service *Service) buildContext(

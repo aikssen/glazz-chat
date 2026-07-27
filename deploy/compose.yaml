@@ -77,6 +77,7 @@ services:
       dockerfile: deploy/docker/web.Dockerfile
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?set NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_LOG_LEVEL: ${LOG_LEVEL:?set LOG_LEVEL}
     environment:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
     ports:

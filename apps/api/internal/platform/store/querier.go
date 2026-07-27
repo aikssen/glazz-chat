@@ -87,7 +87,7 @@ type Querier interface {
 	ListAdminUsers(ctx context.Context, arg ListAdminUsersParams) ([]User, error)
 	ListAuthSessions(ctx context.Context, arg ListAuthSessionsParams) ([]AuthSession, error)
 	ListContextMessages(ctx context.Context, conversationID uuid.UUID) ([]Message, error)
-	ListConversationMessages(ctx context.Context, arg ListConversationMessagesParams) ([]Message, error)
+	ListConversationMessages(ctx context.Context, arg ListConversationMessagesParams) ([]ListConversationMessagesRow, error)
 	ListProviderModelMappings(ctx context.Context, providerID uuid.UUID) ([]ProviderModel, error)
 	ListPublicModels(ctx context.Context, actorType string) ([]Model, error)
 	ListRuntimeSettings(ctx context.Context) ([]RuntimeSetting, error)

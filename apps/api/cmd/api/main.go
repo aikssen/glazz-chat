@@ -27,6 +27,7 @@ import (
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/config"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/database"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/ids"
+	"github.com/aikssen/glazz-chat/apps/api/internal/platform/logging"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/redisx"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/server"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/telemetry"
@@ -38,23 +39,31 @@ import (
 )
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	bootstrap := slog.New(slog.NewJSONHandler(os.Stdout, nil)).With("service", "api")
+	cfg, err := config.Load()
+	if err != nil {
+		bootstrap.Error("api configuration failed", "error_type", errorType(err))
+		os.Exit(1)
+	}
+	logger, err := logging.New(os.Stdout, cfg.Runtime.LogLevel, "api")
+	if err != nil {
+		bootstrap.Error("api logger configuration failed", "error_type", errorType(err))
+		os.Exit(1)
+	}
 	slog.SetDefault(logger)
-	if err := run(logger); err != nil {
+	if err := run(logger, cfg); err != nil {
 		logger.Error("api stopped", "error_type", errorType(err))
 		os.Exit(1)
 	}
 }
 
-func run(logger *slog.Logger) error {
-	cfg, err := config.Load()
-	if err != nil {
-		return err
-	}
+func run(logger *slog.Logger, cfg config.Config) error {
 	rootCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	logger.Debug("api initialization started", "environment", cfg.Runtime.Environment)
 
 	if cfg.Database.MigrateOnStartup {
+		logger.Info("database migration started")
 		runner, err := database.NewMigrationRunner(cfg.Database.URL)
 		if err != nil {
 			return err
@@ -66,6 +75,7 @@ func run(logger *slog.Logger) error {
 		if err := runner.Close(); err != nil {
 			return err
 		}
+		logger.Info("database migration completed")
 	}
 
 	pool, err := database.Open(rootCtx, cfg.Database)
@@ -73,11 +83,13 @@ func run(logger *slog.Logger) error {
 		return err
 	}
 	defer pool.Close()
+	logger.Debug("database connection ready")
 	redisClient, err := redisx.Open(rootCtx, cfg.Redis)
 	if err != nil {
 		return err
 	}
 	defer redisClient.Close()
+	logger.Debug("redis connection ready")
 	telemetryRuntime, err := telemetry.New(rootCtx, cfg.Telemetry)
 	if err != nil {
 		return err
@@ -151,12 +163,14 @@ func run(logger *slog.Logger) error {
 		if err != nil {
 			return err
 		}
-		gateways[providerCode] = provider.NewResilient(gateway, provider.DefaultResilienceOptions())
+		gateways[providerCode] = provider.NewResilient(
+			gateway, provider.DefaultResilienceOptions(),
+		).WithLogger(logger)
 	}
 	chatService := chat.New(
 		rootCtx, pool, conversationService, modelService, quotaService, broker,
 		gateways, idSource, timeSource,
-	).WithSystemPrompt(func(ctx context.Context) (string, error) {
+	).WithLogger(logger).WithSystemPrompt(func(ctx context.Context) (string, error) {
 		snapshot, err := runtimeSettings.Load(ctx)
 		return snapshot.SystemPrompt, err
 	}).WithSummaryModel(func(ctx context.Context) (models.Selection, error) {
@@ -180,6 +194,7 @@ func run(logger *slog.Logger) error {
 				"stage", report.Stage,
 				"category", report.Category,
 				"request_id", report.RequestID,
+				"correlation_id", report.RequestID,
 			)
 			return nil
 		}),
@@ -189,7 +204,7 @@ func run(logger *slog.Logger) error {
 	})
 	realtimeHandler := realtime.NewHandler(
 		tickets, broker, chatService, timeSource, cfg.Runtime.AllowedOrigins,
-	)
+	).WithLogger(logger)
 	browserManager := browser.New(
 		cfg.Cookies, cfg.Auth.AccessTokenTTL, cfg.Auth.RefreshTokenTTL,
 	)
@@ -248,6 +263,7 @@ func run(logger *slog.Logger) error {
 		}
 		return err
 	case <-rootCtx.Done():
+		logger.Info("api shutdown started")
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), cfg.Runtime.ShutdownTimeout)
 		defer cancel()
 		return httpServer.Shutdown(shutdownCtx)

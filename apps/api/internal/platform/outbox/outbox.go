@@ -15,6 +15,7 @@ import (
 
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/clock"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/database"
+	"github.com/aikssen/glazz-chat/apps/api/internal/platform/logging"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/store"
 )
 
@@ -79,6 +80,10 @@ func New(
 }
 
 func (runner *Runner) Run(ctx context.Context) error {
+	runner.logger.InfoContext(ctx, "outbox runner started",
+		"worker_id", runner.workerID,
+		"poll_interval_ms", runner.pollEvery.Milliseconds(),
+	)
 	ticker := time.NewTicker(runner.pollEvery)
 	defer ticker.Stop()
 	for {
@@ -87,6 +92,7 @@ func (runner *Runner) Run(ctx context.Context) error {
 		}
 		select {
 		case <-ctx.Done():
+			runner.logger.InfoContext(ctx, "outbox runner stopped", "worker_id", runner.workerID)
 			return nil
 		case <-ticker.C:
 		}
@@ -94,6 +100,7 @@ func (runner *Runner) Run(ctx context.Context) error {
 }
 
 func (runner *Runner) RunOnce(ctx context.Context) (int, error) {
+	runner.logger.DebugContext(ctx, "outbox claim started", "worker_id", runner.workerID)
 	now := runner.clock.Now()
 	events, err := runner.database.Queries().ClaimOutboxEvents(ctx, store.ClaimOutboxEventsParams{
 		NowAt:             timestamp(now),
@@ -104,6 +111,10 @@ func (runner *Runner) RunOnce(ctx context.Context) (int, error) {
 	if err != nil {
 		return 0, fmt.Errorf("claim outbox events: %w", err)
 	}
+	runner.logger.DebugContext(ctx, "outbox claim completed",
+		"worker_id", runner.workerID,
+		"event_count", len(events),
+	)
 
 	var wait sync.WaitGroup
 	errorsChannel := make(chan error, len(events))
@@ -127,17 +138,29 @@ func (runner *Runner) RunOnce(ctx context.Context) (int, error) {
 }
 
 func (runner *Runner) process(ctx context.Context, record store.OutboxEvent) error {
+	ctx = logging.WithCorrelationID(ctx, record.ID.String())
+	logger := logging.Context(runner.logger, ctx).With(
+		"event_id", record.ID,
+		"event_type", record.EventType,
+		"attempt", record.Attempts,
+	)
+	logger.DebugContext(ctx, "outbox event processing started")
 	acquired, err := runner.database.WithAdvisoryLock(
 		ctx,
 		"outbox:"+record.ID.String(),
 		func() error { return runner.processLocked(ctx, record) },
 	)
 	if err != nil {
+		logger.ErrorContext(ctx, "outbox event processing failed",
+			"error_class", fmt.Sprintf("%T", err),
+		)
 		return err
 	}
 	if !acquired {
+		logger.DebugContext(ctx, "outbox event skipped because lock is held")
 		return nil
 	}
+	logger.DebugContext(ctx, "outbox event processing finished")
 	return nil
 }
 
@@ -155,6 +178,10 @@ func (runner *Runner) processLocked(ctx context.Context, record store.OutboxEven
 		return fmt.Errorf("read outbox receipt: %w", err)
 	}
 	if !handled {
+		logging.Context(runner.logger, ctx).DebugContext(ctx, "outbox handler started",
+			"event_id", record.ID,
+			"event_type", record.EventType,
+		)
 		event := Event{ID: record.ID.String(), Type: record.EventType, Payload: record.Payload}
 		if err := handler.Handle(ctx, event); err != nil {
 			return runner.fail(ctx, record, err)
@@ -162,7 +189,7 @@ func (runner *Runner) processLocked(ctx context.Context, record store.OutboxEven
 	}
 
 	now := runner.clock.Now()
-	return runner.database.WithinTransaction(ctx, pgx.TxOptions{}, func(queries *store.Queries) error {
+	err = runner.database.WithinTransaction(ctx, pgx.TxOptions{}, func(queries *store.Queries) error {
 		if err := queries.RecordOutboxReceipt(ctx, store.RecordOutboxReceiptParams{
 			EventID:     record.ID,
 			HandlerName: handlerName,
@@ -182,6 +209,13 @@ func (runner *Runner) processLocked(ctx context.Context, record store.OutboxEven
 		}
 		return nil
 	})
+	if err == nil {
+		logging.Context(runner.logger, ctx).InfoContext(ctx, "outbox event completed",
+			"event_id", record.ID,
+			"event_type", record.EventType,
+		)
+	}
+	return err
 }
 
 func (runner *Runner) fail(ctx context.Context, record store.OutboxEvent, handlerError error) error {
@@ -197,6 +231,12 @@ func (runner *Runner) fail(ctx context.Context, record store.OutboxEvent, handle
 		if err != nil {
 			return fmt.Errorf("dead-letter outbox event: %w", err)
 		}
+		logging.Context(runner.logger, ctx).ErrorContext(ctx, "outbox event dead-lettered",
+			"event_id", record.ID,
+			"event_type", record.EventType,
+			"attempt", record.Attempts,
+			"error_class", errorClass,
+		)
 		return nil
 	}
 	delay := time.Second * time.Duration(math.Pow(2, float64(record.Attempts-1)))
@@ -212,6 +252,13 @@ func (runner *Runner) fail(ctx context.Context, record store.OutboxEvent, handle
 	if err != nil {
 		return fmt.Errorf("schedule outbox retry: %w", err)
 	}
+	logging.Context(runner.logger, ctx).WarnContext(ctx, "outbox event scheduled for retry",
+		"event_id", record.ID,
+		"event_type", record.EventType,
+		"attempt", record.Attempts,
+		"retry_delay_ms", delay.Milliseconds(),
+		"error_class", errorClass,
+	)
 	return nil
 }
 

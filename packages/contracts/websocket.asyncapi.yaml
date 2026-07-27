@@ -194,12 +194,14 @@ components:
               payload:
                 type: object
                 additionalProperties: false
-                required: [conversationId, generationId, userMessageId, assistantMessageId]
+                required: [conversationId, generationId, userMessageId, assistantMessageId, modelId, modelName]
                 properties:
                   conversationId: { $ref: "#/components/schemas/Id" }
                   generationId: { $ref: "#/components/schemas/Id" }
                   userMessageId: { $ref: "#/components/schemas/Id" }
                   assistantMessageId: { $ref: "#/components/schemas/Id" }
+                  modelId: { $ref: "#/components/schemas/Id" }
+                  modelName: { type: string, minLength: 1 }
     ChatDelta:
       name: chat.delta
       payload:

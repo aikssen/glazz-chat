@@ -116,7 +116,9 @@ func TestM3DurableIdempotentChat(t *testing.T) {
 			ConversationID: conversation.ID, PageSize: 10,
 		},
 	)
-	if err != nil || len(messages) != 2 || messages[0].Content != "hello world" {
+	if err != nil || len(messages) != 2 || messages[0].Content != "hello world" ||
+		messages[0].ModelID == nil || *messages[0].ModelID != generation.ModelID ||
+		messages[0].ModelName == nil || *messages[0].ModelName == "" {
 		t.Fatalf("messages = %#v, error %v", messages, err)
 	}
 	replayStart, err := service.Prepare(ctx, actor, event)

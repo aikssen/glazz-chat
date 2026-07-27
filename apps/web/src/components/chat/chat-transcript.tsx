@@ -16,14 +16,14 @@ export function ChatTranscript({
   title,
   messages,
   streaming,
-  modelName,
+  fallbackModelName,
   onActiveTurn,
   onRetry,
 }: {
   title?: string;
   messages: Message[];
   streaming: boolean;
-  modelName: string;
+  fallbackModelName: string;
   onActiveTurn: (turn: number) => void;
   onRetry: () => void;
 }) {
@@ -134,7 +134,7 @@ export function ChatTranscript({
                 >
                   <div className="message__meta">
                     <strong>GLAZZ</strong>
-                    <span>{modelName}</span>
+                    <span>{message.modelName ?? fallbackModelName}</span>
                   </div>
                   <div className="message__body">
                     <MessageContent content={message.content || (streaming ? " " : "")} />

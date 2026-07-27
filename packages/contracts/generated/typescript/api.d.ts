@@ -637,6 +637,8 @@ export interface components {
             readonly sequence: number;
             /** Format: date-time */
             readonly createdAt: string;
+            readonly modelId?: components["schemas"]["Id"];
+            readonly modelName?: string;
         };
         readonly MessagePage: {
             readonly items: readonly components["schemas"]["Message"][];

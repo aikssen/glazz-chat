@@ -637,14 +637,26 @@ func (q *Queries) ListContextMessages(ctx context.Context, conversationID uuid.U
 }
 
 const listConversationMessages = `-- name: ListConversationMessages :many
-SELECT id, conversation_id, role, content, status, sequence, created_at, updated_at
+SELECT
+    messages.id,
+    messages.conversation_id,
+    messages.role,
+    messages.content,
+    messages.status,
+    messages.sequence,
+    messages.created_at,
+    messages.updated_at,
+    generations.model_id,
+    models.name AS model_name
 FROM messages
-WHERE conversation_id = $1
+LEFT JOIN generations ON generations.assistant_message_id = messages.id
+LEFT JOIN models ON models.id = generations.model_id
+WHERE messages.conversation_id = $1
   AND (
       $2::integer IS NULL
-      OR sequence < $2::integer
+      OR messages.sequence < $2::integer
   )
-ORDER BY sequence DESC, id DESC
+ORDER BY messages.sequence DESC, messages.id DESC
 LIMIT $3
 `
 
@@ -654,15 +666,28 @@ type ListConversationMessagesParams struct {
 	PageSize       int32     `db:"page_size"`
 }
 
-func (q *Queries) ListConversationMessages(ctx context.Context, arg ListConversationMessagesParams) ([]Message, error) {
+type ListConversationMessagesRow struct {
+	ID             uuid.UUID          `db:"id"`
+	ConversationID uuid.UUID          `db:"conversation_id"`
+	Role           string             `db:"role"`
+	Content        string             `db:"content"`
+	Status         string             `db:"status"`
+	Sequence       int32              `db:"sequence"`
+	CreatedAt      pgtype.Timestamptz `db:"created_at"`
+	UpdatedAt      pgtype.Timestamptz `db:"updated_at"`
+	ModelID        *uuid.UUID         `db:"model_id"`
+	ModelName      *string            `db:"model_name"`
+}
+
+func (q *Queries) ListConversationMessages(ctx context.Context, arg ListConversationMessagesParams) ([]ListConversationMessagesRow, error) {
 	rows, err := q.db.Query(ctx, listConversationMessages, arg.ConversationID, arg.BeforeSequence, arg.PageSize)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Message{}
+	items := []ListConversationMessagesRow{}
 	for rows.Next() {
-		var i Message
+		var i ListConversationMessagesRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.ConversationID,
@@ -672,6 +697,8 @@ func (q *Queries) ListConversationMessages(ctx context.Context, arg ListConversa
 			&i.Sequence,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ModelID,
+			&i.ModelName,
 		); err != nil {
 			return nil, err
 		}

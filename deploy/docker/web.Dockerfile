@@ -12,7 +12,9 @@ RUN pnpm install --frozen-lockfile
 COPY apps/web ./apps/web
 COPY packages/contracts ./packages/contracts
 ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_LOG_LEVEL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_LOG_LEVEL=$NEXT_PUBLIC_LOG_LEVEL
 RUN pnpm --filter @glazz/web build
 
 FROM node:24.13.0-alpine3.23

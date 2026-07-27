@@ -15,6 +15,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/ids"
+	"github.com/aikssen/glazz-chat/apps/api/internal/platform/logging"
 )
 
 type contextKey string
@@ -75,7 +76,14 @@ func RequestIDs(source ids.Source) func(http.Handler) http.Handler {
 				requestID = "req_" + generated.String()
 			}
 			response.Header().Set("X-Request-ID", requestID)
+			correlationID := request.Header.Get("X-Correlation-ID")
+			if !validRequestID(correlationID) {
+				correlationID = requestID
+			}
+			response.Header().Set("X-Correlation-ID", correlationID)
+			response.Header().Set("Access-Control-Expose-Headers", "X-Request-ID, X-Correlation-ID")
 			ctx := context.WithValue(request.Context(), requestIDKey, requestID)
+			ctx = logging.WithCorrelationID(ctx, correlationID)
 			next.ServeHTTP(response, request.WithContext(ctx))
 		})
 	}
@@ -90,6 +98,7 @@ func Recovery(logger *slog.Logger) func(http.Handler) http.Handler {
 						request.Context(),
 						"request panic",
 						"request_id", RequestID(request.Context()),
+						"correlation_id", logging.CorrelationID(request.Context()),
 						"panic_type", fmt.Sprintf("%T", recovered),
 						"stack", string(debug.Stack()),
 					)
@@ -154,7 +163,7 @@ func CORS(origins []string) func(http.Handler) http.Handler {
 			}
 			if request.Method == http.MethodOptions {
 				response.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
-				response.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-CSRF-Token, X-Request-ID, Idempotency-Key, If-Match")
+				response.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-CSRF-Token, X-Request-ID, X-Correlation-ID, Idempotency-Key, If-Match")
 				response.WriteHeader(http.StatusNoContent)
 				return
 			}

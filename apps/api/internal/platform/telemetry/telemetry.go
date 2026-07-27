@@ -21,6 +21,7 @@ import (
 
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/config"
 	"github.com/aikssen/glazz-chat/apps/api/internal/platform/httpx"
+	"github.com/aikssen/glazz-chat/apps/api/internal/platform/logging"
 )
 
 type Runtime struct {
@@ -99,6 +100,13 @@ func (runtime *Runtime) Middleware(logger *slog.Logger) func(http.Handler) http.
 	return func(next http.Handler) http.Handler {
 		return instrument(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
 			started := time.Now()
+			logger.DebugContext(
+				request.Context(),
+				"http request started",
+				"request_id", httpx.RequestID(request.Context()),
+				"correlation_id", logging.CorrelationID(request.Context()),
+				"method", request.Method,
+			)
 			recorder := &statusRecorder{ResponseWriter: response, status: http.StatusOK}
 			next.ServeHTTP(recorder, request)
 
@@ -112,6 +120,7 @@ func (runtime *Runtime) Middleware(logger *slog.Logger) func(http.Handler) http.
 				request.Context(),
 				"http request",
 				"request_id", httpx.RequestID(request.Context()),
+				"correlation_id", logging.CorrelationID(request.Context()),
 				"trace_id", spanContext.TraceID().String(),
 				"method", request.Method,
 				"route", route,
