@@ -78,8 +78,8 @@ publishes only web and API, keeps PostgreSQL and Redis on the internal Compose
 network, and uses named volumes so Dokploy can back them up.
 
 This file deliberately does **not** represent production. It uses HTTP,
-deterministic test OAuth, an ephemeral JWT signing key, and the fake LLM provider.
-Never expose it to the public Internet.
+deterministic test OAuth, and an ephemeral JWT signing key. The fake LLM provider
+is the safe default. Never expose it to the public Internet.
 
 Create a Dokploy Compose service from this repository and select:
 
@@ -97,6 +97,20 @@ GLAZZ_DEMO_WEB_ORIGIN=http://192.168.68.211:13000
 GLAZZ_DEMO_API_ORIGIN=http://192.168.68.211:18080
 GLAZZ_DEMO_OAUTH_EMAIL=demo-admin@glazz.test
 ```
+
+To exercise the real OpenAI-compatible integration during the LAN rehearsal,
+also configure:
+
+```dotenv
+GLAZZ_DEMO_LLM_PROVIDER_KIND=openai-compatible
+GLAZZ_DEMO_LLM_PROVIDER_BASE_URL=https://provider.example/v1
+GLAZZ_DEMO_LLM_PROVIDER_API_KEY=<provider secret>
+GLAZZ_DEMO_LLM_DEFAULT_MODEL=<supported model id>
+```
+
+Keep these variables absent to use the deterministic fake provider. Provider
+secrets belong in Dokploy's environment configuration and must never be
+committed.
 
 Ports `13000` and `18080` can be changed with `GLAZZ_DEMO_WEB_PORT` and
 `GLAZZ_DEMO_API_PORT`, but their public origins must be updated to match.

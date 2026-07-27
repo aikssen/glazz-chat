@@ -2,7 +2,8 @@ name: glazz-dokploy-demo
 
 # An isolated, LAN-only deployment rehearsal for Dokploy.
 # This is intentionally not a production configuration: it uses deterministic
-# OAuth, the fake LLM provider, HTTP cookies, and host ports instead of TLS.
+# OAuth, HTTP cookies, and host ports instead of TLS. The LLM provider defaults
+# to fake unless the optional OpenAI-compatible variables are configured.
 
 x-api-environment: &api-environment
   GLAZZ_ENV: development
@@ -47,10 +48,10 @@ x-api-environment: &api-environment
   OTEL_SERVICE_NAME: glazz-api
   OTEL_EXPORTER_OTLP_ENDPOINT: ""
   METRICS_PATH: /metrics
-  LLM_PROVIDER_KIND: fake
-  LLM_PROVIDER_BASE_URL: ""
-  LLM_PROVIDER_API_KEY: ""
-  LLM_DEFAULT_MODEL: deepseek-v4-flash
+  LLM_PROVIDER_KIND: ${GLAZZ_DEMO_LLM_PROVIDER_KIND:-fake}
+  LLM_PROVIDER_BASE_URL: ${GLAZZ_DEMO_LLM_PROVIDER_BASE_URL:-}
+  LLM_PROVIDER_API_KEY: ${GLAZZ_DEMO_LLM_PROVIDER_API_KEY:-}
+  LLM_DEFAULT_MODEL: ${GLAZZ_DEMO_LLM_DEFAULT_MODEL:-deepseek-v4-flash}
   LLM_FAKE_OUTPUT_TOKENS: "6"
 
 services:
