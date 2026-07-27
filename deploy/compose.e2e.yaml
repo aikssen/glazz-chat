@@ -1,11 +1,11 @@
 services:
   postgres:
     ports: !override
-      - "127.0.0.1:${GLAZZ_E2E_POSTGRES_PORT:-15432}:5432"
+      - "${GLAZZ_E2E_BIND_ADDRESS:?set GLAZZ_E2E_BIND_ADDRESS}:${GLAZZ_E2E_POSTGRES_PORT:?set GLAZZ_E2E_POSTGRES_PORT}:${POSTGRES_PORT:?set POSTGRES_PORT}"
 
   redis:
     ports: !override
-      - "127.0.0.1:${GLAZZ_E2E_REDIS_PORT:-16379}:6379"
+      - "${GLAZZ_E2E_BIND_ADDRESS:?set GLAZZ_E2E_BIND_ADDRESS}:${GLAZZ_E2E_REDIS_PORT:?set GLAZZ_E2E_REDIS_PORT}:${REDIS_PORT:?set REDIS_PORT}"
 
   api:
     env_file: !override
@@ -13,10 +13,12 @@ services:
         required: true
     environment:
       GLAZZ_ENV: test
-      WEB_URL: ${GLAZZ_E2E_WEB_ORIGIN:-http://127.0.0.1:13000}
-      CORS_ALLOWED_ORIGINS: ${GLAZZ_E2E_WEB_ORIGIN:-http://127.0.0.1:13000}
-      GOOGLE_CALLBACK_URL: ${GLAZZ_E2E_API_ORIGIN:-http://127.0.0.1:18080}/api/v1/auth/google/callback
-      JWT_ISSUER: ${GLAZZ_E2E_API_ORIGIN:-http://127.0.0.1:18080}
+      WEB_URL: ${GLAZZ_E2E_WEB_ORIGIN:?set GLAZZ_E2E_WEB_ORIGIN}
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable
+      REDIS_URL: redis://redis:${REDIS_PORT}/0
+      CORS_ALLOWED_ORIGINS: ${GLAZZ_E2E_WEB_ORIGIN:?set GLAZZ_E2E_WEB_ORIGIN}
+      GOOGLE_CALLBACK_URL: ${GLAZZ_E2E_API_ORIGIN:?set GLAZZ_E2E_API_ORIGIN}/api/v1/auth/google/callback
+      JWT_ISSUER: ${GLAZZ_E2E_API_ORIGIN:?set GLAZZ_E2E_API_ORIGIN}
       BOOTSTRAP_ADMIN_EMAILS: visual-e2e@glazz.test
       OAUTH_TEST_MODE: "true"
       OAUTH_TEST_EMAIL: visual-e2e@glazz.test
@@ -24,7 +26,7 @@ services:
       LLM_PROVIDER_BASE_URL: ""
       LLM_PROVIDER_API_KEY: ""
     ports: !override
-      - "127.0.0.1:${GLAZZ_E2E_API_PORT:-18080}:8080"
+      - "${GLAZZ_E2E_BIND_ADDRESS:?set GLAZZ_E2E_BIND_ADDRESS}:${GLAZZ_E2E_API_PORT:?set GLAZZ_E2E_API_PORT}:${API_PORT:?set API_PORT}"
 
   worker:
     env_file: !override
@@ -32,10 +34,12 @@ services:
         required: true
     environment:
       GLAZZ_ENV: test
-      WEB_URL: ${GLAZZ_E2E_WEB_ORIGIN:-http://127.0.0.1:13000}
-      CORS_ALLOWED_ORIGINS: ${GLAZZ_E2E_WEB_ORIGIN:-http://127.0.0.1:13000}
-      GOOGLE_CALLBACK_URL: ${GLAZZ_E2E_API_ORIGIN:-http://127.0.0.1:18080}/api/v1/auth/google/callback
-      JWT_ISSUER: ${GLAZZ_E2E_API_ORIGIN:-http://127.0.0.1:18080}
+      WEB_URL: ${GLAZZ_E2E_WEB_ORIGIN:?set GLAZZ_E2E_WEB_ORIGIN}
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable
+      REDIS_URL: redis://redis:${REDIS_PORT}/0
+      CORS_ALLOWED_ORIGINS: ${GLAZZ_E2E_WEB_ORIGIN:?set GLAZZ_E2E_WEB_ORIGIN}
+      GOOGLE_CALLBACK_URL: ${GLAZZ_E2E_API_ORIGIN:?set GLAZZ_E2E_API_ORIGIN}/api/v1/auth/google/callback
+      JWT_ISSUER: ${GLAZZ_E2E_API_ORIGIN:?set GLAZZ_E2E_API_ORIGIN}
       BOOTSTRAP_ADMIN_EMAILS: visual-e2e@glazz.test
       OAUTH_TEST_MODE: "true"
       OAUTH_TEST_EMAIL: visual-e2e@glazz.test
@@ -46,8 +50,8 @@ services:
   web:
     build:
       args:
-        NEXT_PUBLIC_API_URL: ${GLAZZ_E2E_API_ORIGIN:-http://127.0.0.1:18080}
+        NEXT_PUBLIC_API_URL: ${GLAZZ_E2E_API_ORIGIN:?set GLAZZ_E2E_API_ORIGIN}
     environment:
-      NEXT_PUBLIC_API_URL: ${GLAZZ_E2E_API_ORIGIN:-http://127.0.0.1:18080}
+      NEXT_PUBLIC_API_URL: ${GLAZZ_E2E_API_ORIGIN:?set GLAZZ_E2E_API_ORIGIN}
     ports: !override
-      - "127.0.0.1:${GLAZZ_E2E_WEB_PORT:-13000}:3000"
+      - "${GLAZZ_E2E_BIND_ADDRESS:?set GLAZZ_E2E_BIND_ADDRESS}:${GLAZZ_E2E_WEB_PORT:?set GLAZZ_E2E_WEB_PORT}:${WEB_PORT:?set WEB_PORT}"

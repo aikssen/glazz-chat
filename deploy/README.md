@@ -1,122 +1,127 @@
 # Deployment and local orchestration
 
+The deployment files separate topology from environment-specific policy:
+
+| File | Purpose |
+| --- | --- |
+| `compose.yaml` | Shared services, images, builds, healthchecks, and internal ports |
+| `compose.dev.yaml` | Local host port publishing |
+| `compose.dokploy.yaml` | Stage/production resource limits without host port publishing |
+| `compose.dokploy-demo.yaml` | LAN rehearsal override that publishes only API and web |
+| `compose.e2e.yaml` | Isolated visual-test override |
+
+No service port is embedded in Compose or a Dockerfile. Container ports, host
+ports, and bind addresses come from the selected environment file. A port change
+therefore does not require a source change or pull request.
+
+## Environment contract
+
+Compose uses the same environment file in two distinct ways:
+
+- `docker compose --env-file ...` supplies values used while resolving Compose;
+- `env_file` supplies runtime configuration to API and worker containers.
+
+Keep `GLAZZ_COMPOSE_ENV_FILE` aligned with the file passed to `--env-file`. The
+path is relative to this `deploy` directory.
+
+The committed templates are:
+
+- `.env.dev.example`: complete local-development values;
+- `.env.stage.example`: normal staging values with blank secrets;
+- `.env.prod.example`: normal production values with blank secrets.
+
+Normal values may be stored in the deployment environment file. Supply these
+secrets through Dokploy or the production secret manager:
+
+- `POSTGRES_PASSWORD`;
+- `DATABASE_URL`;
+- `REDIS_URL` when Redis authentication is enabled;
+- `GOOGLE_CLIENT_SECRET`;
+- `COOKIE_SIGNING_KEY`;
+- `LLM_PROVIDER_API_KEY`;
+- the JWT private key file.
+
+`JWT_PRIVATE_KEY_PATH` is not itself secret; the file contents are. Do not commit
+a populated environment file or private key.
+
 ## Development stack
 
-`compose.yaml` runs the persistent development topology: web, API, worker,
-PostgreSQL, and Redis. It requires the separately managed root `.env`.
+Create the untracked deployment environment:
 
 ```bash
-docker compose -f deploy/compose.yaml up --build
-docker compose -f deploy/compose.yaml down
+cp deploy/.env.dev.example deploy/.env
 ```
 
-Development data lives in the `glazz_postgres-data` volume. Do not add
-`--volumes` unless that data is intentionally being reset.
-
-PostgreSQL and Redis use exact image versions. Local database backups and Redis
-persistence are intentionally disabled; production persistence is designed and
-verified in M6.
-
-## Isolated visual E2E stack
-
-`compose.e2e.yaml` is a committed override for deterministic visual regression.
-It never reads the development `.env`; API and worker load the safe
-`.env.test.example` template and force the fake provider.
-
-The E2E topology:
-
-- uses the separate Compose project `glazz-e2e`;
-- binds PostgreSQL, Redis, API, and web only to `127.0.0.1`;
-- publishes ports `15432`, `16379`, `18080`, and `13000` by default;
-- uses a disposable PostgreSQL volume;
-- enables deterministic OAuth with a test-only administrator;
-- cannot consume the configured development LLM provider;
-- is always removed with its volume after the runner exits.
-
-Run the reviewed visual gate:
+Then run the shared topology with the development override:
 
 ```bash
-pnpm e2e:visual
+docker compose \
+  --env-file deploy/.env \
+  -f deploy/compose.yaml \
+  -f deploy/compose.dev.yaml \
+  up --build
 ```
 
-Regenerate every visual baseline only after an intentional design change:
+Stop it with the same configuration:
 
 ```bash
-pnpm e2e:visual:update
-pnpm e2e:visual
+docker compose \
+  --env-file deploy/.env \
+  -f deploy/compose.yaml \
+  -f deploy/compose.dev.yaml \
+  down
 ```
 
-Extra Playwright arguments follow `--`:
+Development data remains in named volumes. Add `--volumes` only for an
+intentional data reset.
 
-```bash
-pnpm e2e:visual -- --project=wide-1440
-```
+## Dokploy staging and production
 
-The runner rejects `GLAZZ_E2E_PROJECT=glazz` so cleanup cannot target the
-persistent development stack. It prints API, worker, and web logs on failure, then
-uses `down --volumes --remove-orphans` from an `EXIT` trap.
+Use `compose.dokploy.yaml` for a deployment behind Dokploy domains. It exposes
+ports only to the Compose network; it does not publish database, Redis, API, or
+web ports on the host.
 
-Ports and the isolated project name can be changed when parallel jobs require it:
+In Dokploy:
 
-```bash
-GLAZZ_E2E_PROJECT=glazz-e2e-2 \
-GLAZZ_E2E_WEB_PORT=23000 \
-GLAZZ_E2E_API_PORT=28080 \
-GLAZZ_E2E_POSTGRES_PORT=25432 \
-GLAZZ_E2E_REDIS_PORT=26379 \
-pnpm e2e:visual
-```
+1. Select `./deploy/compose.dokploy.yaml` as the Compose path.
+2. Copy the appropriate normal values from `.env.stage.example` or
+   `.env.prod.example` into the Compose environment editor.
+3. Add secret values in Dokploy, preferably through project-level shared
+   variables when several services need the same secret.
+4. Mount the JWT private key as a file at `JWT_PRIVATE_KEY_PATH` for both API and
+   worker.
+5. Route the web domain to `WEB_PORT` and the API domain to `API_PORT`.
 
-Do not point `GLAZZ_E2E_WEB_ORIGIN` or `GLAZZ_E2E_API_ORIGIN` at shared,
-production, or persistent development services.
+Dokploy writes its Compose environment beside the selected Compose file, so
+`GLAZZ_COMPOSE_ENV_FILE=.env` lets API and worker consume it. PostgreSQL receives
+only its explicitly mapped database variables, and web receives only its runtime
+port and public API URL.
 
-## Dokploy LAN deployment rehearsal
+## Dokploy LAN rehearsal
 
-`compose.dokploy-demo.yaml` is an isolated, persistent rehearsal stack for a
-self-hosted Dokploy server on the local network. It builds the public repository,
-publishes only web and API, keeps PostgreSQL and Redis on the internal Compose
-network, and uses named volumes so Dokploy can back them up.
-
-This file deliberately does **not** represent production. It uses HTTP,
-deterministic test OAuth, and an ephemeral JWT signing key. The fake LLM provider
-is the safe default. Never expose it to the public Internet.
-
-Create a Dokploy Compose service from this repository and select:
-
-```text
-Compose path: ./deploy/compose.dokploy-demo.yaml
-Branch: main
-```
-
-Add these project variables in Dokploy:
+`compose.dokploy-demo.yaml` extends the Dokploy topology and publishes only API
+and web for direct LAN access. Use `.env.dev.example` as the complete key list,
+add the resource-limit variables from a stage template, and configure:
 
 ```dotenv
-GLAZZ_DEMO_POSTGRES_PASSWORD=<random URL-safe value>
-GLAZZ_DEMO_COOKIE_SIGNING_KEY=<at least 32 random bytes, base64url without padding>
-GLAZZ_DEMO_WEB_ORIGIN=http://192.168.68.211:13000
-GLAZZ_DEMO_API_ORIGIN=http://192.168.68.211:18080
-GLAZZ_DEMO_OAUTH_EMAIL=demo-admin@glazz.test
+COMPOSE_PROJECT_NAME=glazz-dokploy-demo
+GLAZZ_COMPOSE_ENV_FILE=.env
+API_BIND_ADDRESS=0.0.0.0
+API_HOST_PORT=18080
+WEB_BIND_ADDRESS=0.0.0.0
+WEB_HOST_PORT=13000
+WEB_URL=http://192.168.68.211:13000
+NEXT_PUBLIC_API_URL=http://192.168.68.211:18080
+CORS_ALLOWED_ORIGINS=http://192.168.68.211:13000
+GOOGLE_CALLBACK_URL=http://192.168.68.211:18080/api/v1/auth/google/callback
+JWT_ISSUER=http://192.168.68.211:18080
 ```
 
-To exercise the real OpenAI-compatible integration during the LAN rehearsal,
-also configure:
+The container ports (`API_PORT`, `WEB_PORT`, `POSTGRES_PORT`, and `REDIS_PORT`)
+and the published LAN ports are independent variables. When changing an API or
+web host port, update its public origin variables to match.
 
-```dotenv
-GLAZZ_DEMO_LLM_PROVIDER_KIND=openai-compatible
-GLAZZ_DEMO_LLM_PROVIDER_BASE_URL=https://provider.example/v1
-GLAZZ_DEMO_LLM_PROVIDER_API_KEY=<provider secret>
-GLAZZ_DEMO_LLM_DEFAULT_MODEL=<supported model id>
-```
-
-Keep these variables absent to use the deterministic fake provider. Provider
-secrets belong in Dokploy's environment configuration and must never be
-committed.
-
-Ports `13000` and `18080` can be changed with `GLAZZ_DEMO_WEB_PORT` and
-`GLAZZ_DEMO_API_PORT`, but their public origins must be updated to match.
-PostgreSQL and Redis have no host ports.
-
-After deployment, validate:
+Validate the rehearsal:
 
 ```bash
 curl --fail http://192.168.68.211:18080/api/v1/health/live
@@ -124,5 +129,39 @@ curl --fail http://192.168.68.211:18080/api/v1/health/ready
 curl --fail http://192.168.68.211:13000/
 ```
 
-Removing the Compose service leaves the named data volumes intact. Delete those
-volumes separately only when the rehearsal data is intentionally disposable.
+## Isolated visual E2E stack
+
+The visual runner reads all project names, bind addresses, ports, and origins
+from `.env.test.example`. It uses the fake provider, deterministic OAuth, a
+separate Compose project, loopback-only published ports, and disposable volumes.
+
+Run the reviewed visual gate:
+
+```bash
+pnpm e2e:visual
+```
+
+Regenerate visual baselines only after an intentional design change:
+
+```bash
+pnpm e2e:visual:update
+pnpm e2e:visual
+```
+
+To run parallel jobs, copy `.env.test.example`, select distinct port values, and
+pass that file consistently to the runner/Compose configuration. Never point the
+E2E origins at shared, production, or persistent development services.
+
+## Inspect the resolved configuration
+
+Before deploying an environment, verify the rendered model without starting it:
+
+```bash
+docker compose \
+  --env-file deploy/.env \
+  -f deploy/compose.yaml \
+  -f deploy/compose.dev.yaml \
+  config
+```
+
+Remember that rendered output can contain secrets. Do not paste or commit it.

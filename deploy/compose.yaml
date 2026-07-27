@@ -1,31 +1,49 @@
-name: glazz
+name: ${COMPOSE_PROJECT_NAME:?set COMPOSE_PROJECT_NAME}
+
+x-app-env: &app-env
+  - path: ${GLAZZ_COMPOSE_ENV_FILE:-.env}
+    required: true
 
 services:
   postgres:
     image: postgres:18.4-alpine3.24
+    command: ["postgres", "-p", "${POSTGRES_PORT:?set POSTGRES_PORT}"]
     environment:
-      POSTGRES_DB: glazz
-      POSTGRES_USER: glazz
-      POSTGRES_PASSWORD: glazz
-    ports:
-      - "5432:5432"
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    expose:
+      - "${POSTGRES_PORT}"
     volumes:
       - postgres-data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U glazz -d glazz"]
-      interval: 2s
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -h 127.0.0.1 -p \"${POSTGRES_PORT}\" -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\"",
+        ]
+      interval: 5s
       timeout: 3s
       retries: 20
     restart: unless-stopped
 
   redis:
     image: redis:8.8.0-alpine3.23
-    command: ["redis-server", "--save", "", "--appendonly", "no"]
-    ports:
-      - "6379:6379"
+    command:
+      [
+        "redis-server",
+        "--port",
+        "${REDIS_PORT:?set REDIS_PORT}",
+        "--appendonly",
+        "${REDIS_APPENDONLY:?set REDIS_APPENDONLY}",
+      ]
+    expose:
+      - "${REDIS_PORT}"
+    volumes:
+      - redis-data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 2s
+      test: ["CMD", "redis-cli", "-p", "${REDIS_PORT}", "ping"]
+      interval: 5s
       timeout: 3s
       retries: 20
     restart: unless-stopped
@@ -34,29 +52,20 @@ services:
     build:
       context: ..
       dockerfile: deploy/docker/api.Dockerfile
-    env_file:
-      - path: ../.env
-        required: true
-    environment: &api-environment
-      GLAZZ_ENV: development
-      API_PORT: "8080"
-      DATABASE_URL: postgres://glazz:glazz@postgres:5432/glazz?sslmode=disable
-      REDIS_URL: redis://redis:6379/0
-      DATABASE_MIGRATE_ON_STARTUP: "false"
-      GUEST_SESSION_TTL: ${GUEST_SESSION_TTL:-720h}
-      LLM_FAKE_OUTPUT_TOKENS: ${LLM_FAKE_OUTPUT_TOKENS:-6}
-      OTEL_SERVICE_NAME: glazz-api
+    env_file: *app-env
+    environment:
+      OTEL_SERVICE_NAME: ${API_OTEL_SERVICE_NAME:?set API_OTEL_SERVICE_NAME}
     command: ["/bin/sh", "-c", "/app/migrate up && exec /app/api"]
-    ports:
-      - "8080:8080"
+    expose:
+      - "${API_PORT:?set API_PORT}"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/v1/health/ready"]
-      interval: 3s
+      test: ["CMD-SHELL", "wget -qO- \"http://localhost:$${API_PORT}/api/v1/health/ready\""]
+      interval: 5s
       timeout: 3s
       retries: 30
     restart: unless-stopped
@@ -65,10 +74,9 @@ services:
     build:
       context: ..
       dockerfile: deploy/docker/api.Dockerfile
-    env_file:
-      - path: ../.env
-        required: true
-    environment: *api-environment
+    env_file: *app-env
+    environment:
+      OTEL_SERVICE_NAME: ${WORKER_OTEL_SERVICE_NAME:?set WORKER_OTEL_SERVICE_NAME}
     command: ["/app/worker"]
     depends_on:
       api:
@@ -80,20 +88,22 @@ services:
       context: ..
       dockerfile: deploy/docker/web.Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?set NEXT_PUBLIC_API_URL}
     environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-}
-    ports:
-      - "3000:3000"
+      PORT: ${WEB_PORT:?set WEB_PORT}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    expose:
+      - "${WEB_PORT}"
     depends_on:
       api:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000"]
-      interval: 3s
+      test: ["CMD-SHELL", "wget -qO- \"http://127.0.0.1:$${PORT}\""]
+      interval: 5s
       timeout: 3s
       retries: 30
     restart: unless-stopped
 
 volumes:
   postgres-data:
+  redis-data:

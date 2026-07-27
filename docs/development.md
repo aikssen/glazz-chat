@@ -33,9 +33,10 @@ variables. `API_URL` and `API_KEY` remain temporary server-side aliases for the
 development configuration supplied before M1. Explicit variables take precedence.
 OpenCode Go is a development adapter, not the production provider.
 
-Compose requires the untracked root `.env` for API and worker services. A remote
-execution host must provision its own `.env`; do not copy workstation secrets to
-it as part of source synchronization.
+Compose requires the untracked `deploy/.env` for interpolation and for API and
+worker runtime configuration. Create it from `deploy/.env.dev.example`. A remote
+execution host must provision its own file; do not copy workstation secrets to it
+as part of source synchronization.
 
 ## Root Commands
 
@@ -55,7 +56,8 @@ The API and worker can be started with `go run ./cmd/api` and
 The complete development stack starts from the repository root with:
 
 ```bash
-docker compose -f deploy/compose.yaml up --build
+docker compose --env-file deploy/.env \
+  -f deploy/compose.yaml -f deploy/compose.dev.yaml up --build
 ```
 
 Use `pnpm db:migrate` for forward migrations, `pnpm db:reset` for an intentional

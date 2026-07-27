@@ -1,0 +1,16 @@
+services:
+  postgres:
+    ports:
+      - "${POSTGRES_BIND_ADDRESS:?set POSTGRES_BIND_ADDRESS}:${POSTGRES_HOST_PORT:?set POSTGRES_HOST_PORT}:${POSTGRES_PORT:?set POSTGRES_PORT}"
+
+  redis:
+    ports:
+      - "${REDIS_BIND_ADDRESS:?set REDIS_BIND_ADDRESS}:${REDIS_HOST_PORT:?set REDIS_HOST_PORT}:${REDIS_PORT:?set REDIS_PORT}"
+
+  api:
+    ports:
+      - "${API_BIND_ADDRESS:?set API_BIND_ADDRESS}:${API_HOST_PORT:?set API_HOST_PORT}:${API_PORT:?set API_PORT}"
+
+  web:
+    ports:
+      - "${WEB_BIND_ADDRESS:?set WEB_BIND_ADDRESS}:${WEB_HOST_PORT:?set WEB_HOST_PORT}:${WEB_PORT:?set WEB_PORT}"
