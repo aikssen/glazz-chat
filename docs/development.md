@@ -34,7 +34,7 @@ development configuration supplied before M1. Explicit variables take precedence
 OpenCode Go is a development adapter, not the production provider.
 
 Compose requires the untracked `deploy/.env` for interpolation and for API and
-worker runtime configuration. Create it from `deploy/.env.dev.example`. A remote
+worker runtime configuration. Create it from `deploy/.env.example`. A remote
 execution host must provision its own file; do not copy workstation secrets to it
 as part of source synchronization.
 

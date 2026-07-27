@@ -194,7 +194,7 @@ the exact versions in `.tool-versions`; the project uses
 Create the untracked Compose environment file from the development template:
 
 ```bash
-cp deploy/.env.dev.example deploy/.env
+cp deploy/.env.example deploy/.env
 ```
 
 Generate a local cookie-signing secret and set it as `COOKIE_SIGNING_KEY`:
@@ -203,7 +203,7 @@ Generate a local cookie-signing secret and set it as `COOKIE_SIGNING_KEY`:
 openssl rand -base64 32 | tr '+/' '-_' | tr -d '='
 ```
 
-Every key declared by `deploy/.env.dev.example` must exist in `deploy/.env`,
+Every key declared by `deploy/.env.example` must exist in `deploy/.env`,
 including keys whose valid development value is empty. Do not commit the
 populated file. Variables injected by the shell, CI, or an orchestrator take
 precedence.

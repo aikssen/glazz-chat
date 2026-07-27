@@ -22,11 +22,9 @@ Compose uses the same environment file in two distinct ways:
 Keep `GLAZZ_COMPOSE_ENV_FILE` aligned with the file passed to `--env-file`. The
 path is relative to this `deploy` directory.
 
-The committed templates are:
-
-- `.env.dev.example`: complete local-development values;
-- `.env.stage.example`: normal staging values with blank secrets;
-- `.env.prod.example`: normal production values with blank secrets.
+`deploy/.env.example` is the single committed Compose/Dokploy template. Copy it
+and replace the environment-specific values; do not create parallel committed
+templates for each environment.
 
 Normal values may be stored in the deployment environment file. Supply these
 secrets through Dokploy or the production secret manager:
@@ -47,7 +45,7 @@ a populated environment file or private key.
 Create the untracked deployment environment:
 
 ```bash
-cp deploy/.env.dev.example deploy/.env
+cp deploy/.env.example deploy/.env
 ```
 
 Then run the base stack:
@@ -79,8 +77,8 @@ limits. It extends the complete base stack instead of redefining it.
 In Dokploy:
 
 1. Select `./deploy/compose.dokploy.yaml` as the Compose path.
-2. Copy the appropriate normal values from `.env.stage.example` or
-   `.env.prod.example` into the Compose environment editor.
+2. Copy the normal values from `.env.example` into the Compose environment
+   editor and adapt them for the target environment.
 3. Add secret values in Dokploy, preferably through project-level shared
    variables when several services need the same secret.
 4. Mount the JWT private key as a file at `JWT_PRIVATE_KEY_PATH` for both API and
@@ -95,7 +93,7 @@ API URL.
 ## Dokploy LAN rehearsal
 
 The LAN rehearsal also uses `compose.dokploy.yaml`; the environment determines
-its public addresses and published ports. Use `.env.dev.example` as the complete
+its public addresses and published ports. Use `.env.example` as the complete
 key list, add the resource-limit variables from a stage template, and configure:
 
 ```dotenv
