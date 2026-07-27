@@ -1,0 +1,144 @@
+name: glazz-dokploy-demo
+
+# An isolated, LAN-only deployment rehearsal for Dokploy.
+# This is intentionally not a production configuration: it uses deterministic
+# OAuth, the fake LLM provider, HTTP cookies, and host ports instead of TLS.
+
+x-api-environment: &api-environment
+  GLAZZ_ENV: development
+  API_PORT: "8080"
+  WEB_URL: ${GLAZZ_DEMO_WEB_ORIGIN:-http://192.168.68.211:13000}
+  DATABASE_URL: postgres://glazz:${GLAZZ_DEMO_POSTGRES_PASSWORD:?set GLAZZ_DEMO_POSTGRES_PASSWORD}@postgres:5432/glazz?sslmode=disable
+  DATABASE_MAX_CONNECTIONS: "20"
+  DATABASE_MIN_CONNECTIONS: "2"
+  DATABASE_MAX_LIFETIME: 1h
+  DATABASE_MAX_IDLE_TIME: 30m
+  DATABASE_HEALTH_TIMEOUT: 2s
+  DATABASE_MIGRATE_ON_STARTUP: "false"
+  REDIS_URL: redis://redis:6379/0
+  REDIS_PREFIX: glazz_dokploy_demo
+  REDIS_HEALTH_TIMEOUT: 2s
+  SHUTDOWN_TIMEOUT: 10s
+  HTTP_REQUEST_TIMEOUT: 30s
+  HTTP_MAX_BODY_BYTES: "1048576"
+  MAINTENANCE_MODE: "false"
+  CORS_ALLOWED_ORIGINS: ${GLAZZ_DEMO_WEB_ORIGIN:-http://192.168.68.211:13000}
+  TRUSTED_PROXY_CIDRS: ""
+  GOOGLE_CLIENT_ID: ""
+  GOOGLE_CLIENT_SECRET: ""
+  GOOGLE_CALLBACK_URL: ${GLAZZ_DEMO_API_ORIGIN:-http://192.168.68.211:18080}/api/v1/auth/google/callback
+  OAUTH_TEST_MODE: "true"
+  OAUTH_TEST_EMAIL: ${GLAZZ_DEMO_OAUTH_EMAIL:-demo-admin@glazz.test}
+  JWT_ISSUER: ${GLAZZ_DEMO_API_ORIGIN:-http://192.168.68.211:18080}
+  JWT_AUDIENCE: glazz-web
+  JWT_ACTIVE_KID: dokploy-demo-1
+  JWT_PRIVATE_KEY_PATH: ""
+  JWT_ACCESS_TTL: 15m
+  AUTH_REFRESH_TTL: 720h
+  AUTH_RECENT_TTL: 15m
+  GUEST_SESSION_TTL: 720h
+  COOKIE_SIGNING_KEY: ${GLAZZ_DEMO_COOKIE_SIGNING_KEY:?set GLAZZ_DEMO_COOKIE_SIGNING_KEY}
+  COOKIE_DOMAIN: ""
+  COOKIE_SECURE: "false"
+  COOKIE_SAME_SITE: lax
+  TERMS_VERSION: 2026-07-23
+  PRIVACY_VERSION: 2026-07-23
+  BOOTSTRAP_ADMIN_EMAILS: ${GLAZZ_DEMO_OAUTH_EMAIL:-demo-admin@glazz.test}
+  OTEL_SERVICE_NAME: glazz-api
+  OTEL_EXPORTER_OTLP_ENDPOINT: ""
+  METRICS_PATH: /metrics
+  LLM_PROVIDER_KIND: fake
+  LLM_PROVIDER_BASE_URL: ""
+  LLM_PROVIDER_API_KEY: ""
+  LLM_DEFAULT_MODEL: deepseek-v4-flash
+  LLM_FAKE_OUTPUT_TOKENS: "6"
+
+services:
+  postgres:
+    image: postgres:18.4-alpine3.24
+    environment:
+      POSTGRES_DB: glazz
+      POSTGRES_USER: glazz
+      POSTGRES_PASSWORD: ${GLAZZ_DEMO_POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U glazz -d glazz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    mem_limit: 768m
+    restart: unless-stopped
+
+  redis:
+    image: redis:8.8.0-alpine3.23
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    mem_limit: 128m
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/docker/api.Dockerfile
+    environment: *api-environment
+    command: ["/bin/sh", "-c", "/app/migrate up && exec /app/api"]
+    ports:
+      - "${GLAZZ_DEMO_API_PORT:-18080}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/v1/health/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    mem_limit: 256m
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ..
+      dockerfile: deploy/docker/api.Dockerfile
+    environment:
+      <<: *api-environment
+      OTEL_SERVICE_NAME: glazz-worker
+    command: ["/app/worker"]
+    depends_on:
+      api:
+        condition: service_healthy
+    mem_limit: 128m
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/docker/web.Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: ${GLAZZ_DEMO_API_ORIGIN:-http://192.168.68.211:18080}
+    environment:
+      NEXT_PUBLIC_API_URL: ${GLAZZ_DEMO_API_ORIGIN:-http://192.168.68.211:18080}
+    ports:
+      - "${GLAZZ_DEMO_WEB_PORT:-13000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    mem_limit: 512m
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:
