@@ -154,7 +154,7 @@ func CORS(origins []string) func(http.Handler) http.Handler {
 			}
 			if request.Method == http.MethodOptions {
 				response.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
-				response.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-CSRF-Token, X-Request-ID, Idempotency-Key")
+				response.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-CSRF-Token, X-Request-ID, Idempotency-Key, If-Match")
 				response.WriteHeader(http.StatusNoContent)
 				return
 			}

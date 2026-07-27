@@ -141,6 +141,123 @@ test("administration renders access denial without conversation content", async 
   await expect(page.locator(".message-content")).toHaveCount(0);
 });
 
+test("administrator can expose a model, transfer defaults, and disable the previous model", async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "mobile-375");
+  type TestAdminModel = {
+    id: string;
+    name: string;
+    description: string;
+    capabilities: { chatCompletions: boolean };
+    enabled: boolean;
+    available: boolean;
+    supported: boolean;
+    audience: Array<"guest" | "user">;
+    defaultFor: Array<"guest" | "user">;
+    order: number;
+    version: number;
+  };
+  let models: TestAdminModel[] = [
+    {
+      id: "00000000-0000-7000-8000-000000000101",
+      name: "DeepSeek V4 Flash",
+      description: "Current default model.",
+      capabilities: { chatCompletions: true },
+      enabled: true,
+      available: true,
+      supported: true,
+      audience: ["guest", "user"],
+      defaultFor: ["guest", "user"],
+      order: 0,
+      version: 1,
+    },
+    {
+      id: "00000000-0000-7000-8000-000000000102",
+      name: "GLM 5",
+      description: "Discovered provider model.",
+      capabilities: { chatCompletions: true },
+      enabled: false,
+      available: true,
+      supported: true,
+      audience: ["user"],
+      defaultFor: [],
+      order: 1,
+      version: 2,
+    },
+  ];
+  const mutations: Array<{
+    id: string;
+    ifMatch: string | undefined;
+    patch: Partial<TestAdminModel>;
+  }> = [];
+
+  await page.route("**/api/v1/admin/models", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ items: models }),
+    }),
+  );
+  await page.route("**/api/v1/admin/models/*", async (route) => {
+    const request = route.request();
+    if (request.method() !== "PATCH") return route.fallback();
+    const id = new URL(request.url()).pathname.split("/").at(-1) ?? "";
+    const patch = request.postDataJSON() as Partial<TestAdminModel>;
+    mutations.push({ id, ifMatch: request.headers()["if-match"], patch });
+
+    if (patch.defaultFor) {
+      models = models.map((model) => {
+        if (model.id === id) return model;
+        const retainedDefaults = model.defaultFor.filter(
+          (actorType) => !patch.defaultFor?.includes(actorType),
+        );
+        return retainedDefaults.length === model.defaultFor.length
+          ? model
+          : { ...model, defaultFor: retainedDefaults, version: model.version + 1 };
+      });
+    }
+    let updated = models.find((model) => model.id === id);
+    if (!updated) return route.fulfill({ status: 404 });
+    updated = { ...updated, ...patch, version: updated.version + 1 };
+    models = models.map((model) => (model.id === id ? updated : model));
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(updated),
+    });
+  });
+
+  await page.goto("/admin");
+  const currentRow = page.locator("tbody tr").filter({ hasText: "DeepSeek V4 Flash" });
+  const candidateRow = page.locator("tbody tr").filter({ hasText: "GLM 5" });
+  const currentExposure = currentRow.getByRole("checkbox");
+  const candidateExposure = candidateRow.getByRole("checkbox");
+
+  await expect(currentExposure).toBeDisabled();
+  await candidateExposure.click();
+  await expect(candidateExposure).toBeChecked();
+
+  await candidateRow.getByRole("button", { name: "Usuarios" }).click();
+  await expect(candidateRow.getByRole("button", { name: "Usuarios" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await candidateRow.getByRole("button", { name: "Invitados" }).click();
+  await expect(candidateRow.getByRole("button", { name: "Invitados" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+
+  await expect(currentExposure).toBeEnabled();
+  await currentExposure.click();
+  await expect(currentExposure).not.toBeChecked();
+  expect(mutations).toHaveLength(4);
+  expect(mutations.every((mutation) => mutation.ifMatch?.startsWith('"'))).toBe(true);
+  expect(mutations[2]?.patch.audience).toEqual(["user", "guest"]);
+  expect(mutations[3]?.patch).toEqual({ enabled: false });
+});
+
 test("guest sends a message and receives a streamed response", async ({ page }) => {
   await page.goto("/");
   const composer = page.getByLabel("Pregunta a Glazz");
