@@ -320,16 +320,16 @@ project name `glazz`; do not bypass that guard.
 
 ### 5. Run the application stack
 
-The repository intentionally ignores `.env`, so Git and the regular source sync do
-not update provider credentials or other local secrets. Before starting a fresh
-remote clone, transfer the approved development environment separately and preserve
-owner-only permissions:
+The repository intentionally ignores `deploy/.env`, so Git and the regular source
+sync do not update provider credentials or other local secrets. Before starting a
+fresh remote clone, transfer the approved development environment separately and
+preserve owner-only permissions:
 
 ```bash
-rsync --archive --compress .env \
-  deploy@dev-server.local:/srv/glazz/glazz-chat/.env
+rsync --archive --compress deploy/.env \
+  deploy@dev-server.local:/srv/glazz/glazz-chat/deploy/.env
 ssh -o BatchMode=yes deploy@dev-server.local \
-  'chmod 600 /srv/glazz/glazz-chat/.env'
+  'chmod 600 /srv/glazz/glazz-chat/deploy/.env'
 ```
 
 After changing provider configuration, recreate both `api` and `worker`; a restart
@@ -340,7 +340,7 @@ The default command is suitable when the browser connects through an SSH tunnel:
 
 ```bash
 ssh -tt -o BatchMode=yes deploy@dev-server.local \
-  'zsh -lic "cd /srv/glazz/glazz-chat && docker compose -f deploy/compose.yaml up --build -d"'
+  'zsh -lic "cd /srv/glazz/glazz-chat && docker compose --env-file deploy/.env -f deploy/compose.yaml up --build -d"'
 ```
 
 For direct LAN access, browser-visible and OAuth URLs must use the server address.
@@ -348,20 +348,20 @@ For direct LAN access, browser-visible and OAuth URLs must use the server addres
 execution server:
 
 ```bash
-# Set these values in the separately managed remote .env:
+# Set these values in the separately managed remote deploy/.env:
 WEB_URL=http://dev-server.local:3000
 CORS_ALLOWED_ORIGINS=http://dev-server.local:3000,http://localhost:3000
 GOOGLE_CALLBACK_URL=http://dev-server.local:8080/api/v1/auth/google/callback
 
 ssh -tt -o BatchMode=yes deploy@dev-server.local \
-  'zsh -lic "cd /srv/glazz/glazz-chat && docker compose -f deploy/compose.yaml up --build --force-recreate -d api worker web"'
+  'zsh -lic "cd /srv/glazz/glazz-chat && docker compose --env-file deploy/.env -f deploy/compose.yaml up --build --force-recreate -d api worker web"'
 ```
 
 Do not duplicate externally configurable values under a Compose service's
 `environment` block when the same service uses `env_file`: `environment` has
 higher precedence, including values produced by an interpolation default, and can
-silently replace the remote `.env`. Keep only container-internal addresses and
-fixed development process settings in the Compose `environment` block.
+silently replace the remote `deploy/.env`. Keep Compose `environment` entries
+limited to truly service-specific overrides.
 
 When `NEXT_PUBLIC_API_URL` is empty, the web client derives the API hostname from
 the current browser location and uses port `8080`. Set it explicitly only when the
@@ -410,7 +410,7 @@ Inspect:
 
 ```bash
 ssh -o BatchMode=yes deploy@dev-server.local \
-  'cd /srv/glazz/glazz-chat && docker compose -f deploy/compose.yaml ps'
+  'cd /srv/glazz/glazz-chat && docker compose --env-file deploy/.env -f deploy/compose.yaml ps'
 ```
 
 Verify the LAN origin explicitly; health alone does not exercise browser CORS:
@@ -471,14 +471,14 @@ Recent logs:
 
 ```bash
 ssh -o BatchMode=yes deploy@dev-server.local \
-  'cd /srv/glazz/glazz-chat && docker compose -f deploy/compose.yaml logs --tail=200'
+  'cd /srv/glazz/glazz-chat && docker compose --env-file deploy/.env -f deploy/compose.yaml logs --tail=200'
 ```
 
 Stop containers while preserving the PostgreSQL volume:
 
 ```bash
 ssh -o BatchMode=yes deploy@dev-server.local \
-  'cd /srv/glazz/glazz-chat && docker compose -f deploy/compose.yaml down'
+  'cd /srv/glazz/glazz-chat && docker compose --env-file deploy/.env -f deploy/compose.yaml down'
 ```
 
 Do not add `--volumes` unless the owner explicitly requests destruction of remote
@@ -494,7 +494,8 @@ may contain unrelated databases and images.
 For Docker Desktop on macOS:
 
 ```bash
-docker compose -f deploy/compose.yaml down --remove-orphans
+docker compose --env-file deploy/.env \
+  -f deploy/compose.yaml down --remove-orphans
 docker image ls
 docker volume ls
 docker desktop stop
@@ -506,7 +507,7 @@ use a global `docker system prune --all --volumes` as a routine cutover step.
 Verify that project ports no longer listen locally and that the remote stack
 remains healthy. Ignored dependency/build directories such as `node_modules`,
 `.next`, coverage, and Playwright output may be removed locally because they are
-reproducible; retain source, lockfiles, Git metadata, and `.env`.
+reproducible; retain source, lockfiles, Git metadata, and `deploy/.env`.
 
 ## Generated files
 

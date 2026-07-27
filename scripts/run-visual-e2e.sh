@@ -32,22 +32,25 @@ case "$mode" in
 esac
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-project="${GLAZZ_E2E_PROJECT:-glazz-e2e}"
-web_port="${GLAZZ_E2E_WEB_PORT:-13000}"
-api_port="${GLAZZ_E2E_API_PORT:-18080}"
+set -a
+# shellcheck disable=SC1091
+source "$repo_root/.env.test.example"
+set +a
+
+project="${COMPOSE_PROJECT_NAME:?set COMPOSE_PROJECT_NAME in .env.test.example}"
+web_port="${WEB_HOST_PORT:?set WEB_HOST_PORT in .env.test.example}"
+api_port="${API_HOST_PORT:?set API_HOST_PORT in .env.test.example}"
 
 if [[ ! "$project" =~ ^[a-z0-9][a-z0-9_-]*$ ]] || [[ "$project" == "glazz" ]]; then
-  echo "GLAZZ_E2E_PROJECT must be a safe name other than the development project 'glazz'." >&2
+  echo "COMPOSE_PROJECT_NAME must be a safe name other than the development project 'glazz'." >&2
   exit 2
 fi
 
-export GLAZZ_E2E_WEB_PORT="$web_port"
-export GLAZZ_E2E_API_PORT="$api_port"
-export GLAZZ_E2E_WEB_ORIGIN="${GLAZZ_E2E_WEB_ORIGIN:-http://127.0.0.1:${web_port}}"
-export GLAZZ_E2E_API_ORIGIN="${GLAZZ_E2E_API_ORIGIN:-http://127.0.0.1:${api_port}}"
+export COMPOSE_PROJECT_NAME="$project"
 
 compose=(
   docker compose
+  --env-file "$repo_root/.env.test.example"
   --project-name "$project"
   --file "$repo_root/deploy/compose.yaml"
   --file "$repo_root/deploy/compose.e2e.yaml"

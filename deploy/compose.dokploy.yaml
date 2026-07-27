@@ -1,0 +1,34 @@
+services:
+  postgres:
+    extends:
+      file: compose.yaml
+      service: postgres
+    mem_limit: ${POSTGRES_MEMORY_LIMIT:?set POSTGRES_MEMORY_LIMIT}
+
+  redis:
+    extends:
+      file: compose.yaml
+      service: redis
+    mem_limit: ${REDIS_MEMORY_LIMIT:?set REDIS_MEMORY_LIMIT}
+
+  api:
+    extends:
+      file: compose.yaml
+      service: api
+    mem_limit: ${API_MEMORY_LIMIT:?set API_MEMORY_LIMIT}
+
+  worker:
+    extends:
+      file: compose.yaml
+      service: worker
+    mem_limit: ${WORKER_MEMORY_LIMIT:?set WORKER_MEMORY_LIMIT}
+
+  web:
+    extends:
+      file: compose.yaml
+      service: web
+    mem_limit: ${WEB_MEMORY_LIMIT:?set WEB_MEMORY_LIMIT}
+
+volumes:
+  postgres-data:
+  redis-data:

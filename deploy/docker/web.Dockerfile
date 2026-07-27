@@ -11,7 +11,7 @@ RUN pnpm install --frozen-lockfile
 
 COPY apps/web ./apps/web
 COPY packages/contracts ./packages/contracts
-ARG NEXT_PUBLIC_API_URL=http://localhost:8080
+ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 RUN pnpm --filter @glazz/web build
 

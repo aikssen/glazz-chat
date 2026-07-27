@@ -191,10 +191,10 @@ the exact versions in `.tool-versions`; the project uses
 
 ### 1. Configure the environment
 
-Create the untracked root environment file from the complete template:
+Create the untracked Compose environment file from the development template:
 
 ```bash
-cp .env.example .env
+cp deploy/.env.example deploy/.env
 ```
 
 Generate a local cookie-signing secret and set it as `COOKIE_SIGNING_KEY`:
@@ -203,9 +203,10 @@ Generate a local cookie-signing secret and set it as `COOKIE_SIGNING_KEY`:
 openssl rand -base64 32 | tr '+/' '-_' | tr -d '='
 ```
 
-Every key declared by `.env.example` must exist in `.env`, including keys whose
-valid development value is empty. Do not commit `.env`. Variables injected by the
-shell, CI, or an orchestrator take precedence over the file.
+Every key declared by `deploy/.env.example` must exist in `deploy/.env`,
+including keys whose valid development value is empty. Do not commit the
+populated file. Variables injected by the shell, CI, or an orchestrator take
+precedence.
 
 The safest first run uses the deterministic fake provider:
 
@@ -224,7 +225,8 @@ development and automated tests.
 From the repository root:
 
 ```bash
-docker compose -f deploy/compose.yaml up --build
+docker compose --env-file deploy/.env \
+  -f deploy/compose.yaml up --build
 ```
 
 Compose starts:
@@ -244,7 +246,8 @@ pre-deploy job.
 ### 3. Verify the stack
 
 ```bash
-docker compose -f deploy/compose.yaml ps
+docker compose --env-file deploy/.env \
+  -f deploy/compose.yaml ps
 curl --fail http://localhost:8080/api/v1/health/live
 curl --fail http://localhost:8080/api/v1/health/ready
 curl --fail http://localhost:8080/api/v1/config/public
@@ -256,12 +259,12 @@ connection indicator reports that realtime communication is connected.
 ### 4. Stop services
 
 ```bash
-docker compose -f deploy/compose.yaml down
+docker compose --env-file deploy/.env \
+  -f deploy/compose.yaml down
 ```
 
 PostgreSQL data remains in the `postgres-data` volume. Use
-`docker compose -f deploy/compose.yaml down --volumes` only for an intentional
-local data reset.
+Add `--volumes` to that command only for an intentional local data reset.
 
 ## Use a live OpenAI-compatible provider
 
@@ -278,7 +281,9 @@ LLM_DEFAULT_MODEL=provider-model-id
 Restart the API and worker after changing provider configuration:
 
 ```bash
-docker compose -f deploy/compose.yaml up --build --force-recreate api worker
+docker compose --env-file deploy/.env \
+  -f deploy/compose.yaml \
+  up --build --force-recreate api worker
 ```
 
 The worker discovers provider models. Discovery does not expose every returned
@@ -336,7 +341,8 @@ pnpm install --frozen-lockfile
 ### Start infrastructure
 
 ```bash
-docker compose -f deploy/compose.yaml up -d postgres redis
+docker compose --env-file deploy/.env \
+  -f deploy/compose.yaml up -d postgres redis
 ```
 
 ### Apply migrations
