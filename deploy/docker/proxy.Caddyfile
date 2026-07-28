@@ -1,0 +1,35 @@
+# Single-origin reverse proxy for a public Glazz deployment.
+#
+# The browser talks to one host only. Everything under /api — the REST surface and
+# the /api/v1/ws WebSocket alike — goes to the Go API; everything else is the Next.js
+# app. That collapses CORS, keeps cookies same-site, and means NEXT_PUBLIC_API_URL is
+# just the public origin.
+#
+# The site address is :80, not a hostname, on purpose. Given a hostname Caddy would
+# try to obtain a certificate over ACME — wrong here, because TLS terminates at
+# Cloudflare and the hop from Traefik to this container is plain HTTP.
+:80 {
+	encode zstd gzip
+
+	# REST and WebSocket share the /api prefix. reverse_proxy upgrades the WebSocket
+	# transparently — the /api/v1/ws handshake needs no special handling.
+	@api path /api/*
+	handle @api {
+		reverse_proxy api:8080
+	}
+
+	# Everything else is the Next.js application.
+	handle {
+		reverse_proxy web:3000
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+
+	log {
+		output stderr
+		format console
+	}
+}

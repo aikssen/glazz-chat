@@ -1,0 +1,143 @@
+# Public deployment stack — for exposure beyond the LAN (a reverse proxy such as
+# Cloudflare Tunnel → Traefik in front).
+#
+#   docker compose -f deploy/compose.public.yaml up -d --build
+#
+# `compose.yaml` remains the local stack and `compose.dokploy.yaml` the resource-capped
+# demo. This file is the one meant to face the Internet, and it differs on purpose:
+#
+#   1. a Caddy `proxy` service is the single entry point. It serves the Next.js app and
+#      routes /api (REST and the WebSocket) to the API, so the browser sees one origin —
+#      no CORS, no cross-site cookies, and NEXT_PUBLIC_API_URL is just the public origin;
+#   2. nothing but the proxy is reachable. postgres and redis do not publish host ports,
+#      and the api and web are reached only through Caddy on the internal network;
+#   3. the proxy joins the external reverse-proxy network so the platform can route to
+#      it. Its name is parameterised — set PROXY_NETWORK to the network your reverse
+#      proxy shares (e.g. `dokploy-network`).
+#
+# Routing is left to the platform (e.g. Dokploy Domains) against the `proxy` service on
+# port 80, with certificate issuance off — TLS terminates at the edge.
+#
+# Provider note: publish this with LLM_PROVIDER_KIND=fake unless the deployment is gated.
+# An approved metered provider on an open hostname is a bill, not a demo.
+name: ${COMPOSE_PROJECT_NAME:?set COMPOSE_PROJECT_NAME}
+
+x-app-env: &app-env
+  # required:false — on a platform deploy the environment is injected, not read from a
+  # committed .env.
+  - path: ${GLAZZ_COMPOSE_ENV_FILE:-.env}
+    required: false
+
+# Production requires a persistent JWT signing key (an ephemeral one would drop every
+# session on restart). It is an ed25519 PKCS#8 PEM file, mounted read-only from a host
+# path kept outside the repository. Both the API and the worker load config, so both
+# must see it. Point JWT_PRIVATE_KEY_PATH at the mount target below.
+x-jwt-key: &jwt-key
+  - ${JWT_KEY_FILE:?set JWT_KEY_FILE to the host path of the ed25519 private key}:/run/secrets/jwt-private.pem:ro
+
+services:
+  postgres:
+    image: postgres:18.4-alpine3.24
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  redis:
+    image: redis:8.8.0-alpine3.23
+    command: ["redis-server", "--appendonly", "${REDIS_APPENDONLY:-yes}"]
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/docker/api.Dockerfile
+    env_file: *app-env
+    environment:
+      OTEL_SERVICE_NAME: ${API_OTEL_SERVICE_NAME:-glazz-api}
+    volumes: *jwt-key
+    command: ["/bin/sh", "-c", "/app/migrate up && exec /app/api"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/v1/health/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ..
+      dockerfile: deploy/docker/api.Dockerfile
+    env_file: *app-env
+    environment:
+      OTEL_SERVICE_NAME: ${WORKER_OTEL_SERVICE_NAME:-glazz-worker}
+    volumes: *jwt-key
+    command: ["/app/worker"]
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/docker/web.Dockerfile
+      args:
+        # The public origin, so the browser reaches the API and the WebSocket on the
+        # same host. Caddy splits /api off internally.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?set NEXT_PUBLIC_API_URL}
+        NEXT_PUBLIC_LOG_LEVEL: ${LOG_LEVEL:-info}
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  proxy:
+    image: caddy:2-alpine
+    volumes:
+      - ../deploy/docker/proxy.Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      web:
+        condition: service_healthy
+    networks:
+      - default
+      - proxy-net
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  # The reverse proxy's network, created outside this stack. Traefik (or any front
+  # proxy) cannot route to a container it does not share a network with.
+  proxy-net:
+    external: true
+    name: ${PROXY_NETWORK:?set PROXY_NETWORK, e.g. dokploy-network}
