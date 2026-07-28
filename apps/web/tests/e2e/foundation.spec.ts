@@ -394,6 +394,8 @@ test("Google approval covers the registered-user lifecycle", async ({
       hasText: "Conserva esta conversación después del login.",
     }),
   ).toBeVisible();
+  const migratedConversationID = new URL(page.url()).searchParams.get("conversation");
+  expect(migratedConversationID).toBeTruthy();
 
   const apiOrigin = new URL(process.env.E2E_API_URL ?? page.url());
   if (!process.env.E2E_API_URL) apiOrigin.port = "8080";
@@ -405,9 +407,10 @@ test("Google approval covers the registered-user lifecycle", async ({
     const response = await fetch(`${origin}/api/v1/conversations?limit=100`, {
       credentials: "include",
     });
-    return (await response.json()) as { items: unknown[] };
+    return (await response.json()) as { items: Array<{ id: string }> };
   }, apiOrigin.origin);
-  expect(migrated.items).toHaveLength(1);
+  expect(migrated.items.some((item) => item.id === migratedConversationID)).toBe(true);
+  await keepOnlyConversation(page, apiOrigin.origin, migratedConversationID!);
   expect(callbackURL).toContain("code=glazz-e2e-approved");
   const replay = await page.request.get(callbackURL);
   expect(replay.status()).toBe(400);
@@ -574,7 +577,9 @@ test("Google approval covers the registered-user lifecycle", async ({
 
   await page.goto("/");
   await page.getByRole("button", { name: "Abrir conversaciones" }).click();
+  await page.getByRole("searchbox", { name: "Buscar conversaciones" }).fill("Conversación E2E");
   conversation = page.locator(".conversation-item").filter({ hasText: "Conversación E2E" });
+  await expect(conversation).toBeVisible();
   await conversation.locator("summary").click();
   page.once("dialog", (dialog) => dialog.accept());
   await conversation.getByRole("button", { name: "Eliminar" }).click();
@@ -627,6 +632,55 @@ async function openLoginDialog(page: import("@playwright/test").Page) {
   await consent.nth(1).check();
   await dialog.getByRole("button", { name: "Continuar con Google" }).click();
   await expect(page.getByRole("heading", { name: "Test authorization" })).toBeVisible();
+}
+
+async function keepOnlyConversation(
+  page: import("@playwright/test").Page,
+  apiOrigin: string,
+  conversationID: string,
+) {
+  const remaining = await page.evaluate(
+    async ({ origin, keepID }) => {
+      const csrf = document.cookie
+        .split("; ")
+        .find((value) => value.startsWith("glazz_csrf="))
+        ?.split("=")
+        .slice(1)
+        .join("=");
+      if (!csrf) throw new Error("Authenticated CSRF cookie is missing");
+
+      const list = await fetch(`${origin}/api/v1/conversations?limit=100&archived=true`, {
+        credentials: "include",
+      });
+      if (!list.ok) throw new Error(`Conversation cleanup list failed: ${list.status}`);
+      const body = (await list.json()) as { items: Array<{ id: string }> };
+
+      for (const conversation of body.items) {
+        if (conversation.id === keepID) continue;
+        const response = await fetch(`${origin}/api/v1/conversations/${conversation.id}`, {
+          method: "DELETE",
+          credentials: "include",
+          headers: {
+            "Idempotency-Key": `e2e-cleanup-${crypto.randomUUID()}`,
+            "X-CSRF-Token": decodeURIComponent(csrf),
+          },
+        });
+        if (!response.ok) {
+          throw new Error(`Conversation cleanup failed: ${response.status}`);
+        }
+      }
+
+      const finalList = await fetch(`${origin}/api/v1/conversations?limit=100&archived=true`, {
+        credentials: "include",
+      });
+      if (!finalList.ok) throw new Error(`Conversation cleanup check failed: ${finalList.status}`);
+      const finalBody = (await finalList.json()) as { items: Array<{ id: string }> };
+      return finalBody.items.map((conversation) => conversation.id);
+    },
+    { origin: apiOrigin, keepID: conversationID },
+  );
+
+  expect(remaining).toEqual([conversationID]);
 }
 
 async function readGuestAllowance(page: import("@playwright/test").Page, apiOrigin: string) {
