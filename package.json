@@ -32,11 +32,11 @@
     "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm go:format:check && pnpm go:lint && pnpm go:test && pnpm go:build && pnpm build"
   },
   "devDependencies": {
-    "@asyncapi/parser": "3.6.0",
-    "@redocly/cli": "2.40.0",
+    "@asyncapi/parser": "3.6.3",
+    "@redocly/cli": "2.49.0",
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
     "openapi-typescript": "7.13.0",
-    "prettier": "3.8.2"
+    "prettier": "3.9.6"
   }
 }
